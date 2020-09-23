@@ -19,21 +19,21 @@ const assert = require("assert");
 
 // Check Lambda function parameters
 assert(process.env.private_key, "No private key!");
-const appName = process.env.app_name ? process.env.app_name : "NO_APPLICATION";
-const newlinePattern = (process.env.newline_pattern) ? RegExp(process.env.newline_pattern) : /(?:\r\n|\r|\n)/g;
-const coralogixUrl = (process.env.CORALOGIX_URL) ? process.env.CORALOGIX_URL : "api.coralogix.com";
+const appName = process.env.app_name || "NO_APPLICATION";
+const newlinePattern = process.env.newline_pattern ? RegExp(process.env.newline_pattern) : /(?:\r\n|\r|\n)/g;
+const coralogixUrl = process.env.CORALOGIX_URL || "api.coralogix.com";
 
 /**
  * @description Send logs to Coralogix via API
- * @param {object} parsedEvents - Log message
+ * @param {object} parsedEvents - Logs messages
  */
 function postEventsToCoralogix(parsedEvents) {
     try {
         let retries = 3;
-        let timeoutMs = 10000;
-        let retryNum = 0;
+        let timeout = 10000;
+        let retryNumber = 0;
         let sendRequest = function sendRequest() {
-            let req = https.request({
+            let request = https.request({
                 hostname: coralogixUrl,
                 port: 443,
                 path: "/api/v1/logs",
@@ -41,32 +41,35 @@ function postEventsToCoralogix(parsedEvents) {
                 headers: {
                     "Content-Type": "application/json"
                 }
-            }, function (res) {
-                console.log("Status: %d", res.statusCode);
-                console.log("Headers: %s", JSON.stringify(res.headers));
-                res.setEncoding("utf8");
-                res.on("data", function (body) {
+            }, (response) => {
+                console.log("Status: %d", response.statusCode);
+                console.log("Headers: %s", JSON.stringify(respose.headers));
+                response.setEncoding("utf8");
+                response.on("data", (body) => {
                     console.log("Body: %s", body);
                 });
             });
-            req.setTimeout(timeoutMs, () => {
-                req.abort();
-                if (retryNum++ < retries) {
-                    console.log("Problem with request: timeout reached. retrying %d/%d", retryNum, retries);
+
+            request.setTimeout(timeout, () => {
+                request.abort();
+                if (retryNumber++ < retries) {
+                    console.log("Problem with request: timeout reached. retrying %d/%d", retryNumber, retries);
                     sendRequest();
                 } else {
                     console.log("Problem with request: timeout reached. failed all retries.");
                 }
             });
-            req.on("error", function (e) {
-                console.log("Problem with request: %s", e.message);
+
+            request.on("error", (error) => {
+                console.log("Problem with request: %s", error.message);
             });
-            req.write(JSON.stringify(parsedEvents));
-            req.end();
+
+            request.write(JSON.stringify(parsedEvents));
+            request.end();
         };
         sendRequest();
-    } catch (ex) {
-        console.log(ex.message);
+    } catch (error) {
+        console.log(error.message);
     }
 }
 

@@ -21,7 +21,7 @@ const coralogix = require("coralogix-logger");
 const s3 = new aws.S3();
 
 // Check Lambda function parameters
-assert(process.env.private_key, "No private key!")
+assert(process.env.private_key, "No private key!");
 
 // Initialize new Coralogix logger
 coralogix.CoralogixLogger.configure(new coralogix.LoggerConfig({
@@ -93,12 +93,11 @@ function handler(event, context, callback) {
         Key: decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, " "))
     }, (error, data) => {
         if (error) {
-            console.log(error);
             callback(error);
         } else {
-            zlib.gunzip(data.Body, function (error, result) {
+            zlib.gunzip(data.Body, (error, result) => {
                 if (error) {
-                    context.fail(error);
+                    callback(error);
                 } else {
                     sendLogs(Buffer.from(result));
                     callback(null, data.ContentType);

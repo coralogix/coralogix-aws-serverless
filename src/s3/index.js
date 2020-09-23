@@ -20,10 +20,10 @@ const coralogix = require("coralogix-logger");
 const s3 = new aws.S3();
 
 // Check Lambda function parameters
-assert(process.env.private_key, "No private key!")
-const appName = process.env.app_name ? process.env.app_name : "NO_APPLICATION";
-const subName = process.env.sub_name ? process.env.sub_name : "NO_SUBSYSTEM";
-const newlinePattern = (process.env.newline_pattern) ? RegExp(process.env.newline_pattern) : /(?:\r\n|\r|\n)/g;
+assert(process.env.private_key, "No private key!");
+const appName = process.env.app_name || "NO_APPLICATION";
+const subName = process.env.sub_name || "NO_SUBSYSTEM";
+const newlinePattern = process.env.newline_pattern ? RegExp(process.env.newline_pattern) : /(?:\r\n|\r|\n)/g;
 
 // Initialize new Coralogix logger
 coralogix.CoralogixLogger.configure(new coralogix.LoggerConfig({
@@ -80,7 +80,6 @@ function handler(event, context, callback) {
         Key: key
     }, (error, data) => {
         if (error) {
-            console.log(error);
             callback(error);
         } else {
             if (data.ContentType == "application/octet-stream" ||
@@ -89,9 +88,9 @@ function handler(event, context, callback) {
                 data.ContentEncoding == "compress" ||
                 key.endsWith(".gz")
             ) {
-                zlib.gunzip(data.Body, function (error, result) {
+                zlib.gunzip(data.Body, (error, result) => {
                     if (error) {
-                        context.fail(error);
+                        callback(error);
                     } else {
                         sendLogs(Buffer.from(result));
                         callback(null, data.ContentType);
