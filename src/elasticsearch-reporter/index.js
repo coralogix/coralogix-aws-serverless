@@ -30,6 +30,7 @@ const query = JSON.parse(process.env.query);
 const coralogixUrl = process.env.CORALOGIX_URL || "https://coralogix-esapi.coralogix.com:9443";
 const requestTimeout = process.env.request_timeout ? parseInt(process.env.request_timeout) : 30000;
 const subject = process.env.subject || "Coralogix Elasticsearch Report";
+const reportTime = new Date().toISOString();
 
 // Initialize Elasticsearch API client
 const es = new elasticsearch.Client({
@@ -61,7 +62,7 @@ function handler(event, context, callback) {
                 subject: subject,
                 attachments: [
                     {
-                        filename: "report.csv",
+                        filename: "report_" + reportTime + ".csv",
                         content: csv
                     }
                 ]
