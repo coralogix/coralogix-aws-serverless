@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@elastic/elasticsearch": "^7.9.0",
-    "jmespath": "^0.15.0",
+    "jmespath-plus": "^0.1.7",
     "jsonexport": "^3.0.1",
     "nodemailer": "^6.4.11"
   },

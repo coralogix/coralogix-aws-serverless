@@ -16,7 +16,7 @@
 const aws = require("aws-sdk");
 const assert = require("assert");
 const elasticsearch = require("@elastic/elasticsearch");
-const jmespath = require("jmespath");
+const jmespath = require("jmespath-plus");
 const jsonexport = require("jsonexport");
 const nodemailer = require("nodemailer");
 
@@ -54,24 +54,28 @@ function handler(event, context, callback) {
         body: query
     }, (error, result) => {
         if (error) callback(error);
-        jsonexport(jmespath.search(result.body, process.env.template), (error, csv) => {
-            if (error) callback(error);
-            nodemailer.createTransport({SES: new aws.SES()}).sendMail({
-                from: process.env.sender,
-                to: process.env.recipient,
-                subject: subject,
-                attachments: [
-                    {
-                        filename: "report_" + reportTime + ".csv",
-                        content: csv
-                    }
-                ]
-            }, (error, info) => {
+        try {
+            jsonexport(jmespath.search(result.body, process.env.template), (error, csv) => {
                 if (error) callback(error);
-                console.log("Report sent successfully:", info);
-                callback(null);
+                nodemailer.createTransport({SES: new aws.SES()}).sendMail({
+                    from: process.env.sender,
+                    to: process.env.recipient,
+                    subject: subject,
+                    attachments: [
+                        {
+                            filename: "report_" + reportTime + ".csv",
+                            content: csv
+                        }
+                    ]
+                }, (error, info) => {
+                    if (error) callback(error);
+                    console.log("Report sent successfully:", info);
+                    callback(null);
+                });
             });
-        });
+        } catch(error) {
+            callback(error);
+        }
     });
 }
 
