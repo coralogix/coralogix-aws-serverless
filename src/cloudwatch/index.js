@@ -53,7 +53,7 @@ function postToCoralogix(logs, callback, retryNumber = 0, retryLimit = 3) {
             response.setEncoding("utf8");
             response.on("data", (chunk) => responseBody += chunk);
             response.on("end", () => {
-                if(response.statusCode != 200) throw new Error(responseBody);
+                if (response.statusCode != 200) throw new Error(responseBody);
                 console.log("Body: %s", responseBody);
             });
         });
@@ -119,7 +119,7 @@ function handler(event, context, callback) {
                 "privateKey": process.env.private_key,
                 "applicationName": appName,
                 "subsystemName": process.env.sub_name ? process.env.sub_name : resultParsed.logGroup,
-                "logEntries": parsedEvents.map((logEvent) => {
+                "logEntries": parsedEvents.filter((logEvent) => logEvent.length > 0).map((logEvent) => {
                     return {
                         "timestamp": Date.now(),
                         "severity": getSeverityLevel(logEvent.toLowerCase()),
@@ -127,7 +127,7 @@ function handler(event, context, callback) {
                         "threadId": resultParsed.logStream
                     };
                 })
-            }), (error, compressedEvents) => { 
+            }), (error, compressedEvents) => {
                 if (error) callback(error);
                 postToCoralogix(compressedEvents, callback);
             });

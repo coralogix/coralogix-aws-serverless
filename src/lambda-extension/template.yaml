@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Lambda function extension for logging to Coralogix.
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: Coralogix-Lambda-Extension
+    Description: Lambda function extension for logging to Coralogix.
+    Author: Coralogix
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE
+    ReadmeUrl: README.md
+    Labels:
+      - coralogix
+      - logs
+      - lambda
+      - extension
+    HomePageUrl: https://coralogix.com
+    SemanticVersion: 1.0.0
+    SourceCodeUrl: https://github.com/coralogix/aws-lambda-extension
+Parameters:
+  CompatibleRuntimes:
+    Type: CommaDelimitedList
+    Description: Lambda Layer Version compatible runtimes
+    Default: go1.x, nodejs12.x, python3.7, python3.8, ruby2.7
+  RetentionPolicy:
+    Type: String
+    Description: Lambda Layer Version retention policy
+    AllowedValues:
+      - Retain
+      - Delete
+    Default: Retain
+Resources:
+  LambdaLayerVersion:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: coralogix-extension
+      Description: Lambda function extension for logging to Coralogix
+      LicenseInfo: Apache-2.0
+      ContentUri: ./layer.zip
+      CompatibleRuntimes:
+        Ref: CompatibleRuntimes
+      RetentionPolicy:
+        Ref: RetentionPolicy
+Outputs:
+  LambdaLayerVersionArn:
+    Description: Lambda Layer version ARN
+    Value:
+      Ref: LambdaLayerVersion
+    Export:
+      Name: CORALOGIX-EXTENSION

@@ -54,7 +54,7 @@ function postToCoralogix(logs, callback, retryNumber = 0, retryLimit = 3) {
             response.setEncoding("utf8");
             response.on("data", (chunk) => responseBody += chunk);
             response.on("end", () => {
-                if(response.statusCode != 200) throw new Error(responseBody);
+                if (response.statusCode != 200) throw new Error(responseBody);
                 console.log("Body: %s", responseBody);
             });
         });
@@ -120,7 +120,7 @@ function handler(event, context, callback) {
                 "text": eventRecord
             };
         })
-    }), (error, compressedEvents) => { 
+    }), (error, compressedEvents) => {
         if (error) callback(error);
         postToCoralogix(compressedEvents, callback);
     });

@@ -70,10 +70,7 @@ Parameters:
   Recipient:
     Type: String
     Description: Report recipient email
-    AllowedPattern: '^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
-    ConstraintDescription: The Recipient should be valid email string
     MinLength: 3
-    MaxLength: 320
     Default: success@simulator.amazonses.com
   Subject:
     Type: String

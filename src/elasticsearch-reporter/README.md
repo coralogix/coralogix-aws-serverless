@@ -2,15 +2,20 @@
 
 Generates reports from [Coralogix Elasticsearch API](https://coralogix.com/tutorials/elastic-api/) and send by email.
 
-## Prerequisites
+## Parameters
 
-1. Verified [AWS SES](https://aws.amazon.com/ses/) email/domain (**Sender** parameter).
-2. [Coralogix](https://coralogix.com/) private key (**PrivateKey** parameter).
-3. Prepared [Elasticsearch](https://www.elastic.co/guide/en/elasticsearch/reference/current/search.html) query (**Query** parameter).
-4. Prepared [JMESPath](https://jmespath.org/) template for parsing Elasticsearch response (**Template** parameter).
-5. Prepared [Schedule Expressions for CloudWatch Rules](https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html#RateExpressions) (**Schedule** parameter).
+* **Sender** - verified [AWS SES](https://aws.amazon.com/ses/) email/domain (**Sender** parameter).
+* **CoralogixRegion** - possible values are `Europe` or `India`. Choose Europe if your Coralogix account URL ends with `.com` and India if it ends with `.in`.
+* **Enabled** - `true` when report is active and will be running the query and sent periodically or `false` when it is inactive.
+* **PrivateKey** - can be found in your Coralogix account under `Settings` -> `Account` -> `API Access` -> `Elasticsearch API key`.
+* **Query** - the [Elasticsearch](https://www.elastic.co/guide/en/elasticsearch/reference/current/search.html) query.
+* **Recipient** - a list of comma separated e-mails.
+* **RequestTimeout** - the Elasticsearch query timeout.
+* **Schedule** - [CloudWatch rules schedule expression](https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html#RateExpressions).
+* **Subject** - report email subject line.
+* **Template** - [JMESPath](https://jmespath.org/) expression to structure the Elasticsearch response.
 
-For example:
+## Usage
 
 **query:**
 
