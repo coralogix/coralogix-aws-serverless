@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.0
+ * @version     1.0.1
  * @since       1.0.0
  */
 
@@ -29,7 +29,7 @@ const newlinePattern = process.env.newline_pattern ? RegExp(process.env.newline_
 coralogix.CoralogixLogger.configure(new coralogix.LoggerConfig({
     privateKey: process.env.private_key,
     applicationName: appName,
-    subsystemName: subName,
+    subsystemName: subName
 }));
 const logger = new coralogix.CoralogixLogger(appName);
 

@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.0
+ * @version     1.0.2
  * @since       1.0.0
  */
 
@@ -128,8 +128,11 @@ function handler(event, context, callback) {
                     };
                 })
             }), (error, compressedEvents) => {
-                if (error) callback(error);
-                postToCoralogix(compressedEvents, callback);
+                if (error) {
+                    callback(error);
+                } else {
+                    postToCoralogix(compressedEvents, callback);
+                }
             });
         }
     });

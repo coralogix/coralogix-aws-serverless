@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.0
+ * @version     1.0.1
  * @since       1.0.0
  */
 
@@ -28,7 +28,7 @@ const subName = process.env.sub_name || "NO_SUBSYSTEM";
 coralogix.CoralogixLogger.configure(new coralogix.LoggerConfig({
     privateKey: process.env.private_key,
     applicationName: appName,
-    subsystemName: subName,
+    subsystemName: subName
 }));
 const logger = new coralogix.CoralogixLogger(appName);
 

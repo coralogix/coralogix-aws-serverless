@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.0
+ * @version     1.0.1
  * @since       1.0.0
  */
 
@@ -53,28 +53,32 @@ function handler(event, context, callback) {
         index: "*",
         body: query
     }, (error, result) => {
-        if (error) callback(error);
-        try {
-            jsonexport(jmespath.search(result.body, process.env.template), (error, csv) => {
-                if (error) callback(error);
-                nodemailer.createTransport({SES: new aws.SES()}).sendMail({
-                    from: process.env.sender,
-                    to: process.env.recipient,
-                    subject: subject,
-                    attachments: [
-                        {
-                            filename: "report_" + reportTime + ".csv",
-                            content: csv
-                        }
-                    ]
-                }, (error, info) => {
-                    if (error) callback(error);
-                    console.log("Report sent successfully:", info);
-                    callback(null);
-                });
-            });
-        } catch(error) {
+        if (error) {
             callback(error);
+        } else {
+            jsonexport(jmespath.search(result.body, process.env.template), (error, csv) => {
+                if (error) {
+                    callback(error);
+                } else {
+                    nodemailer.createTransport({SES: new aws.SES()}).sendMail({
+                        from: process.env.sender,
+                        to: process.env.recipient,
+                        subject: subject,
+                        attachments: [
+                            {
+                                filename: `report_${reportTime}.csv`,
+                                content: csv
+                            }
+                        ]
+                    }, (error, info) => {
+                        if (error) {
+                            callback(error);
+                        } else {
+                            callback(null, `Report sent successfully: ${info}`);
+                        }
+                    });
+                }
+            });
         }
     });
 }

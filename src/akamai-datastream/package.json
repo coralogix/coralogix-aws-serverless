@@ -1,8 +1,8 @@
 {
-  "name": "coralogix-cloudwatch",
-  "title": "AWS CloudWatch Lambda function for Coralogix",
-  "version": "1.0.2",
-  "description": "AWS Lambda function to send CloudWatch logs to Coralogix",
+  "name": "coralogix-akamai-datastream",
+  "title": "AWS Lambda function for Akamai DataStream API and Coralogix integration",
+  "version": "1.0.0",
+  "description": "AWS Lambda function for collecting and sending Akamai DataStream logs to Coralogix",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",
   "main": "index.js",
@@ -24,7 +24,9 @@
   "keywords": [
     "coralogix",
     "logs",
-    "cloudwatch",
+    "akamai",
+    "datastream",
+    "api",
     "aws",
     "javascript",
     "library"
@@ -36,6 +38,13 @@
   "bugs": {
     "email": "info@coralogix.com",
     "url": "https://github.com/coralogix/coralogix-aws-serverless/issues"
+  },
+  "devDependencies": {
+    "aws-sdk": "^2.790.0"
+  },
+  "dependencies": {
+    "coralogix-logger": "^1.1.25",
+    "edgegrid": "^3.0.8"
   },
   "files": [
     "LICENSE",
