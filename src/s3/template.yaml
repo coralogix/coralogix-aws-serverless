@@ -14,7 +14,7 @@ Metadata:
       - logs
       - s3
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.1
+    SemanticVersion: 1.0.2
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -46,6 +46,11 @@ Parameters:
     Type: String
     Description: The pattern for lines splitting
     Default: '(?:\r\n|\r|\n)'
+  SamplingRate:
+    Type: Number
+    Description: Send messages with specific rate
+    MinValue: 1
+    Default: 1
   S3BucketName:
     Type: String
     Description: The name of the S3 bucket to watch
@@ -107,6 +112,8 @@ Resources:
             Ref: SubsystemName
           newline_pattern:
             Ref: NewlinePattern
+          sampling:
+            Ref: SamplingRate
       Policies:
         - S3ReadPolicy:
             BucketName:

@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.1
+ * @version     1.0.2
  * @since       1.0.0
  */
 
@@ -24,6 +24,7 @@ assert(process.env.private_key, "No private key!");
 const appName = process.env.app_name || "NO_APPLICATION";
 const subName = process.env.sub_name || "NO_SUBSYSTEM";
 const newlinePattern = process.env.newline_pattern ? RegExp(process.env.newline_pattern) : /(?:\r\n|\r|\n)/g;
+const sampling = process.env.sampling ? parseInt(process.env.sampling) : 1;
 
 // Initialize new Coralogix logger
 coralogix.CoralogixLogger.configure(new coralogix.LoggerConfig({
@@ -39,7 +40,7 @@ const logger = new coralogix.CoralogixLogger(appName);
  */
 function sendLogs(content) {
     const logs = content.toString("utf8").split(newlinePattern);
-    for (let i = 0; i < logs.length; i++) {
+    for (let i = 0; i < logs.length; i += sampling) {
         if (!logs[i]) continue;
         const log = new coralogix.Log({
             text: logs[i],
