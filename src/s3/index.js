@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.2
+ * @version     1.0.3
  * @since       1.0.0
  */
 
@@ -25,12 +25,14 @@ const appName = process.env.app_name || "NO_APPLICATION";
 const subName = process.env.sub_name || "NO_SUBSYSTEM";
 const newlinePattern = process.env.newline_pattern ? RegExp(process.env.newline_pattern) : /(?:\r\n|\r|\n)/g;
 const sampling = process.env.sampling ? parseInt(process.env.sampling) : 1;
+const debug = JSON.parse(process.env.debug || false);
 
 // Initialize new Coralogix logger
 coralogix.CoralogixLogger.configure(new coralogix.LoggerConfig({
     privateKey: process.env.private_key,
     applicationName: appName,
-    subsystemName: subName
+    subsystemName: subName,
+    debug: debug
 }));
 const logger = new coralogix.CoralogixLogger(appName);
 
@@ -98,7 +100,7 @@ function handler(event, context, callback) {
                     }
                 });
             } else {
-                sendLogs(Buffer.from(data.Body))
+                sendLogs(Buffer.from(data.Body));
             }
         }
     });

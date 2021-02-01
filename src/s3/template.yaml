@@ -14,7 +14,7 @@ Metadata:
       - logs
       - s3
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.2
+    SemanticVersion: 1.0.3
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -51,6 +51,18 @@ Parameters:
     Description: Send messages with specific rate
     MinValue: 1
     Default: 1
+  BufferSize:
+    Type: Number
+    Description: Coralogix logger buffer size
+    MinValue: 12582912
+    Default: 134217728
+  Debug:
+    Type: String
+    Description: Coralogix logger debug mode
+    AllowedValues:
+      - true
+      - false
+    Default: false
   S3BucketName:
     Type: String
     Description: The name of the S3 bucket to watch
@@ -104,6 +116,8 @@ Resources:
               - CoralogixRegionMap
               - Ref: CoralogixRegion
               - LogUrl
+          CORALOGIX_BUFFER_SIZE:
+            Ref: BufferSize
           private_key:
             Ref: PrivateKey
           app_name:
@@ -114,6 +128,8 @@ Resources:
             Ref: NewlinePattern
           sampling:
             Ref: SamplingRate
+          debug:
+            Ref: Debug
       Policies:
         - S3ReadPolicy:
             BucketName:
