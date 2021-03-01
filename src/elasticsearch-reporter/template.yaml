@@ -17,7 +17,7 @@ Metadata:
       - ses
       - email
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.1
+    SemanticVersion: 1.0.2
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -26,6 +26,7 @@ Parameters:
     AllowedValues:
       - Europe
       - India
+      - US
     Default: Europe
   PrivateKey:
     Type: String
@@ -97,6 +98,8 @@ Mappings:
       LogUrl: https://coralogix-esapi.coralogix.com:9443
     India:
       LogUrl: https://es-api.app.coralogix.in:9443
+    US:
+      LogUrl: https://es-api.app.coralogix.us:9443
 Resources:
   LambdaFunction:
     Type: AWS::Serverless::Function

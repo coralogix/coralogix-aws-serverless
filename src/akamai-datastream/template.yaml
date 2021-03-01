@@ -16,7 +16,7 @@ Metadata:
       - datastream
       - api
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.0
+    SemanticVersion: 1.0.1
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -25,6 +25,7 @@ Parameters:
     AllowedValues:
       - Europe
       - India
+      - US
     Default: Europe
   PrivateKey:
     Type: String
@@ -117,6 +118,8 @@ Mappings:
       LogUrl: https://api.coralogix.com/api/v1/logs
     India:
       LogUrl: https://api.app.coralogix.in/api/v1/logs
+    US:
+      LogUrl: https://api.app.coralogix.us/api/v1/logs
 Resources:
   LambdaFunction:
     Type: AWS::Serverless::Function

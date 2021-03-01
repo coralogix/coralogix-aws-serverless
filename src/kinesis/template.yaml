@@ -15,7 +15,7 @@ Metadata:
       - stream
       - kinesis
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.1
+    SemanticVersion: 1.0.2
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -24,6 +24,7 @@ Parameters:
     AllowedValues:
       - Europe
       - India
+      - US
     Default: Europe
   PrivateKey:
     Type: String
@@ -72,6 +73,8 @@ Mappings:
       LogUrl: api.coralogix.com
     India:
       LogUrl: api.app.coralogix.in
+    US:
+      LogUrl: api.app.coralogix.us
 Resources:
   LambdaFunction:
     Type: AWS::Serverless::Function

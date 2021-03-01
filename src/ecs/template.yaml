@@ -26,6 +26,7 @@ Parameters:
     AllowedValues:
       - Europe
       - India
+      - US
     Default: Europe
   PrivateKey:
     Type: String
@@ -48,6 +49,9 @@ Mappings:
     India:
       LogUrl: https://api.app.coralogix.in/api/v1/logs
       TimeDeltaUrl: https://api.app.coralogix.in/sdk/v1/time
+    US:
+      LogUrl: https://api.app.coralogix.us/api/v1/logs
+      TimeDeltaUrl: https://api.app.coralogix.us/sdk/v1/time
 Resources:
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
