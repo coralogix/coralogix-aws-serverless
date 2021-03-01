@@ -14,7 +14,7 @@ Metadata:
       - logs
       - s3
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.4
+    SemanticVersion: 1.0.5
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -99,7 +99,7 @@ Mappings:
     India:
       LogUrl: https://api.app.coralogix.in/api/v1/logs
     US:
-      LogUrl: https://api.app.coralogix.us/api/v1/logs
+      LogUrl: https://api.coralogix.us/api/v1/logs
 Resources:
   LambdaFunction:
     Type: AWS::Serverless::Function
