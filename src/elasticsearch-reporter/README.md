@@ -5,7 +5,7 @@ Generates reports from [Coralogix Elasticsearch API](https://coralogix.com/tutor
 ## Parameters
 
 * **Sender** - verified [AWS SES](https://aws.amazon.com/ses/) email/domain (**Sender** parameter).
-* **CoralogixRegion** - possible values are `Europe` or `India`. Choose Europe if your Coralogix account URL ends with `.com` and India if it ends with `.in`.
+* **CoralogixRegion** - Possible values are `Europe`, `US` or `India`. Choose `Europe` if your Coralogix account URL ends with `.com`, `US` if it ends with `.us` and `India` if it ends with `.in`. This is a **Coralogix** parameter and does not relate to your to your AWS region.
 * **Enabled** - `true` when report is active and will be running the query and sent periodically or `false` when it is inactive.
 * **PrivateKey** - can be found in your Coralogix account under `Settings` -> `Account` -> `API Access` -> `Elasticsearch API key`.
 * **Query** - the [Elasticsearch](https://www.elastic.co/guide/en/elasticsearch/reference/current/search.html) query.
