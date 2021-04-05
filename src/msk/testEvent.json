@@ -1,0 +1,17 @@
+{
+  "eventSource": "aws:kafka",
+  "eventSourceArn": "arn:aws:kafka:eu-central-1:597078901540:cluster/kafka/51eda753-7ba1-4456-bfb0-f7ec563461c0-3",
+  "bootstrapServers": "b-2.kafka.ovum72.c3.kafka.eu-central-1.amazonaws.com:9094,b-1.kafka.ovum72.c3.kafka.eu-central-1.amazonaws.com:9094",
+  "records": {
+      "logs-1": [
+          {
+              "topic": "logs",
+              "partition": 1,
+              "offset": 1,
+              "timestamp": 1617613606444,
+              "timestampType": "CREATE_TIME",
+              "value": "SGVsbG8gd29ybGQh"
+          }
+      ]
+  }
+}
