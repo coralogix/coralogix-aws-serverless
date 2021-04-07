@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.3
+ * @version     1.0.6
  * @since       1.0.0
  */
 
@@ -21,50 +21,79 @@ const s3 = new aws.S3();
 
 // Check Lambda function parameters
 assert(process.env.private_key, "No private key!");
-const appName = process.env.app_name || "NO_APPLICATION";
-const subName = process.env.sub_name || "NO_SUBSYSTEM";
 const newlinePattern = process.env.newline_pattern ? RegExp(process.env.newline_pattern) : /(?:\r\n|\r|\n)/g;
 const sampling = process.env.sampling ? parseInt(process.env.sampling) : 1;
 const debug = JSON.parse(process.env.debug || false);
 
 // Initialize new Coralogix logger
-coralogix.CoralogixLogger.configure(new coralogix.LoggerConfig({
+coralogix.CoralogixCentralLogger.configure(new coralogix.LoggerConfig({
     privateKey: process.env.private_key,
-    applicationName: appName,
-    subsystemName: subName,
     debug: debug
 }));
-const logger = new coralogix.CoralogixLogger(appName);
+const logger = new coralogix.CoralogixCentralLogger();
 
 /**
  * @description Send logs records to Coralogix
  * @param {Buffer} content - Logs records data
+ * @param {string} filename - Logs filename S3 path
  */
-function sendLogs(content) {
+function sendLogs(content, filename) {
     const logs = content.toString("utf8").split(newlinePattern);
+
     for (let i = 0; i < logs.length; i += sampling) {
         if (!logs[i]) continue;
-        const log = new coralogix.Log({
-            text: logs[i],
-            severity: getSeverityLevel(logs[i])
-        });
-        logger.addLog(log);
+        let appName = process.env.app_name || "NO_APPLICATION";
+        let subName = process.env.sub_name || "NO_SUBSYSTEM";
+
+        try {
+            appName = appName.startsWith("$.") ? dig(appName, JSON.parse(logs[i])) : appName;
+            subName = subName.startsWith("$.") ? dig(subName, JSON.parse(logs[i])) : subName;
+        } catch {}
+
+        logger.addLog(
+            appName,
+            subName,
+            new coralogix.Log({
+                severity: getSeverityLevel(logs[i]),
+                text: logs[i],
+                threadId: filename
+            })
+        );
     }
+}
+
+/**
+ * @description Extract nested field from object
+ * @param {string} path - Path to field
+ * @param {*} object - JavaScript object
+ * @returns {*} Field value
+ */
+function dig(path, object) {
+    if (path.startsWith("$.")) {
+        return path.split(".").slice(1).reduce((xs, x) => (xs && xs[x]) ? xs[x] : path, object);
+    }
+    return path;
 }
 
 /**
  * @description Extract serverity from log record
  * @param {string} message - Log message
- * @returns {int} Severity level
+ * @returns {number} Severity level
  */
 function getSeverityLevel(message) {
     let severity = 3;
-    if (!message)
-        return severity;
-    if (message.includes("Warning") || message.includes("warn"))
+    if (message.includes("debug"))
+        severity = 1;
+    if (message.includes("verbose"))
+        severity = 2;
+    if (message.includes("info"))
+        severity = 3;
+    if (message.includes("warn") || message.includes("warning"))
         severity = 4;
-    if (message.includes("Error") || message.includes("Exception"))
+    if (message.includes("error"))
         severity = 5;
+    if (message.includes("critical") || message.includes("panic"))
+        severity = 6;
     return severity;
 }
 
@@ -72,7 +101,7 @@ function getSeverityLevel(message) {
  * @description Lambda function handler
  * @param {object} event - Event data
  * @param {object} context - Function context
- * @param {object} callback - Function callback
+ * @param {function} callback - Function callback
  */
 function handler(event, context, callback) {
     const bucket = event.Records[0].s3.bucket.name;
@@ -100,7 +129,7 @@ function handler(event, context, callback) {
                     }
                 });
             } else {
-                sendLogs(Buffer.from(data.Body));
+                sendLogs(Buffer.from(data.Body), `s3://${bucket}/${key}`);
             }
         }
     });

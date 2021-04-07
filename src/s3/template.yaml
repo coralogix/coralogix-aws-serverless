@@ -14,7 +14,7 @@ Metadata:
       - logs
       - s3
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.5
+    SemanticVersion: 1.0.6
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -84,7 +84,7 @@ Parameters:
     Type: Number
     Description: Lambda function memory limit
     MinValue: 128
-    MaxValue: 3008
+    MaxValue: 10240
     Default: 1024
   FunctionTimeout:
     Type: Number
@@ -107,7 +107,7 @@ Resources:
       Description: Send logs from S3 bucket to Coralogix.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs10.x
+      Runtime: nodejs12.x
       MemorySize:
         Ref: FunctionMemorySize
       Timeout:
