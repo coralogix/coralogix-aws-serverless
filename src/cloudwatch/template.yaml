@@ -47,6 +47,11 @@ Parameters:
     Type: String
     Description: The pattern for lines splitting
     Default: '(?:\r\n|\r|\n)'
+  SamplingRate:
+    Type: Number
+    Description: Send messages with specific rate
+    MinValue: 1
+    Default: 1
   CloudWatchLogGroupName:
     Type: String
     Description: The name of the CloudWatch log group to watch
