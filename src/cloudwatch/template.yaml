@@ -14,7 +14,7 @@ Metadata:
       - logs
       - cloudwatch
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.5
+    SemanticVersion: 1.0.6
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -100,6 +100,8 @@ Resources:
             Ref: SubsystemName
           newline_pattern:
             Ref: NewlinePattern
+          sampling:
+            Ref: SamplingRate
       Events:
         CloudWatchLogsEvent:
           Type: CloudWatchLogs

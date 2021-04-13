@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.5
+ * @version     1.0.6
  * @since       1.0.0
  */
 
@@ -20,6 +20,7 @@ const assert = require("assert");
 // Check Lambda function parameters
 assert(process.env.private_key, "No private key!");
 const newlinePattern = process.env.newline_pattern ? RegExp(process.env.newline_pattern) : /(?:\r\n|\r|\n)/g;
+const sampling = process.env.sampling ? parseInt(process.env.sampling) : 1;
 const coralogixUrl = process.env.CORALOGIX_URL || "api.coralogix.com";
 
 /**
@@ -129,7 +130,7 @@ function handler(event, context, callback) {
             const parsedEvents = resultParsed.logEvents.map(logEvent => logEvent.message).join("\r\n").split(newlinePattern);
 
             zlib.gzip(JSON.stringify(
-                parsedEvents.filter((logEvent) => logEvent.length > 0).map((logEvent) => {
+                parsedEvents.filter((logEvent) => logEvent.length > 0).filter((logEvent, index) => index % sampling == 0).map((logEvent) => {
                     let appName = process.env.app_name || "NO_APPLICATION";
                     let subName = process.env.sub_name || resultParsed.logGroup;
 
