@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Send SNS messages to Coralogix.
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: Coralogix-SNS
+    Description: Send SNS messages to Coralogix.
+    Author: Coralogix
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE
+    ReadmeUrl: README.md
+    Labels:
+      - coralogix
+      - logs
+      - sns
+      - notifications
+    HomePageUrl: https://coralogix.com
+    SemanticVersion: 1.0.0
+    SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
+Parameters:
+  CoralogixRegion:
+    Type: String
+    Description: The Coralogix location region
+    AllowedValues:
+      - Europe
+      - India
+      - US
+    Default: Europe
+  PrivateKey:
+    Type: String
+    Description: The Coralogix private key which is used to validate your authenticity
+    AllowedPattern: '[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}'
+    ConstraintDescription: The PrivateKey should be valid UUID string
+    MinLength: 36
+    MaxLength: 36
+    NoEcho: true
+  ApplicationName:
+    Type: String
+    Description: The name of your application
+    MinLength: 1
+    MaxLength: 64
+  SubsystemName:
+    Type: String
+    Description: The subsystem name of your application
+    MaxLength: 64
+    Default: ''
+  SNSTopicArn:
+    Type: String
+    Description: The ARN of SNS topic to subscribe
+    MinLength: 20
+    MaxLength: 2048
+  FunctionMemorySize:
+    Type: Number
+    Description: Lambda function memory limit
+    MinValue: 128
+    MaxValue: 3008
+    Default: 1024
+  FunctionTimeout:
+    Type: Number
+    Description: Lambda function timeout limit
+    MinValue: 30
+    MaxValue: 900
+    Default: 300
+Mappings:
+  CoralogixRegionMap:
+    Europe:
+      LogUrl: api.coralogix.com
+    India:
+      LogUrl: api.app.coralogix.in
+    US:
+      LogUrl: api.coralogix.us
+Resources:
+  LambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Send SNS messages to Coralogix.
+      CodeUri: .
+      Handler: index.handler
+      Runtime: nodejs12.x
+      MemorySize:
+        Ref: FunctionMemorySize
+      Timeout:
+        Ref: FunctionTimeout
+      Environment:
+        Variables:
+          CORALOGIX_URL:
+            Fn::FindInMap:
+              - CoralogixRegionMap
+              - Ref: CoralogixRegion
+              - LogUrl
+          private_key:
+            Ref: PrivateKey
+          app_name:
+            Ref: ApplicationName
+          sub_name:
+            Ref: SubsystemName
+      Events:
+        SNSEvent:
+          Type: SNS
+          Properties:
+            Topic:
+              Ref: SNSTopicArn
