@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.6
+ * @version     1.0.7
  * @since       1.0.0
  */
 
@@ -114,8 +114,7 @@ function handler(event, context, callback) {
         if (error) {
             callback(error);
         } else {
-            if (data.ContentType == "application/octet-stream" ||
-                data.ContentType == "application/x-gzip" ||
+            if (data.ContentType == "application/x-gzip" ||
                 data.ContentEncoding == "gzip" ||
                 data.ContentEncoding == "compress" ||
                 key.endsWith(".gz")
