@@ -1,0 +1,3 @@
+name: 'coralogix-cspm-docker-image'
+version: 1.0.0
+deployable_type: image

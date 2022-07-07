@@ -1,0 +1,206 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Send data from self-hosted Apache Kafka to Coralogix.
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: Coralogix-Kafka
+    Description: Send data from self-hosted Apache Kafka to Coralogix.
+    Author: Coralogix
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE
+    ReadmeUrl: README.md
+    Labels:
+      - coralogix
+      - logs
+      - apache
+      - kafka
+      - stream
+    HomePageUrl: https://coralogix.com
+    SemanticVersion: 1.0.3
+    SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
+Parameters:
+  CoralogixRegion:
+    Type: String
+    Description: The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US]
+    AllowedValues:
+      - Europe
+      - Europe2
+      - India
+      - Singapore
+      - US
+    Default: Europe
+  PrivateKey:
+    Type: String
+    Description: The Coralogix private key which is used to validate your authenticity
+    AllowedPattern: '[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}'
+    ConstraintDescription: The PrivateKey should be valid UUID string
+    MinLength: 36
+    MaxLength: 36
+    NoEcho: true
+  ApplicationName:
+    Type: String
+    Description: The name of your application
+    MinLength: 1
+    MaxLength: 64
+  SubsystemName:
+    Type: String
+    Description: The subsystem name of your application
+    MaxLength: 64
+    Default: ''
+  BatchSize:
+    Type: Number
+    Description: The maximum number of records to retrieve per batch
+    MinValue: 1
+    MaxValue: 10000
+    Default: 100
+  KafkaBrokers:
+    Type: CommaDelimitedList
+    Description: Comma-delimited list of host and port pair addresses of your Kafka brokers
+  KafkaTopic:
+    Type: String
+    Description: The name of the Kafka topic used to store records in your Kafka cluster
+    AllowedPattern: '^[^.]([a-zA-Z0-9\.\-_]+)'
+    ConstraintDescription: Allowed characters a-z, A-Z, 0-9, . (dot), _ (underscore), and - (dash)
+    MinLength: 2
+    MaxLength: 249
+  KafkaSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: The subnets associated with your VPC for each Kafka broker
+  KafkaSecurityGroups:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: The VPC security groups used to manage access to your Kafka cluster
+  FunctionArchitecture:
+    Type: String
+    Description: Lambda function architecture, possible options are [x86_64, arm64]
+    AllowedValues:
+      - x86_64
+      - arm64
+    Default: x86_64
+  FunctionMemorySize:
+    Type: Number
+    Description: Lambda function memory limit
+    MinValue: 128
+    MaxValue: 3008
+    Default: 1024
+  FunctionTimeout:
+    Type: Number
+    Description: Lambda function timeout limit
+    MinValue: 30
+    MaxValue: 900
+    Default: 300
+  NotificationEmail:
+    Type: String
+    Description: Failure notification email address
+    MaxLength: 320
+    Default: ''
+Mappings:
+  CoralogixRegionMap:
+    Europe:
+      LogUrl: api.coralogix.com
+    Europe2:
+      LogUrl: api.eu2.coralogix.com
+    India:
+      LogUrl: api.app.coralogix.in
+    Singapore:
+      LogUrl: api.coralogixsg.com
+    US:
+      LogUrl: api.coralogix.us
+Conditions:
+  IsNotificationEnabled:
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: NotificationEmail
+          - ''
+Resources:
+  LambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Send data from self-hosted Apache Kafka to Coralogix.
+      CodeUri: .
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Architectures:
+        - Ref: FunctionArchitecture
+      MemorySize:
+        Ref: FunctionMemorySize
+      Timeout:
+        Ref: FunctionTimeout
+      Environment:
+        Variables:
+          CORALOGIX_URL:
+            Fn::FindInMap:
+              - CoralogixRegionMap
+              - Ref: CoralogixRegion
+              - LogUrl
+          private_key:
+            Ref: PrivateKey
+          app_name:
+            Ref: ApplicationName
+          sub_name:
+            Ref: SubsystemName
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: SNS
+      Policies:
+        - Statement:
+            - Sid: VPCAccessPolicy
+              Effect: Allow
+              Action:
+                - ec2:CreateNetworkInterface
+                - ec2:DescribeNetworkInterfaces
+                - ec2:DeleteNetworkInterface
+                - ec2:DescribeVpcs
+                - ec2:DescribeSubnets
+                - ec2:DescribeSecurityGroups
+              Resource: "*"
+
+  CustomResourceLambdaTriggerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../helper
+      Handler: kafka.lambda_handler
+      Runtime: python3.6
+      Timeout: 300
+      Policies:
+        - Statement:
+            - Sid: EventSourceMappingCRUDPolicy
+              Effect: Allow
+              Action:
+                - lambda:GetEventSourceMapping
+                - lambda:CreateEventSourceMapping
+                - lambda:DeleteEventSourceMapping
+              Resource: "*"
+
+  LambdaTrigger:
+    Type: Custom::KafkaTrigger
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomResourceLambdaTriggerFunction
+          - Arn
+      Brokers:
+        Ref: KafkaBrokers
+      Topic:
+        Ref: KafkaTopic
+      Function:
+        Fn::GetAtt:
+          - LambdaFunction
+          - Arn
+      BatchSize:
+        Ref: BatchSize
+      StartingPosition: LATEST
+      SecurityGroupIds:
+        Ref: KafkaSecurityGroups
+      SubnetIds:
+        Ref: KafkaSubnets
+
+  LambdaFunctionNotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: IsNotificationEnabled
+    Properties:
+      Protocol: email
+      Endpoint:
+        Ref: NotificationEmail
+      TopicArn:
+        Ref: LambdaFunction.DestinationTopic

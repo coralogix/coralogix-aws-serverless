@@ -1,0 +1,10 @@
+.git/
+.idea/
+.DS_Store
+node_modules/
+npm-debug.log*
+*~
+coverage/
+package-lock.json
+.aws-sam/
+packaged.y?ml

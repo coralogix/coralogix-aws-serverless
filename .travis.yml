@@ -1,0 +1,39 @@
+sudo: true
+dist: bionic
+language: python
+python:
+  - "3.6"
+env:
+  - AWS_DEFAULT_REGION=eu-central-1
+services:
+  - docker
+addons:
+  apt:
+    update: true
+    packages:
+      - nodejs
+      - npm
+      - cmake
+before_script:
+  - aws --version
+  - sam --version
+stages:
+  - validate
+  - test
+  - name: publish
+    if: branch = master AND type = push
+jobs:
+  include:
+    - stage: validate
+      script: make validate
+    - stage: test
+      #script: make test
+      script: echo "test"
+    - stage: publish
+      script: make publish
+notifications:
+  email:
+    recipients:
+      - eldar@coralogix.com
+    on_success: change
+    on_failure: always

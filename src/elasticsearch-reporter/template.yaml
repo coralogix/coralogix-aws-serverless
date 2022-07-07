@@ -1,0 +1,187 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Generate report from Coralogix Elasticsearch API and send it by email.
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: Coralogix-Elasticsearch-Reporter
+    Description: Generate report from Coralogix Elasticsearch API and send it by email.
+    Author: Coralogix
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE
+    ReadmeUrl: README.md
+    Labels:
+      - coralogix
+      - logs
+      - elasticsearch
+      - report
+      - ses
+      - email
+    HomePageUrl: https://coralogix.com
+    SemanticVersion: 1.0.8
+    SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
+Parameters:
+  CoralogixRegion:
+    Type: String
+    Description: The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US]
+    AllowedValues:
+      - Europe
+      - Europe2
+      - India
+      - Singapore
+      - US
+    Default: Europe
+  PrivateKey:
+    Type: String
+    Description: The Coralogix private key which is used to validate your authenticity
+    AllowedPattern: '[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}'
+    ConstraintDescription: The PrivateKey should be valid UUID string
+    MinLength: 36
+    MaxLength: 36
+    NoEcho: true
+  FunctionArchitecture:
+    Type: String
+    Description: Lambda function architecture, possible options are [x86_64, arm64]
+    AllowedValues:
+      - x86_64
+      - arm64
+    Default: x86_64
+  FunctionMemorySize:
+    Type: Number
+    Description: Lambda function memory limit
+    MinValue: 128
+    MaxValue: 3008
+    Default: 2048
+  FunctionTimeout:
+    Type: Number
+    Description: Lambda function timeout limit
+    MinValue: 30
+    MaxValue: 900
+    Default: 600
+  Schedule:
+    Type: String
+    Description: Report sending schedule
+    MinLength: 3
+    MaxLength: 320
+    Default: 'cron(0 0 * * ? *)'
+  Enabled:
+    Type: String
+    Description: Report sending state
+    AllowedValues:
+      - True
+      - False
+    Default: True
+  Sender:
+    Type: String
+    Description: Report sender email
+    AllowedPattern: '^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+    ConstraintDescription: The Sender should be valid email string
+    MinLength: 3
+    MaxLength: 320
+  Recipient:
+    Type: String
+    Description: Report recipient email
+    MinLength: 3
+    Default: success@simulator.amazonses.com
+  Subject:
+    Type: String
+    Description: Report email subject
+    MinLength: 1
+    MaxLength: 78
+    Default: Coralogix Elasticsearch Report
+  Query:
+    Type: String
+    Description: Elasticsearch query
+    MinLength: 1
+  Template:
+    Type: String
+    Description: Report template in JMESPath format
+    MinLength: 1
+  RequestTimeout:
+    Type: Number
+    Description: Elasticsearch request timeout
+    MinValue: 10000
+    Default: 30000
+  NotificationEmail:
+    Type: String
+    Description: Failure notification email address
+    MaxLength: 320
+    Default: ''
+Mappings:
+  CoralogixRegionMap:
+    Europe:
+      LogUrl: https://coralogix-esapi.coralogix.com:9443
+    Europe2:
+      LogUrl: https://es-api.eu2.coralogix.com:9443
+    India:
+      LogUrl: https://es-api.app.coralogix.in:9443
+    Singapore:
+      LogUrl: https://es-api.coralogixsg.com:9443
+    US:
+      LogUrl: https://esapi.coralogix.us:9443
+Conditions:
+  IsNotificationEnabled:
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: NotificationEmail
+          - ''
+Resources:
+  LambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Generate report from Coralogix Elasticsearch API and send it by email.
+      CodeUri: .
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Architectures:
+        - Ref: FunctionArchitecture
+      MemorySize:
+        Ref: FunctionMemorySize
+      Timeout:
+        Ref: FunctionTimeout
+      Environment:
+        Variables:
+          CORALOGIX_URL:
+            Fn::FindInMap:
+              - CoralogixRegionMap
+              - Ref: CoralogixRegion
+              - LogUrl
+          private_key:
+            Ref: PrivateKey
+          query:
+            Ref: Query
+          template:
+            Ref: Template
+          sender:
+            Ref: Sender
+          recipient:
+            Ref: Recipient
+          subject:
+            Ref: Subject
+          requestTimeout:
+            Ref: RequestTimeout
+      Policies:
+        - SESCrudPolicy:
+            IdentityName:
+              Ref: Sender
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: SNS
+      Events:
+        CloudWatchSchedule:
+          Type: Schedule
+          Properties:
+            Schedule:
+              Ref: Schedule
+            Enabled:
+              Ref: Enabled
+
+  LambdaFunctionNotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: IsNotificationEnabled
+    Properties:
+      Protocol: email
+      Endpoint:
+        Ref: NotificationEmail
+      TopicArn:
+        Ref: LambdaFunction.DestinationTopic

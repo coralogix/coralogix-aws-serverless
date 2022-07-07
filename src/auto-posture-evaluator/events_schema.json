@@ -1,0 +1,81 @@
+{
+  "type": "object",
+  "required": [
+    "security"
+  ],
+  "properties": {
+    "security": {
+      "type": "object",
+      "properties": {
+        "event_type": {
+          "type": "string",
+          "pattern": "^auto_posture_evaluator$"
+        },
+        "service": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9]{1,25}$"
+        },
+        "provider": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9]{1,25}$"
+        },
+        "test_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}$"
+        },
+        "test_start_time": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{1,10}$"
+        },
+        "timestamp": {
+          "type": "number"
+        },
+        "item": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9\\.-_]{1,100}$"
+        },
+        "item_type": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_]{1,25}$"
+        },
+        "test_name": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_]{1,100}$"
+        },
+        "test_result": {
+          "type": "string",
+          "pattern": "^(issue_found)|(no_issue_found)$"
+        },
+        "classifications": {
+          "type": "object",
+          "properties": {
+            "HIPPA": {
+              "type": "string"
+            },
+            "PCI-DSS": {
+              "type": "string"
+            },
+            "SOC2": {
+              "type": "string"
+            },
+            "ISO": {
+              "type": "string"
+            },
+            "CIS": {
+              "type": "string"
+            },
+            "NIST": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "additional_data": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "additionalProperties": false
+  }
+}

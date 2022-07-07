@@ -1,0 +1,45 @@
+{
+  "name": "coralogix-sns",
+  "title": "AWS SNS Lambda function for Coralogix",
+  "version": "1.0.3",
+  "description": "AWS Lambda function to send SNS messages to Coralogix",
+  "homepage": "https://coralogix.com",
+  "license": "Apache-2.0",
+  "main": "index.js",
+  "author": {
+    "name": "Coralogix",
+    "email": "info@coralogix.com",
+    "url": "https://coralogix.com"
+  },
+  "engines": {
+    "node": "12.x"
+  },
+  "contributors": [
+    {
+      "name": "Eldar Aliiev",
+      "email": "eldar@coralogix.com",
+      "url": "https://github.com/EldarAliiev"
+    }
+  ],
+  "keywords": [
+    "coralogix",
+    "logs",
+    "notifications",
+    "sns",
+    "aws",
+    "javascript",
+    "library"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coralogix/coralogix-aws-serverless.git"
+  },
+  "bugs": {
+    "email": "info@coralogix.com",
+    "url": "https://github.com/coralogix/coralogix-aws-serverless/issues"
+  },
+  "files": [
+    "LICENSE",
+    "README.md"
+  ]
+}

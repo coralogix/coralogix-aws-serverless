@@ -1,0 +1,53 @@
+{
+  "name": "coralogix-akamai-datastream",
+  "title": "AWS Lambda function for Akamai DataStream API and Coralogix integration",
+  "version": "1.0.6",
+  "description": "AWS Lambda function for collecting and sending Akamai DataStream logs to Coralogix",
+  "homepage": "https://coralogix.com",
+  "license": "Apache-2.0",
+  "main": "index.js",
+  "author": {
+    "name": "Coralogix",
+    "email": "info@coralogix.com",
+    "url": "https://coralogix.com"
+  },
+  "engines": {
+    "node": "12.x"
+  },
+  "contributors": [
+    {
+      "name": "Eldar Aliiev",
+      "email": "eldar@coralogix.com",
+      "url": "https://github.com/EldarAliiev"
+    }
+  ],
+  "keywords": [
+    "coralogix",
+    "logs",
+    "akamai",
+    "datastream",
+    "api",
+    "aws",
+    "javascript",
+    "library"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coralogix/coralogix-aws-serverless.git"
+  },
+  "bugs": {
+    "email": "info@coralogix.com",
+    "url": "https://github.com/coralogix/coralogix-aws-serverless/issues"
+  },
+  "devDependencies": {
+    "aws-sdk": "^2.790.0"
+  },
+  "dependencies": {
+    "coralogix-logger": "^1.1.25",
+    "edgegrid": "^3.0.8"
+  },
+  "files": [
+    "LICENSE",
+    "README.md"
+  ]
+}
