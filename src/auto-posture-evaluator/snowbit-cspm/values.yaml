@@ -1,0 +1,16 @@
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+service:
+  type: ClusterIP
+  port: 80
+
+API_KEY: ""
+CORALOGIX_ENDPOINT_HOST:  ""
+APPLICATION_NAME: "cspm"
+TESTER_LIST: ""
+REGION_LIST: ""
+AWS_DEFAULT_REGION:  "eu-west-1"
+AWS_ACCESS_KEY_ID: "XXXX"
+AWS_SECRET_ACCESS_KEY: "XXXX"

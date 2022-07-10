@@ -1,0 +1,14 @@
+
+name: Snowbit-CSPM-Chart
+
+on:
+   push:
+    branches: [ feature/add_sta_helm_chart ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v2.4.0

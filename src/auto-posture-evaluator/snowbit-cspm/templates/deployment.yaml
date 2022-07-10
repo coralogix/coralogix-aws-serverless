@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "snowbit-cspm.fullname" . }}
+  labels:
+    {{- include "snowbit-cspm.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "snowbit-cspm.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "snowbit-cspm.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "snowbit-cspm.serviceAccountName" . }}
+      containers:
+      - image: coralogixrepo/snowbit-cspm:v1.0.1
+        name: cspm
+        command: ["python3"]
+        args: ["lambda_function.py"]
+        env:
+        - name: API_KEY
+          value: {{.Values.API_KEY }}
+        - name: CORALOGIX_ENDPOINT_HOST
+          value:  {{.Values.CORALOGIX_ENDPOINT_HOST }}
+        - name: APPLICATION_NAME
+          value:  {{.Values.APPLICATION_NAME }}
+        - name: TESTER_LIST
+          value:  {{.Values.TESTER_LIST }}
+        - name: REGION_LIST
+          value:  {{.Values.REGION_LIST }}
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: AWS_ACCESS_KEY_ID
+          value:  {{.Values.AWS_ACCESS_KEY_ID }}
+        - name: AWS_SECRET_ACCESS_KEY
+          value:  {{.Values.AWS_SECRET_ACCESS_KEY }}
