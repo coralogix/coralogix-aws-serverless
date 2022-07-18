@@ -6,7 +6,7 @@ validate:
 	@sam validate
 
 build:
-	@sam build
+	@sam build --use-container
 
 test: build
 	@sam local invoke \

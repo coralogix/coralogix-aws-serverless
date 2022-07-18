@@ -1,6 +1,9 @@
+# General files
 .git/
 .idea/
 .DS_Store
+
+# SAM files
 node_modules/
 npm-debug.log*
 *~
@@ -8,3 +11,28 @@ coverage/
 package-lock.json
 .aws-sam/
 packaged.y?ml
+
+# Local .terraform and .terragrunt-cache directories
+**/.terraform/*
+**/.terragrunt-cache/*
+
+# Terraform lockfile
+.terraform.lock.hcl
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+
+# Ignore override files as they are usually used to override resources locally and so
+# are not checked in
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ignore CLI configuration files
+.terraformrc
+terraform.rc
