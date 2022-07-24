@@ -1,0 +1,1 @@
+coralogix_logger==2.0.5

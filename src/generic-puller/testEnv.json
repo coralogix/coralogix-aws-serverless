@@ -1,0 +1,9 @@
+{
+    "Parameters": {
+      "CORALOGIX_PRIVATE_KEY": "9d115e81-e297-c449-5e17-23bd0a1cd18a",
+      "CORALOGIX_APPLICATION_NAME": "generic-test",
+      "CORALOGIX_SUBSYSTEM_NAME": "generic-test",
+      "METHOD": "GET",
+      "ENDPOINT": "https://webhook.site/7676dc7c-0dfb-4545-a6de-8507dfeb5eb4"
+    }
+  }

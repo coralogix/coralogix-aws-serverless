@@ -1,0 +1,257 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Coralgoix Generic Puller SAM app to send logs from any api endpoint to Coraloigx
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: Coralogix-generic-puller
+    Description: Get logs from any generic api endpoint and send them to Coralogix.
+    Author: Coralogix
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE
+    ReadmeUrl: README.md
+    Labels:
+      - coralogix
+      - logs
+      - api
+    HomePageUrl: https://coralogix.com
+    SemanticVersion: 1.0.0
+    SourceCodeUrl: "https://github.com/coralogix/coralogix-aws-serverless/tree/master/src/generic-puller"
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Coralogix Configuration
+        Parameters:
+          - CoralogixRegion
+          - PrivateKey
+          - ApplicationName
+          - SubsystemName
+      - Label:
+          default: API Configuration
+        Parameters:
+          - Endpoint
+          - Method
+          - Payload
+          - Authorization
+      - Label:
+          default: Lambda Configuration
+        Parameters:
+          - FunctionArchitecture
+          - FunctionMemorySize
+          - FunctionTimeout
+          - FunctionSchedule
+          - NotificationEmail
+      - Label:
+          default: Script Configuration
+        Parameters:
+          - LogsToStdout
+          - SendTruncatedLogs
+          - LogsMaxSize
+    ParameterLabels:
+      CoralogixRegion:
+        default: Region
+      PrivateKey:
+        default: Private Key
+      ApplicationName:
+        default: Application Name
+      SubsystemName:
+        default: Subsystem Name
+      Endpoint:
+        default: Full endpoint
+      Method:
+        default: Request method
+      Payload:
+        default: Request payload
+      Authorization:
+        default: Full authorization header
+      FunctionArchitecture:
+        default: Architecture
+      FunctionMemorySize:
+        default: Memory
+      FunctionTimeout:
+        default: Timeout
+      FunctionSchedule:
+        default: Scheduler
+      NotificationEmail:
+        default: Notification Email
+      LogsToStdout:
+        default: Logs to stdout
+      SendTruncatedLogs:
+        default: Send truncated logs
+      LogsMaxSize:
+        default: Logs max size
+Parameters:
+  CoralogixRegion:
+    Type: String
+    Description: The Coralogix location region [Europe, Europe2, India, Singapore, US]
+    AllowedValues:
+      - Europe
+      - Europe2
+      - India
+      - Singapore
+      - US
+    Default: Europe
+  PrivateKey:
+    Type: String
+    Description: The Coralogix private key which is used to validate your authenticity
+    AllowedPattern: '[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}'
+    ConstraintDescription: The PrivateKey should be valid UUID string
+    MinLength: 36
+    MaxLength: 36
+    NoEcho: true
+  ApplicationName:
+    Type: String
+    Description: The name of your application
+    MinLength: 1
+    MaxLength: 64
+  SubsystemName:
+    Type: String
+    Description: The subsystem name of your application
+    MinLength: 1
+    MaxLength: 64
+  Endpoint:
+    Type: String
+    Description: The full endpoint. i.e. https://example.com/path/to/endpoint
+    Default: ''
+  Method:
+    Type: String
+    Description: The request Method. ["GET","POST","PUT","DELETE"]
+    Default: ''
+  Payload:
+    Type: String
+    Description: The request Payload in json format. only applicable in 'POST' and 'PUT' requests
+    Default: ''
+  Authorization:
+    Type: String
+    Description: The request Authorization header value
+    NoEcho: true
+    Default: ''
+  FunctionArchitecture:
+    Type: String
+    Description: Lambda function architecture [x86_64, arm64]
+    AllowedValues:
+      - x86_64
+      - arm64
+    Default: x86_64
+  FunctionMemorySize:
+    Type: Number
+    Description: Lambda function memory limit
+    MinValue: 128
+    MaxValue: 10240
+    Default: 1024
+  FunctionTimeout:
+    Type: Number
+    Description: Lambda function timeout limit
+    MinValue: 30
+    MaxValue: 900
+    Default: 300
+  FunctionSchedule:
+    Type: Number
+    Description: Lambda function schedule in minutes
+    MinValue: 2
+    MaxValue: 1440
+    Default: 10
+  NotificationEmail:
+    Type: String
+    Description: Failure notification email address
+    MaxLength: 320
+    Default: ''
+  LogsToStdout:
+    Type: String
+    Description: Send logs to stdout/cloudwatch [True,False]
+    AllowedValues:
+      - "True"
+      - "False"
+    Default: "True"
+  SendTruncatedLogs:
+    Type: String
+    Description: Send big logs to coralogix even after being truncated. [True,False]
+    AllowedValues:
+      - "True"
+      - "False"
+    Default: "True"
+  LogsMaxSize:
+    Type: String
+    Description: the max size of logs your coralogix account can receive. default is 32000(bytes)
+    Default: "32000"
+Mappings:
+  CoralogixRegionMap:
+    Europe:
+      LogUrl: https://api.coralogix.com/api/v1/logs
+    Europe2:
+      LogUrl: https://api.eu2.coralogix.com/api/v1/logs
+    India:
+      LogUrl: https://api.app.coralogix.in/api/v1/logs
+    Singapore:
+      LogUrl: https://api.coralogixsg.com/api/v1/logs
+    US:
+      LogUrl: https://api.coralogix.us/api/v1/logs
+Conditions:
+  ShouldCreateResource: !Not 
+    - !Equals
+      - !Ref NotificationEmail
+      - ''
+Resources:
+  LambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Send logs from generic api endpoint to Coralogix.
+      CodeUri: .
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - Ref: FunctionArchitecture
+      MemorySize:
+        Ref: FunctionMemorySize
+      Timeout:
+        Ref: FunctionTimeout
+      Environment:
+        Variables:
+          CORALOGIX_LOG_URL:
+            Fn::FindInMap:
+              - CoralogixRegionMap
+              - Ref: CoralogixRegion
+              - LogUrl
+          CORALOGIX_PRIVATE_KEY:
+            Ref: PrivateKey
+          CORALOGIX_APPLICATION_NAME:
+            Ref: ApplicationName
+          CORALOGIX_SUBSYSTEM_NAME:
+            Ref: SubsystemName
+          ENDPOINT:
+            Ref: Endpoint
+          METHOD:
+            Ref: Method
+          PAYLOAD:
+            Ref: Payload
+          AUTHORIZATION:
+            Ref: Authorization
+          LOGS_TO_STDOUT:
+            Ref: LogsToStdout
+          SEND_TRUNCATED_LOGS:
+            Ref: SendTruncatedLogs
+          LOGS_MAX_SIZE:
+            Ref: LogsMaxSize
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: SNS
+      Events:
+        CWSchedule:
+          Type: Schedule
+          Properties:
+            Schedule:
+              Fn::Sub:
+                - 'rate(${FunctionSchedule} minutes)'
+                - FunctionSchedule: !Ref FunctionSchedule
+            Description: The Lambda schedule in minutes.
+            Enabled: true
+  LambdaFunctionNotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: ShouldCreateResource
+    Properties:
+      Protocol: email
+      Endpoint:
+        Ref: NotificationEmail
+      TopicArn:
+        Ref: LambdaFunction.DestinationTopic
