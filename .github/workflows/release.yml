@@ -113,7 +113,6 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: ${{ matrix.package }}-packaged.yaml
-          path: packaged.yaml
 
       - name: Publish
         run: sam publish --template packaged.yaml
