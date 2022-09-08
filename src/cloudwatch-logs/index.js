@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.12
+ * @version     1.1.0
  * @since       1.0.0
  */
 
@@ -23,6 +23,7 @@ const newlinePattern = process.env.newline_pattern ? RegExp(process.env.newline_
 const sampling = process.env.sampling ? parseInt(process.env.sampling) : 1;
 const coralogixUrl = process.env.CORALOGIX_URL || "api.coralogix.com";
 const bufferCharset = process.env.buffer_charset || "utf8";
+const logstreamFilter = process.env.logstreamFilter ? RegExp(process.env.logstreamFilter) : /(?:.*)/g;
 
 /**
  * @description Send logs to Coralogix via API
@@ -133,34 +134,35 @@ function handler(event, context, callback) {
             } catch {
                 resultParsed = JSON.parse(result.toString("ascii"))
             }
-            const parsedEvents = resultParsed.logEvents.map(logEvent => logEvent.message).join("\r\n").split(newlinePattern);
-
-            zlib.gzip(JSON.stringify(
-                parsedEvents.filter((logEvent) => logEvent.length > 0).filter((logEvent, index) => index % sampling == 0).map((logEvent) => {
-                    let appName = process.env.app_name || "NO_APPLICATION";
-                    let subName = process.env.sub_name || resultParsed.logGroup;
-
-                    try {
-                        appName = appName.startsWith("$.") ? dig(appName, JSON.parse(logEvent)) : appName;
-                        subName = subName.startsWith("$.") ? dig(subName, JSON.parse(logEvent)) : subName;
-                    } catch {}
-
-                    return {
-                        "applicationName": appName,
-                        "subsystemName": subName,
-                        "timestamp": Date.now(),
-                        "severity": getSeverityLevel(logEvent.toLowerCase()),
-                        "text": logEvent,
-                        "threadId": resultParsed.logStream
-                    };
-                })
-            ), (error, compressedEvents) => {
-                if (error) {
-                    callback(error);
-                } else {
-                    postToCoralogix(compressedEvents, callback);
-                }
-            });
+            if (resultParsed.logStream.match(logstreamFilter) != null ) {
+                const parsedEvents = resultParsed.logEvents.map(logEvent => logEvent.message).join("\r\n").split(newlinePattern);
+                zlib.gzip(JSON.stringify(
+                    parsedEvents.filter((logEvent) => logEvent.length > 0).filter((logEvent, index) => index % sampling == 0).map((logEvent) => {
+                        let appName = process.env.app_name || "NO_APPLICATION";
+                        let subName = process.env.sub_name || resultParsed.logGroup;
+                        
+                        try {
+                            appName = appName.startsWith("$.") ? dig(appName, JSON.parse(logEvent)) : appName;
+                            subName = subName.startsWith("$.") ? dig(subName, JSON.parse(logEvent)) : subName;
+                        } catch {}
+    
+                        return {
+                            "applicationName": appName,
+                            "subsystemName": subName,
+                            "timestamp": Date.now(),
+                            "severity": getSeverityLevel(logEvent.toLowerCase()),
+                            "text": logEvent,
+                            "threadId": resultParsed.logStream
+                        };
+                    })
+                ), (error, compressedEvents) => {
+                    if (error) {
+                        callback(error);
+                    } else {
+                        postToCoralogix(compressedEvents, callback);
+                    }
+                });
+            }
         }
     });
 }
