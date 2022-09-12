@@ -17,7 +17,7 @@ Metadata:
       - msk
       - stream
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.3
+    SemanticVersion: 1.0.4
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -109,7 +109,7 @@ Resources:
       Description: Send data from Amazon MSK to Coralogix.
       CodeUri: ../kafka
       Handler: index.handler
-      Runtime: nodejs12.x
+      Runtime: nodejs14.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
