@@ -16,7 +16,7 @@ Metadata:
       - kafka
       - stream
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.3
+    SemanticVersion: 1.0.4
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -118,7 +118,7 @@ Resources:
       Description: Send data from self-hosted Apache Kafka to Coralogix.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs12.x
+      Runtime: nodejs14.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:

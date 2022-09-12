@@ -15,7 +15,7 @@ Metadata:
       - stream
       - kinesis
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.7
+    SemanticVersion: 1.0.8
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -113,7 +113,7 @@ Resources:
       Description: Send Kinesis stream data to Coralogix.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs12.x
+      Runtime: nodejs14.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:

@@ -1,7 +1,7 @@
 {
   "name": "coralogix-archive-reader",
   "title": "AWS Lambda function for Coralogix archives import",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "AWS Lambda function for import of archived logs to Coralogix",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",
@@ -12,7 +12,7 @@
     "url": "https://coralogix.com"
   },
   "engines": {
-    "node": "12.x"
+    "node": "14.x"
   },
   "contributors": [
     {
