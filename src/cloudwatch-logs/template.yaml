@@ -14,7 +14,7 @@ Metadata:
       - logs
       - cloudwatch
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.13
+    SemanticVersion: 1.0.14
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -116,7 +116,7 @@ Resources:
       Description: Send CloudWatch logs to Coralogix.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs14.x
+      Runtime: nodejs16.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:

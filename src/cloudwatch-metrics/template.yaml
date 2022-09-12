@@ -14,7 +14,7 @@ Metadata:
       - metrics
       - cloudwatch
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.3
+    SemanticVersion: 1.0.4
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -94,7 +94,7 @@ Resources:
       Description: Send CloudWatch metrics to Coralogix.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs14.x
+      Runtime: nodejs16.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
