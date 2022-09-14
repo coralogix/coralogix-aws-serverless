@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.14
+ * @version     1.0.15
  * @since       1.0.0
  */
 
@@ -16,6 +16,8 @@
 const https = require("https");
 const zlib = require("zlib");
 const assert = require("assert");
+var microtime = require("microtime")
+
 
 // Check Lambda function parameters
 assert(process.env.private_key, "No private key!");
@@ -148,7 +150,7 @@ function handler(event, context, callback) {
                     return {
                         "applicationName": appName,
                         "subsystemName": subName,
-                        "timestamp": Date.now(),
+                        "timestamp": microtime.now(),
                         "severity": getSeverityLevel(logEvent.toLowerCase()),
                         "text": logEvent,
                         "threadId": resultParsed.logStream
