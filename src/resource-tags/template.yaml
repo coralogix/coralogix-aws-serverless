@@ -1,0 +1,172 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Send resource tags to Coralogix.
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: Coralogix-Resource-Tags
+    Description: Send resource tags to Coralogix.
+    Author: Coralogix
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE
+    ReadmeUrl: README.md
+    Labels:
+      - coralogix
+      - logs
+      - tags
+    HomePageUrl: https://coralogix.com
+    SemanticVersion: 1.0.0
+    SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Coralogix Configuration
+        Parameters:
+          - CoralogixRegion
+          - PrivateKey
+      - Label:
+          default: Tag Collection Configuration
+        Parameters:
+          - Schedule
+      - Label:
+          default: Lambda Configuration
+        Parameters:
+          - FunctionArchitecture
+          - FunctionMemorySize
+          - FunctionTimeout
+          - NotificationEmail
+    ParameterLabels:
+      CoralogixRegion:
+        default: Region
+      PrivateKey:
+        default: Private Key
+      Schedule:
+        default: Schedule
+      FunctionArchitecture:
+        default: Architecture
+      FunctionMemorySize:
+        default: Memory
+      FunctionTimeout:
+        default: Timeout
+      NotificationEmail:
+        default: Notification Email
+Parameters:
+  CoralogixRegion:
+    Type: String
+    Description: The Coralogix location region [Europe, Europe2, India, Singapore, US]
+    AllowedValues:
+      - DevShared
+      - Europe
+      - Europe2
+      - India
+      - Singapore
+      - US
+    Default: Europe
+  PrivateKey:
+    Type: String
+    Description: The Coralogix private key which is used to validate your authenticity
+    AllowedPattern: "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}"
+    ConstraintDescription: The PrivateKey should be valid UUID string
+    MinLength: 36
+    MaxLength: 36
+    NoEcho: true
+  Schedule:
+    Type: String
+    Description: Collect tags on a specific schedule
+    MaxLength: 256
+    Default: "rate(10 minutes)"
+  FunctionArchitecture:
+    Type: String
+    Description: Lambda function architecture [x86_64, arm64]
+    AllowedValues:
+      - x86_64
+      - arm64
+    Default: x86_64
+  FunctionMemorySize:
+    Type: Number
+    Description: Lambda function memory limit
+    MinValue: 128
+    MaxValue: 10240
+    Default: 1024
+  FunctionTimeout:
+    Type: Number
+    Description: Lambda function timeout limit
+    MinValue: 30
+    MaxValue: 900
+    Default: 300
+  NotificationEmail:
+    Type: String
+    Description: Failure notification email address
+    MaxLength: 320
+    Default: ""
+Mappings:
+  CoralogixRegionMap:
+    DevShared:
+      MetadataUrl: metadata-gateway.dev-shared.coralogix.net:443
+    Europe:
+      MetadataUrl: metadata-gateway.coralogix.com:443
+    Europe2:
+      MetadataUrl: metadata-gateway.eu2.coralogix.com:443
+    India:
+      MetadataUrl: metadata-gateway.app.coralogix.in:443
+    Singapore:
+      MetadataUrl: metadata-gateway.coralogixsg.com:443
+    US:
+      MetadataUrl: metadata-gateway.coralogix.us:443
+Conditions:
+  IsNotificationEnabled:
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: NotificationEmail
+          - ""
+Resources:
+  LambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Send resource tags to Coralogix.
+      CodeUri: .
+      Handler: index.handler
+      Runtime: nodejs16.x
+      Architectures:
+        - Ref: FunctionArchitecture
+      MemorySize:
+        Ref: FunctionMemorySize
+      Timeout:
+        Ref: FunctionTimeout
+      Environment:
+        Variables:
+          coralogix_metadata_url:
+            Fn::FindInMap:
+              - CoralogixRegionMap
+              - Ref: CoralogixRegion
+              - MetadataUrl
+          private_key:
+            Ref: PrivateKey
+      Events:
+        ScheduledEvent:
+          Type: Schedule
+          Properties:
+            Schedule:
+              Ref: Schedule
+            Enabled: True
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: SNS
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: GetResourcesPolicy
+              Effect: Allow
+              Action:
+                - tag:GetResources
+              Resource: "*"
+
+  LambdaFunctionNotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: IsNotificationEnabled
+    Properties:
+      Protocol: email
+      Endpoint:
+        Ref: NotificationEmail
+      TopicArn:
+        Ref: LambdaFunction.DestinationTopic
