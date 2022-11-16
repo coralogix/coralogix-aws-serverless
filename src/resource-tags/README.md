@@ -13,3 +13,4 @@ The application will only collect tags for the AWS region where it is installed.
 ## License
 
 This project is licensed under the Apache-2.0 License.
+
