@@ -15,7 +15,7 @@ jobs:
     name: Infrastructure
     runs-on: aws-sam
     env:
-      AWS_SERVERLESS_BUCKET: ${{ secrets.AWS_SERVERLESS_BUCKET }}
+      AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
     steps:
       - name: Checkout
         uses: actions/checkout@v3
