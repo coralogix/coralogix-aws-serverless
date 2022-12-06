@@ -8,7 +8,7 @@ Metadata:
     Description: Get logs from Salesforce event-log and send them to Coralogix.
     Author: Coralogix
     SpdxLicenseId: Apache-2.0
-    LicenseUrl: ../LICENSE
+    LicenseUrl: LICENSE
     ReadmeUrl: README.md
     Labels:
       - coralogix
@@ -16,7 +16,7 @@ Metadata:
       - event-log
     HomePageUrl: https://coralogix.com
     SemanticVersion: 1.0.0
-    SourceCodeUrl: "https://github.com/coralogix/coralogix-salesforce-integrations"
+    SourceCodeUrl: "https://github.com/coralogix/coralogix-aws-serverless"
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
