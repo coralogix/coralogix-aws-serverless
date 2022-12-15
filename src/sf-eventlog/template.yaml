@@ -206,7 +206,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Description: Send logs from Salesforce event-logs API to Coralogix.
-      CodeUri: code/
+      CodeUri: .
       Handler: app.lambda_handler
       Runtime: python3.9
       Architectures:
