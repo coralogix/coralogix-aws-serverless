@@ -21,7 +21,7 @@ Parameters:
   CompatibleRuntimes:
     Type: CommaDelimitedList
     Description: Lambda Layer Version compatible runtimes
-    Default: go1.x, nodejs12.x, nodejs14.x, python3.8, python3.9
+    Default: go1.x, nodejs16.x, nodejs18.x, python3.8, python3.9
   AMD64SupportEnabled:
     Type: String
     Description: Enable support of AMD64 lambdas
