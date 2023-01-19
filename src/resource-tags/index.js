@@ -19,31 +19,53 @@ const resourcegroupstaggingapi = new aws.ResourceGroupsTaggingAPI();
 const protoLoader = require("@grpc/proto-loader");
 const grpc = require("@grpc/grpc-js");
 const parseArn = require("./resources").parseArn;
+const { OTLPMetricExporter } = require('@opentelemetry/exporter-metrics-otlp-grpc');
+const { MeterProvider, PeriodicExportingMetricReader } = require('@opentelemetry/sdk-metrics');
+const { Resource } = require('@opentelemetry/resources');
+const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventions');
+const { Metadata } = require('@grpc/grpc-js');
+const { MetricAttributes } = require('@opentelemetry/api');
+const { diag, DiagConsoleLogger, DiagLogLevel } = require("@opentelemetry/api");
 
-// Check Lambda function parameters
 assert(process.env.private_key, "No private key!");
-assert(process.env.coralogix_metadata_url, "No Coralogix metadata URL key!");
+assert(process.env.coralogix_metrics_url, "No Coralogix endpoint!");
 
-// Load .proto definition
-const metadataServiceDefinition = protoLoader.loadSync("service.proto");
-const metadataService = grpc.loadPackageDefinition(metadataServiceDefinition);
+const metadata = new Metadata();
+metadata.add('Authorization', 'Bearer ' + process.env.private_key);
 
-function createCredentials(privateKey) {
-    return grpc.credentials.combineChannelCredentials(
-        grpc.credentials.createSsl(),
-        grpc.credentials.createFromMetadataGenerator(function (options, callback) {
-            const metadata = new grpc.Metadata();
-            metadata.set('authorization', 'Bearer ' + privateKey);
-            return callback(null, metadata);
-        })
-    );
+const collectorOptions = {
+    url: process.env.coralogix_metrics_url,
+    metadata: metadata
+};
+
+const metricExporter = new OTLPMetricExporter(collectorOptions);
+
+const meterProvider = new MeterProvider({
+    resource: new Resource({
+    [SemanticResourceAttributes.SERVICE_NAME]: 'basic-metric-service',
+    }),
+});
+
+meterProvider.addMetricReader(new PeriodicExportingMetricReader({
+    exporter: metricExporter,
+    exportIntervalMillis: 100,
+}));
+
+['SIGINT', 'SIGTERM'].forEach(signal => {
+    process.on(signal, () => meterProvider.shutdown().catch(console.error));
+});
+
+const meter = meterProvider.getMeter('example-exporter-collector');
+
+const requestCounter = meter.createCounter('lambda_tags', {
+    description: 'Example of a Counter',
+});
+
+function sleep(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
 }
-
-const credentials = createCredentials(process.env.private_key);
-const metadataClient = new metadataService.com.coralogix.metadata.gateway.v1.MetadataGatewayService(
-    process.env.coralogix_metadata_url,
-    credentials
-);
 
 /**
  * @description Lambda function handler
@@ -52,28 +74,32 @@ const metadataClient = new metadataService.com.coralogix.metadata.gateway.v1.Met
  * @param {function} callback - Function callback
  */
 function handler(event, context, callback) {
+    diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
+
     resourcegroupstaggingapi.getResources({
-        // The current API can only accept resources with globally unique IDs
         ResourceTypeFilters: [
-            "ec2:instance",
+            "lambda",
         ],
     }).eachPage(function (err, data, done) {
         if (err) return callback(err);
+        let resourcesCount = 0;
         if (data) {
-            const resources = [];
             data.ResourceTagMappingList.forEach(function (resourceTagMapping) {
                 const [resourceType, resourceId] = parseArn(resourceTagMapping.ResourceARN);
-                resources.push({
-                    resourceId,
-                    resourceType,
-                    tags: formatTags(resourceTagMapping.Tags)
-                });
+                
+                let tags = formatTags(resourceTagMapping.Tags);
+                tags["type"] = resourceType;
+                tags["id"] = resourceId;
+
+                console.debug(tags);
+                
+                requestCounter.add(0, tags);
+                resourcesCount++;
             });
-            console.info("Submitting " + resources.length + " resources");
-            metadataClient.submit({ resources }, function (err, result) {
-                if (err) return callback(err);
-                done();
-            });
+
+            meterProvider.forceFlush();
+            
+            console.info("Submitting " + resourcesCount + " resources");
         } else {
             return callback(null);
         };
@@ -81,9 +107,20 @@ function handler(event, context, callback) {
 }
 
 function formatTags(tagList) {
-    return tagList.map(function (tag) {
-        return ({ key: tag.Key, value: tag.Value });
+    var rv = {};
+    tagList.map(function (tag) {
+        let k = tag.Key;
+        let v = tag.Value; 
+
+        rv[k] = v;
     });
+    return rv;
 }
 
 exports.handler = handler;
+
+handler(null, null, a);
+
+function a(err) {
+    console.error("error " + err);
+}

@@ -1,17 +1,17 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: Send resource tags to Coralogix.
+Description: Send lambda tags to Coralogix as metrics.
 Metadata:
   AWS::ServerlessRepo::Application:
-    Name: Coralogix-Resource-Tags
-    Description: Send resource tags to Coralogix.
+    Name: Coralogix-Lambda-Tags-Metrics
+    Description: Send lambda tags to Coralogix as metrics.
     Author: Coralogix
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
     ReadmeUrl: README.md
     Labels:
       - coralogix
-      - logs
+      - metrics
       - tags
     HomePageUrl: https://coralogix.com
     SemanticVersion: 1.0.0
@@ -101,17 +101,17 @@ Parameters:
 Mappings:
   CoralogixRegionMap:
     DevShared:
-      MetadataUrl: metadata-gateway.dev-shared.coralogix.net:443
+      MetricsUrl: otel-metrics.dev-shared.coralogix.net:443
     Europe:
-      MetadataUrl: metadata-gateway.coralogix.com:443
+      MetricsUrl: otel-metrics.coralogix.com:443
     Europe2:
-      MetadataUrl: metadata-gateway.eu2.coralogix.com:443
+      MetricsUrl: otel-metrics.eu2.coralogix.com:443
     India:
-      MetadataUrl: metadata-gateway.app.coralogix.in:443
+      MetricsUrl: otel-metrics.app.coralogix.in:443
     Singapore:
-      MetadataUrl: metadata-gateway.coralogixsg.com:443
+      MetricsUrl: otel-metrics.coralogixsg.com:443
     US:
-      MetadataUrl: metadata-gateway.coralogix.us:443
+      MetricsUrl: otel-metrics.coralogix.us:443
 Conditions:
   IsNotificationEnabled:
     Fn::Not:
@@ -134,11 +134,11 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
-          coralogix_metadata_url:
+          coralogix_metrics_url:
             Fn::FindInMap:
               - CoralogixRegionMap
               - Ref: CoralogixRegion
-              - MetadataUrl
+              - MetricsUrl
           private_key:
             Ref: PrivateKey
       Events:
