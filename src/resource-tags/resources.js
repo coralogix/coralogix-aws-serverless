@@ -6,6 +6,9 @@ function parseArn(resourceArn) {
         const resourceId = arn[6];
         const resourceType = partition + ":" + service + ":" + arn[5];
         return [resourceType, resourceId]
+    } else if (service === "apigateway") {
+        const resource = arn[5].split("/");
+        return [partition + ":" + service + ":" + resource[1], resource[2]];
     } else {
         const resource = splitOnce(arn[5], "/");
         const resourceId = resource[1];

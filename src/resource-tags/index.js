@@ -16,6 +16,7 @@
 const aws = require("aws-sdk");
 const assert = require("assert");
 const resourcegroupstaggingapi = new aws.ResourceGroupsTaggingAPI();
+const apigateway = new aws.APIGateway();
 const protoLoader = require("@grpc/proto-loader");
 const grpc = require("@grpc/grpc-js");
 const parseArn = require("./resources").parseArn;
@@ -29,6 +30,9 @@ const { diag, DiagConsoleLogger, DiagLogLevel } = require("@opentelemetry/api");
 
 assert(process.env.private_key, "No private key!");
 assert(process.env.coralogix_metrics_url, "No Coralogix endpoint!");
+
+let global_tags = new Map();
+let everything = [];
 
 const metadata = new Metadata();
 metadata.add('Authorization', 'Bearer ' + process.env.private_key);
@@ -48,23 +52,92 @@ const meterProvider = new MeterProvider({
 
 meterProvider.addMetricReader(new PeriodicExportingMetricReader({
     exporter: metricExporter,
-    exportIntervalMillis: 100,
+    exportIntervalMillis: 1000,
 }));
 
-['SIGINT', 'SIGTERM'].forEach(signal => {
-    process.on(signal, () => meterProvider.shutdown().catch(console.error));
-});
-
-const meter = meterProvider.getMeter('example-exporter-collector');
-
-const requestCounter = meter.createCounter('lambda_tags', {
-    description: 'Example of a Counter',
-});
-
-function sleep(ms) {
-    return new Promise((resolve) => {
-        setTimeout(resolve, ms);
+async function init() {
+    ['SIGINT', 'SIGTERM'].forEach(signal => {
+        process.on(signal, () => meterProvider.shutdown().catch(console.error));
     });
+    const meter = meterProvider.getMeter('example-exporter-collector');
+
+    const gauge = meter.createObservableGauge("aws_tags_info");
+    gauge.addCallback((observableResult) => {
+        everything.forEach(element => {
+            observableResult.observe(1, element);
+        });
+    });
+}
+
+function formatTags(tagList) {
+    var rv = {};
+    tagList.map(function (tag) {
+        let k = "cxtag_" + tag.Key;
+        let v = tag.Value; 
+
+        rv[k] = v;
+    });
+    return rv;
+}
+
+async function handle_apigateway() {
+    let position = null;
+
+    do {
+        const results = await apigateway.getRestApis({position: position}).promise();
+
+        position = results.position;
+        results.items.forEach(function (restapi) {
+            global_tags.set("apigateway_" + restapi.id, restapi.name);
+            console.debug("[apigateway] " + restapi.id + ": " + restapi.name);
+        });
+    } while (position !== undefined);
+}
+
+async function handle_tags() {
+    let pages = 1;
+    let resourcesCount = 0;
+
+    let pagination_token = '';
+
+    do {
+        const results = await resourcegroupstaggingapi.getResources({
+            ResourceTypeFilters: [
+                "lambda",
+                "apigateway"
+            ],
+            PaginationToken: pagination_token
+        }).promise();
+
+        pagination_token = results.PaginationToken;
+
+        results.ResourceTagMappingList.forEach(function (resourceTagMapping) {
+            const [resourceType, resourceId] = parseArn(resourceTagMapping.ResourceARN);
+            
+            let tags = formatTags(resourceTagMapping.Tags);
+            tags["type"] = resourceType;
+            if (resourceType.startsWith("aws:apigateway")) {
+                let actual_name = global_tags.get("apigateway_" + resourceId);
+                
+                if (actual_name !== undefined) {
+                    tags["ApiName"] = actual_name;
+                }
+            } else if (resourceType.startsWith("aws:lambda:function")) {
+                tags["FunctionName"] = resourceId;
+            }
+            
+            // Currently not supporting other tags
+            // tags["id"] = resourceId;
+
+            everything.push(tags);
+
+            resourcesCount++;
+        });
+
+        meterProvider.forceFlush();
+        
+        console.info("Submitting " + resourcesCount + " resources");
+    } while (pagination_token != '')
 }
 
 /**
@@ -73,54 +146,30 @@ function sleep(ms) {
  * @param {object} context - Function context
  * @param {function} callback - Function callback
  */
-function handler(event, context, callback) {
-    diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
+async function handler(event, context, callback) {
+    // diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.VERBOSE);
+    console.debug("init");
+    await init();
 
-    resourcegroupstaggingapi.getResources({
-        ResourceTypeFilters: [
-            "lambda",
-        ],
-    }).eachPage(function (err, data, done) {
-        if (err) return callback(err);
-        let resourcesCount = 0;
-        if (data) {
-            data.ResourceTagMappingList.forEach(function (resourceTagMapping) {
-                const [resourceType, resourceId] = parseArn(resourceTagMapping.ResourceARN);
-                
-                let tags = formatTags(resourceTagMapping.Tags);
-                tags["type"] = resourceType;
-                tags["id"] = resourceId;
+    console.debug("handle_apigateway");
+    await handle_apigateway();
 
-                console.debug(tags);
-                
-                requestCounter.add(0, tags);
-                resourcesCount++;
-            });
+    console.debug("handle_tags");
+    await handle_tags();
+    
+    await new Promise(resolve => setTimeout(resolve, 10000));
 
-            meterProvider.forceFlush();
-            
-            console.info("Submitting " + resourcesCount + " resources");
-        } else {
-            return callback(null);
-        };
-    });
-}
+    meterProvider.shutdown();
 
-function formatTags(tagList) {
-    var rv = {};
-    tagList.map(function (tag) {
-        let k = tag.Key;
-        let v = tag.Value; 
-
-        rv[k] = v;
-    });
-    return rv;
+    return callback(null);
 }
 
 exports.handler = handler;
 
-handler(null, null, a);
+// handler(null, null, a);
 
-function a(err) {
-    console.error("error " + err);
-}
+// console.debug("handler ended")
+
+// function a(err) {
+//     console.error("error " + err);
+// }
