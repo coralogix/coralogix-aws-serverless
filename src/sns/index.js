@@ -20,6 +20,7 @@ const assert = require("assert");
 // Check Lambda function parameters
 assert(process.env.private_key, "No private key!");
 const coralogixUrl = process.env.CORALOGIX_URL || "api.coralogix.com";
+const  samplingRate = process.env.SAMPLING_RATE || 1;
 
 /**
  * @description Send logs to Coralogix via API
@@ -118,33 +119,43 @@ function getSeverityLevel(message) {
  * @param {function} callback - Function callback
  */
 function handler(event, context, callback) {
-    zlib.gzip(JSON.stringify(
-        event.Records.map(logEvent => logEvent.Sns).filter((logEvent) => logEvent.Message.length > 0).map((logEvent) => {
-            let appName = process.env.app_name || "NO_APPLICATION";
-            let subName = process.env.sub_name || "NO_SUBSYSTEM";
+    const filteredEvents = event.Records.filter(logEvent => {
+        const rolledNumber = Math.random();
+        if (rolledNumber <= 1/samplingRate) {
+            return true;  //this event will be sent
+        } else {
+            return false;  //this event will be discarded
+        }
+    });
 
-            try {
-                appName = appName.startsWith("$.") ? dig(appName, logEvent) : appName;
-                subName = subName.startsWith("$.") ? dig(subName, logEvent) : subName;
-            } catch {}
+    const preparedEvents = filteredEvents.map(logEvent => logEvent.Sns).filter((logEvent) => logEvent.Message.length > 0).map((logEvent) => {
+        let appName = process.env.app_name || "NO_APPLICATION";
+        let subName = process.env.sub_name || "NO_SUBSYSTEM";
 
-            return {
-                "applicationName": appName,
-                "subsystemName": subName,
-                "timestamp": Date.parse(logEvent.Timestamp),
-                "severity": getSeverityLevel(logEvent.Message.toLowerCase()),
-                "text": logEvent.Message,
-                "category": logEvent.Subject,
-                "threadId": logEvent.TopicArn
-            };
-        })
-    ), (error, compressedEvents) => {
+        try {
+            appName = appName.startsWith("$.") ? dig(appName, logEvent) : appName;
+            subName = subName.startsWith("$.") ? dig(subName, logEvent) : subName;
+        } catch {}
+
+        return {
+            "applicationName": appName,
+            "subsystemName": subName,
+            "timestamp": Date.parse(logEvent.Timestamp),
+            "severity": getSeverityLevel(logEvent.Message.toLowerCase()),
+            "text": logEvent.Message,
+            "category": logEvent.Subject,
+            "threadId": logEvent.TopicArn
+        };
+    })
+
+    zlib.gzip(JSON.stringify(preparedEvents), (error, compressedEvents) => {
         if (error) {
             callback(error);
         } else {
             postToCoralogix(compressedEvents, callback);
         }
     });
-}
+};
+
 
 exports.handler = handler;
