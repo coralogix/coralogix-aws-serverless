@@ -55,17 +55,21 @@ meterProvider.addMetricReader(new PeriodicExportingMetricReader({
     exportIntervalMillis: 1000,
 }));
 
+let gauge = null;
+
 async function init() {
     ['SIGINT', 'SIGTERM'].forEach(signal => {
         process.on(signal, () => meterProvider.shutdown().catch(console.error));
     });
     const meter = meterProvider.getMeter('example-exporter-collector');
 
-    const gauge = meter.createObservableGauge("aws_tags_info");
-    gauge.addCallback((observableResult) => {
-        everything.forEach(element => {
-            observableResult.observe(1, element);
-        });
+    gauge = meter.createObservableGauge("aws_tags_info");
+    gauge.addCallback(gauge_callback);
+}
+
+function gauge_callback(observableResult) {
+    everything.forEach(element => {
+        observableResult.observe(1, element);
     });
 }
 
@@ -103,7 +107,7 @@ async function handle_tags() {
     do {
         const results = await resourcegroupstaggingapi.getResources({
             ResourceTypeFilters: [
-                "lambda",
+                // "lambda",
                 "apigateway"
             ],
             PaginationToken: pagination_token
@@ -112,10 +116,12 @@ async function handle_tags() {
         pagination_token = results.PaginationToken;
 
         results.ResourceTagMappingList.forEach(function (resourceTagMapping) {
-            const [resourceType, resourceId] = parseArn(resourceTagMapping.ResourceARN);
+            const [account_id, region, resourceType, resourceId] = parseArn(resourceTagMapping.ResourceARN);
             
             let tags = formatTags(resourceTagMapping.Tags);
             tags["type"] = resourceType;
+            tags["account_id"] = account_id;
+            tags["__aws_region"] = region;
             if (resourceType.startsWith("aws:apigateway")) {
                 let actual_name = global_tags.get("apigateway_" + resourceId);
                 
@@ -159,6 +165,7 @@ async function handler(event, context, callback) {
     
     await new Promise(resolve => setTimeout(resolve, 10000));
 
+    gauge.removeCallback(gauge_callback);
     meterProvider.shutdown();
 
     return callback(null);
@@ -166,6 +173,7 @@ async function handler(event, context, callback) {
 
 exports.handler = handler;
 
+// // Uncomment to run locally
 // handler(null, null, a);
 
 // console.debug("handler ended")
@@ -173,3 +181,4 @@ exports.handler = handler;
 // function a(err) {
 //     console.error("error " + err);
 // }
+// 

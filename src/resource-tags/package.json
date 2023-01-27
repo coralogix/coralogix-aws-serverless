@@ -47,7 +47,7 @@
   },
   "devDependencies": {
     "aws-sdk": "^2.654.0",
-    "jest": "^29.1.2"
+    "jest": "^29.4.1"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.6.8",
