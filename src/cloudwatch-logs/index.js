@@ -152,7 +152,7 @@ function handler(event, context, callback) {
                         "subsystemName": subName,
                         "timestamp": microtime.now(),
                         "severity": getSeverityLevel(logEvent.toLowerCase()),
-                        "text": logEvent,
+                        "text": JSON.stringify({"log": logEvent, "logGroup": resultParsed.logGroup, "logStream": resultParsed.logStream}),
                         "threadId": resultParsed.logStream
                     };
                 })
