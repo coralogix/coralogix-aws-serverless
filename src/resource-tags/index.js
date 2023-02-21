@@ -107,7 +107,7 @@ async function handle_tags() {
     do {
         const results = await resourcegroupstaggingapi.getResources({
             ResourceTypeFilters: [
-                // "lambda",
+                "lambda",
                 "apigateway"
             ],
             PaginationToken: pagination_token
