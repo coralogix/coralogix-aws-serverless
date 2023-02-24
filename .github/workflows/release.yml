@@ -105,8 +105,8 @@ jobs:
     name: Publish
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true }}
     runs-on: aws-sam
-        env:
-          AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
+    env:
+      AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
     needs: [infrastructure, check, build]
     strategy:
       matrix:
