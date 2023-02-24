@@ -71,8 +71,8 @@ jobs:
   build:
     name: Build
     runs-on: aws-sam
-      env:
-        AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
+    env:
+      AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
     needs: [check, validate]
     strategy:
       matrix:
