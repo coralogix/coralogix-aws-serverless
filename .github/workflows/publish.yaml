@@ -1,0 +1,23 @@
+name: Make Serverless App Public
+
+on:
+  workflow_dispatch:
+    inputs:
+      application-id:
+        description: 'Enter the ARN of the Serverless Application Repository application to make public'
+        required: true
+        default: ''
+
+env:
+  AWS_DEFAULT_REGION: eu-central-1
+
+jobs:
+  make-public:
+    runs-on: aws-sam
+    steps:
+      - name: Make application public
+        run: |
+          aws serverlessrepo put-application-policy \
+            --application-id ${{ github.event.inputs.application-id }} \
+            --statements 'Principals=*,Actions=Deploy' \
+            --region ${{ env.AWS_DEFAULT_REGION }}
