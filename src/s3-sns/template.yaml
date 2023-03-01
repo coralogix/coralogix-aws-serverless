@@ -3,8 +3,8 @@ Transform: AWS::Serverless-2016-10-31
 Description: Send logs from S3 bucket to Coralogix.
 Metadata:
   AWS::ServerlessRepo::Application:
-    Name: Coralogix-S3
-    Description: Send logs from S3 bucket to Coralogix.
+    Name: Coralogix-S3-via-SNS
+    Description: Send logs from S3 bucket to Coralogix via SNS trigger.
     Author: Coralogix
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
@@ -13,6 +13,7 @@ Metadata:
       - coralogix
       - logs
       - s3
+      - sns
     HomePageUrl: https://coralogix.com
     SemanticVersion: 1.0.21
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
@@ -33,11 +34,10 @@ Metadata:
           - BufferSize
           - Debug
       - Label:
-          default: S3 Configuration
+          default: Source Configuration
         Parameters:
+          - SNSTopicArn
           - S3BucketName
-          - S3KeyPrefix
-          - S3KeySuffix
       - Label:
           default: Lambda Configuration
         Parameters:
@@ -64,10 +64,6 @@ Metadata:
         default: Debug Mode
       S3BucketName:
         default: Bucket Name
-      S3KeyPrefix:
-        default: Key Prefix
-      S3KeySuffix:
-        default: Key Suffix
       FunctionArchitecture:
         default: Architecture
       FunctionMemorySize:
@@ -130,22 +126,17 @@ Parameters:
       - true
       - false
     Default: false
+  SNSTopicArn:
+    Type: String
+    Description: The ARN of SNS topic to subscribe
+    MinLength: 20
+    MaxLength: 2048
   S3BucketName:
     Type: String
     Description: The name of the S3 bucket to watch
     AllowedPattern: '^[0-9A-Za-z\.\-_]*(?<!\.)$'
     MinLength: 3
     MaxLength: 63
-  S3KeyPrefix:
-    Type: String
-    Description: The S3 path prefix to watch
-    MaxLength: 1024
-    Default: ''
-  S3KeySuffix:
-    Type: String
-    Description: The S3 path suffix to watch
-    MaxLength: 1024
-    Default: ''
   FunctionArchitecture:
     Type: String
     Description: Lambda function architecture [x86_64, arm64]
@@ -192,7 +183,7 @@ Resources:
   LambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Description: Send logs from S3 bucket to Coralogix.
+      Description: Send logs from S3 bucket to Coralogix via SNS Trigger.
       CodeUri: .
       Handler: index.handler
       Runtime: nodejs16.x
@@ -225,6 +216,12 @@ Resources:
             Ref: SamplingRate
           debug:
             Ref: Debug
+      Events:
+        SNSEvent:
+          Type: SNS
+          Properties:
+            Topic:
+              Ref: SNSTopicArn
       EventInvokeConfig:
         DestinationConfig:
           OnFailure:
@@ -233,56 +230,6 @@ Resources:
         - S3ReadPolicy:
             BucketName:
               Ref: S3BucketName
-
-  CustomResourceLambdaTriggerFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ../helper
-      Handler: index.lambda_handler
-      Runtime: python3.9
-      Timeout: 50
-      Policies:
-        - Statement:
-            - Sid: S3NotificationPolicy
-              Effect: Allow
-              Action:
-                - s3:GetBucketNotification
-                - s3:PutBucketNotification
-              Resource:
-                Fn::Sub: "arn:aws:s3:::${S3BucketName}"
-
-  LambdaFunctionInvokePermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName:
-        Fn::GetAtt:
-          - LambdaFunction
-          - Arn
-      Action: lambda:InvokeFunction
-      Principal: s3.amazonaws.com
-      SourceAccount:
-        Ref: AWS::AccountId
-      SourceArn:
-        Fn::Sub: "arn:aws:s3:::${S3BucketName}"
-
-  LambdaTrigger:
-    Type: Custom::LambdaTrigger
-    DependsOn: LambdaFunctionInvokePermission
-    Properties:
-      ServiceToken:
-        Fn::GetAtt:
-          - CustomResourceLambdaTriggerFunction
-          - Arn
-      LambdaArn:
-        Fn::GetAtt:
-          - LambdaFunction
-          - Arn
-      Bucket:
-        Ref: S3BucketName
-      Prefix:
-        Ref: S3KeyPrefix
-      Suffix:
-        Ref: S3KeySuffix
 
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription

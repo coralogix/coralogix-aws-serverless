@@ -1,5 +1,5 @@
 /**
- * AWS S3 Lambda function for Coralogix
+ * AWS S3-via-SNS Lambda function for Coralogix
  *
  * @file        This file is lambda function source code
  * @author      Coralogix Ltd. <info@coralogix.com>
@@ -106,7 +106,6 @@ function getSeverityLevel(message) {
  * @param {function} callback - Function callback
  */
 function handler(event, context, callback) {
-    //console.log(event.Records[0].Sns.Message);
     const s3_event = JSON.parse(event.Records[0].Sns.Message);
     console.log(event.Records[0].Sns.Message);
     const bucket = s3_event.Records[0].s3.bucket.name;
