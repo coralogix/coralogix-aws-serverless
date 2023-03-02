@@ -1,0 +1,50 @@
+{
+  "name": "coralogix-s3-via-sns",
+  "title": "AWS S3 Lambda function for Coralogix via SNS Trigger",
+  "version": "1.0.1",
+  "description": "AWS Lambda function to send logs from S3 bucket to Coralogix via SNS Trigger",
+  "homepage": "https://coralogix.com",
+  "license": "Apache-2.0",
+  "main": "index.js",
+  "author": {
+    "name": "Coralogix",
+    "email": "info@coralogix.com",
+    "url": "https://coralogix.com"
+  },
+  "engines": {
+    "node": "16.x"
+  },
+  "contributors": [
+    {
+      "name": "Eldar Aliiev",
+      "email": "eldar@coralogix.com",
+      "url": "https://github.com/EldarAliiev"
+    }
+  ],
+  "keywords": [
+    "coralogix",
+    "logs",
+    "s3",
+    "aws",
+    "javascript",
+    "library"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coralogix/coralogix-aws-serverless.git"
+  },
+  "bugs": {
+    "email": "info@coralogix.com",
+    "url": "https://github.com/coralogix/coralogix-aws-serverless/issues"
+  },
+  "devDependencies": {
+    "aws-sdk": "^2.654.0"
+  },
+  "dependencies": {
+    "coralogix-logger": "^1.1.28"
+  },
+  "files": [
+    "LICENSE",
+    "README.md"
+  ]
+}
