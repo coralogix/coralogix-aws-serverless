@@ -1,0 +1,13 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "mysecurity-layer"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-1fvozccezsbso"
+s3_prefix = "mysecurity-layer"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+disable_rollback = true
+parameter_overrides = "CompatibleRuntimes=\"nodejs16.x, nodejs18.x, nodejs14.x\" RetentionPolicy=\"Retain\""
+image_repositories = []
