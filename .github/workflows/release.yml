@@ -32,7 +32,7 @@ jobs:
         working-directory: infra/
         run: |
           terragrunt apply \
-            -var="s3_bucket_name_prefix=${{ secrets.AWS_SERVERLESS_BUCKET }}" \
+            -var="s3_bucket_name_prefix=${{ env.AWS_SERVERLESS_BUCKET }}" \
             -auto-approve
 
   check:
@@ -68,10 +68,11 @@ jobs:
       - name: Validate
         working-directory: src/${{ matrix.package }}
         run: sam validate
-
   build:
     name: Build
     runs-on: aws-sam
+    env:
+      AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
     needs: [check, validate]
     strategy:
       matrix:
@@ -89,7 +90,7 @@ jobs:
         working-directory: ./src/${{ matrix.package }}
         run: |
           sam package \
-            --s3-bucket ${{ secrets.AWS_SERVERLESS_BUCKET }} \
+            --s3-bucket ${{ env.AWS_SERVERLESS_BUCKET }} \
             --s3-prefix ${{ matrix.package }} \
             --output-template-file packaged.yaml
 
@@ -104,6 +105,8 @@ jobs:
     name: Publish
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true }}
     runs-on: aws-sam
+    env:
+      AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
     needs: [infrastructure, check, build]
     strategy:
       matrix:
@@ -121,4 +124,4 @@ jobs:
         run: |
           aws s3 cp \
             $(yq -r '.Resources.LambdaFunction.Properties.CodeUri' packaged.yaml) \
-            s3://${{ secrets.AWS_SERVERLESS_BUCKET }}-${{ env.AWS_DEFAULT_REGION }}/${{ matrix.package }}.zip
+            s3://${{ env.AWS_SERVERLESS_BUCKET }}-${{ env.AWS_DEFAULT_REGION }}/${{ matrix.package }}.zip
