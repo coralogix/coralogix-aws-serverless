@@ -36,7 +36,7 @@ Resources:
       LayerName: coralogix-ssmlayer
       Description: Lambda function layer for using SSM for PrivateKey safe keeping
       LicenseInfo: Apache-2.0
-      ContentUri: ./layers/wrapper.zip
+      ContentUri: ./wrapper.zip
       CompatibleRuntimes:
         Ref: CompatibleRuntimes
       CompatibleArchitectures:
