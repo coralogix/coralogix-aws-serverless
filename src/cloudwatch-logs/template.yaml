@@ -14,9 +14,17 @@ Metadata:
       - logs
       - cloudwatch
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.15
+    SemanticVersion: 1.0.16
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
+  LayerARN:
+    Type: String
+    Description: Coralogix SSM Layer ARN
+    Default: ''
+  SsmEnabled:
+    Type: String
+    Description: store coralogix private_key as a secret. True/False
+    Default: 'False'
   CoralogixRegion:
     Type: String
     Description: The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US]
@@ -109,8 +117,20 @@ Conditions:
       - Fn::Equals:
           - Ref: NotificationEmail
           - ''
+  IsSsmEnabled:
+    Fn::Equals:
+      - Ref: SsmEnabled
+      - 'True'
+  IsNotSsmEnabled:
+    Fn::Equals:
+      - Ref: SsmEnabled
+      - 'False'
+  
 Resources:
+
+    
   LambdaFunction:
+    Condition: IsNotSsmEnabled
     Type: AWS::Serverless::Function
     Properties:
       Description: Send CloudWatch logs to Coralogix.
@@ -153,7 +173,64 @@ Resources:
             LogGroupName:
               Ref: CloudWatchLogGroupName
             FilterPattern: ''
-
+  LambdaFunctionSsm:
+    Condition: IsSsmEnabled
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Send CloudWatch logs to Coralogix.
+      CodeUri: .
+      Policies:
+        - SecretsManagerReadWrite
+      Handler: index.handler
+      Runtime: nodejs16.x
+      Layers:
+        - Ref: LayerARN
+      Architectures:
+        - Ref: FunctionArchitecture
+      MemorySize:
+        Ref: FunctionMemorySize
+      Timeout:
+        Ref: FunctionTimeout
+      Environment:
+        Variables:
+          CORALOGIX_URL:
+            Fn::FindInMap:
+              - CoralogixRegionMap
+              - Ref: CoralogixRegion
+              - LogUrl
+          AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
+          #SECRET_NAME: LOLO
+          app_name:
+            Ref: ApplicationName
+          sub_name:
+            Ref: SubsystemName
+          newline_pattern:
+            Ref: NewlinePattern
+          buffer_charset:
+            Ref: BufferCharset
+          sampling:
+            Ref: SamplingRate
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: SNS
+      Events:
+        CloudWatchLogsEvent:
+          Type: CloudWatchLogs
+          Properties:
+            LogGroupName:
+              Ref: CloudWatchLogGroupName
+            FilterPattern: ''  
+  PrivateKeySecret:
+    Condition: IsSsmEnabled
+    Type: AWS::SecretsManager::Secret
+    Properties: 
+      Description: Coralogix Send Your Data key Secret
+      Name: !Sub
+        - 'lambda/coralogix/${AWS::Region}/${function}'
+        - function: !Ref LambdaFunctionSsm
+      SecretString: !Ref PrivateKey
+  
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
     Condition: IsNotificationEnabled
