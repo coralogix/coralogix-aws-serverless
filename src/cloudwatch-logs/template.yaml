@@ -179,6 +179,8 @@ Resources:
     Properties:
       Description: Send CloudWatch logs to Coralogix.
       CodeUri: .
+      Policies:
+        - SecretsManagerReadWrite
       Handler: index.handler
       Runtime: nodejs16.x
       Layers:
@@ -197,7 +199,7 @@ Resources:
               - Ref: CoralogixRegion
               - LogUrl
           AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
-          SECRET_NAME: LOLO
+          #SECRET_NAME: LOLO
           app_name:
             Ref: ApplicationName
           sub_name:
@@ -218,7 +220,7 @@ Resources:
           Properties:
             LogGroupName:
               Ref: CloudWatchLogGroupName
-            FilterPattern: ''
+            FilterPattern: ''  
   PrivateKeySecret:
     Condition: IsSsmEnabled
     Type: AWS::SecretsManager::Secret
@@ -228,6 +230,7 @@ Resources:
         - 'lambda/coralogix/${AWS::Region}/${function}'
         - function: !Ref LambdaFunctionSsm
       SecretString: !Ref PrivateKey
+  
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
     Condition: IsNotificationEnabled
