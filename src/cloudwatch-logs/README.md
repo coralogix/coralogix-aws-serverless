@@ -2,7 +2,7 @@
 
 This application retrieves **CloudWatch** logs and sends them to your **Coralogix** account.
 
-IF you want to use AWS Secrets to store the private_key, first you need to deploy Coralogix SecretLayer form AWS Serverless Repository.
+IF you want to use **AWS Secrets** to store the private_key, first you need to deploy Coralogix SecretLayer form AWS Serverless Repository.
 Take in consideration that both layers and lambda need to be in the same AWS Region.
 
 
