@@ -123,5 +123,5 @@ jobs:
       - name: Store
         run: |
           aws s3 cp \
-            $(yq '.Resources | to_entries[] | select(.key == "LambdaLayer" or .key == "LambdaFunction") | .value.Properties | to_entries[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml) \
+            $(yq -r '.Resources | to_entries[] | select(.key == "LambdaLayer" or .key == "LambdaFunction") | .value.Properties | to_entries[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml) \
             s3://${{ env.AWS_SERVERLESS_BUCKET }}-${{ env.AWS_DEFAULT_REGION }}/${{ matrix.package }}.zip
