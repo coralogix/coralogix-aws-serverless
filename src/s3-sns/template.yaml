@@ -86,10 +86,6 @@ Parameters:
   PrivateKey:
     Type: String
     Description: The Coralogix private key which is used to validate your authenticity
-    AllowedPattern: '[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}'
-    ConstraintDescription: The PrivateKey should be valid UUID string
-    MinLength: 36
-    MaxLength: 36
     NoEcho: true
   ApplicationName:
     Type: String
