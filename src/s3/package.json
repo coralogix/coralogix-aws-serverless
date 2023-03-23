@@ -1,7 +1,7 @@
 {
   "name": "coralogix-s3",
   "title": "AWS S3 Lambda function for Coralogix",
-  "version": "1.0.21",
+  "version": "1.0.22",
   "description": "AWS Lambda function to send logs from S3 bucket to Coralogix",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",

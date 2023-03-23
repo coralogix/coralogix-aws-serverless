@@ -1,7 +1,7 @@
 {
   "name": "coralogix-cloudtrail",
   "title": "AWS CloudTrail Lambda function for Coralogix",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "AWS Lambda function to send CloudTrail logs from S3 bucket to Coralogix",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",
