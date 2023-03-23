@@ -30,6 +30,7 @@ Parameters:
     Default: Europe
   PrivateKey:
     Type: String
+    Description: The Coralogix private key which is used to validate your authenticity
     NoEcho: true
   ApplicationName:
     Type: String
