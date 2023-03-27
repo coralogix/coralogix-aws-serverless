@@ -17,7 +17,7 @@ Metadata:
       - query
       - results
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.8
+    SemanticVersion: 1.0.9
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -99,15 +99,15 @@ Parameters:
 Mappings:
   CoralogixRegionMap:
     Europe:
-      LogUrl: https://api.coralogix.com/api/v1/logs
+      LogUrl: https://ingress.coralogix.com/api/v1/logs
     Europe2:
-      LogUrl: https://api.eu2.coralogix.com/api/v1/logs
+      LogUrl: https://ingress.eu2.coralogix.com/api/v1/logs
     India:
-      LogUrl: https://api.app.coralogix.in/api/v1/logs
+      LogUrl: https://ingress.app.coralogix.in/api/v1/logs
     Singapore:
-      LogUrl: https://api.coralogixsg.com/api/v1/logs
+      LogUrl: https://ingress.coralogixsg.com/api/v1/logs
     US:
-      LogUrl: https://api.coralogix.us/api/v1/logs
+      LogUrl: https://ingress.coralogix.us/api/v1/logs
 Conditions:
   IsNotificationEnabled:
     Fn::Not:

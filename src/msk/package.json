@@ -1,7 +1,7 @@
 {
   "name": "coralogix-msk",
   "title": "AWS Lambda function for Coralogix & Amazon MSK (Apache Kafka) integration",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "AWS Lambda function to send logs from Amazon MSK (Apache Kafka) to Coralogix",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",

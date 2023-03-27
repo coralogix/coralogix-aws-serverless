@@ -1,7 +1,7 @@
 {
   "name": "coralogix-sns",
   "title": "AWS SNS Lambda function for Coralogix",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "AWS Lambda function to send SNS messages to Coralogix",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",

@@ -1,7 +1,7 @@
 {
   "name": "coralogix-mongodb-atlas",
   "title": "AWS Lambda function for MongoDB Atlas and Coralogix integration",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "AWS Lambda function for collecting and sending MongoDB Atlas cluster logs, metrics, events, alerts to Coralogix",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",

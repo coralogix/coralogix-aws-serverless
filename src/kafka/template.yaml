@@ -16,7 +16,7 @@ Metadata:
       - kafka
       - stream
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.6
+    SemanticVersion: 1.0.7
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -92,15 +92,15 @@ Parameters:
 Mappings:
   CoralogixRegionMap:
     Europe:
-      LogUrl: api.coralogix.com
+      LogUrl: ingress.coralogix.com
     Europe2:
-      LogUrl: api.eu2.coralogix.com
+      LogUrl: ingress.eu2.coralogix.com
     India:
-      LogUrl: api.app.coralogix.in
+      LogUrl: ingress.app.coralogix.in
     Singapore:
-      LogUrl: api.coralogixsg.com
+      LogUrl: ingress.coralogixsg.com
     US:
-      LogUrl: api.coralogix.us
+      LogUrl: ingress.coralogix.us
 Conditions:
   IsNotificationEnabled:
     Fn::Not:
