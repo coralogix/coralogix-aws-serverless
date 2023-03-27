@@ -78,7 +78,7 @@ Mappings:
     Europe2:
       LogUrl: ingress.eu2.coralogix.com
     India:
-      LogUrl: ingress.app.coralogix.in
+      LogUrl: ingress.coralogix.in
     Singapore:
       LogUrl: ingress.coralogixsg.com
     US:

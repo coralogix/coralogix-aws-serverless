@@ -181,7 +181,7 @@ Mappings:
     Europe2:
       LogUrl: https://ingress.eu2.coralogix.com/api/v1/logs
     India:
-      LogUrl: https://ingress.app.coralogix.in/api/v1/logs
+      LogUrl: https://ingress.coralogix.in/api/v1/logs
     Singapore:
       LogUrl: https://ingress.coralogixsg.com/api/v1/logs
     US:
