@@ -14,7 +14,7 @@ Metadata:
       - logs
       - cloudwatch
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.17
+    SemanticVersion: 1.0.18
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   LayerARN:
@@ -98,15 +98,15 @@ Parameters:
 Mappings:
   CoralogixRegionMap:
     Europe:
-      LogUrl: api.coralogix.com
+      LogUrl: ingress.coralogix.com
     Europe2:
-      LogUrl: api.eu2.coralogix.com
+      LogUrl: ingress.eu2.coralogix.com
     India:
-      LogUrl: api.app.coralogix.in
+      LogUrl: ingress.coralogix.in
     Singapore:
-      LogUrl: api.coralogixsg.com
+      LogUrl: ingress.coralogixsg.com
     US:
-      LogUrl: api.coralogix.us
+      LogUrl: ingress.coralogix.us
 Conditions:
   IsNotificationEnabled:
     Fn::Not:
@@ -195,7 +195,6 @@ Resources:
               - Ref: CoralogixRegion
               - LogUrl
           AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
-          #SECRET_NAME: LOLO
           app_name:
             Ref: ApplicationName
           sub_name:
