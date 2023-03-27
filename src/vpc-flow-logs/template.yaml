@@ -173,7 +173,7 @@ Parameters:
 
 Mappings:
   CoralogixRegionMap:
-Europe:
+    Europe:
       LogUrl: https://ingress.coralogix.com/api/v1/logs
     Europe2:
       LogUrl: https://ingress.eu2.coralogix.com/api/v1/logs
