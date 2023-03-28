@@ -1,0 +1,61 @@
+{
+  "name": "coralogix-resource-tags",
+  "title": "AWS Resource Tags Lambda function for Coralogix",
+  "version": "0.1.0",
+  "description": "AWS Lambda function to send AWS resource tags to Coralogix",
+  "homepage": "https://coralogix.com",
+  "license": "Apache-2.0",
+  "main": "index.js",
+  "author": {
+    "name": "Coralogix",
+    "email": "info@coralogix.com",
+    "url": "https://coralogix.com"
+  },
+  "engines": {
+    "node": "16.x"
+  },
+  "contributors": [
+    {
+      "name": "Roman Timushev",
+      "email": "roman.timushev@coralogix.com",
+      "url": "https://github.com/rtimush"
+    }
+  ],
+  "keywords": [
+    "coralogix",
+    "logs",
+    "tags",
+    "aws",
+    "javascript",
+    "library"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coralogix/coralogix-aws-serverless.git"
+  },
+  "bugs": {
+    "email": "info@coralogix.com",
+    "url": "https://github.com/coralogix/coralogix-aws-serverless/issues"
+  },
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "jest": "^29.1.2"
+  },
+  "dependencies": {
+    "@aws-sdk/client-lambda": "^3.299.0",
+    "@grpc/grpc-js": "^1.6.8",
+    "@grpc/proto-loader": "^0.7.0",
+    "p-limit": "^3.0.0",
+    "p-throttle": "^4.0.0"
+  },
+  "files": [
+    "LICENSE",
+    "common.js",
+    "ec2.js",
+    "lambda.js",
+    "proto/service.proto",
+    "proto/opentelemetry/proto/common/v1/common.proto"
+  ]
+}
