@@ -182,10 +182,15 @@ Resources:
       Policies:
         - Version: "2012-10-17"
           Statement:
-            - Sid: GetResourcesPolicy
+            - Sid: GetLambdaMetadata
               Effect: Allow
               Action:
-                - tag:GetResources
+                - lambda:ListFunctions
+                - lambda:ListVersionsByFunction
+                - lambda:GetFunction
+                - lambda:ListAliases
+                - lambda:ListEventSourceMappings
+                - lambda:GetPolicy
               Resource: "*"
 
   LambdaFunctionNotificationSubscription:
