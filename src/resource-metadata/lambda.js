@@ -31,7 +31,7 @@ export const collectLambdaResources = async () => {
     const resources = [...functionResources, ...functionVersionResources, ...aliasResources]
 
     resources.forEach(f =>
-        console.info(`Resource: ${JSON.stringify(f)}`)
+        console.debug(`Resource: ${JSON.stringify(f)}`)
     )
 
     return resources
@@ -138,7 +138,7 @@ const makeLambdaFunctionVersionResource = (fv, eventSourceMappings, maybePolicy)
     const functionVersionArn = fv.FunctionArn
     const arn = parseLambdaFunctionVersionArn(fv.FunctionArn)
     const functionArn = `arn:aws:lambda:${arn.region}:${arn.accountId}:function:${arn.functionName}`
-    const resource_id = fv.FunctionArn
+    const resourceId = fv.FunctionArn
     const arch = extractArchitecture(fv.Architectures)
 
     const attributes = [
@@ -146,7 +146,7 @@ const makeLambdaFunctionVersionResource = (fv, eventSourceMappings, maybePolicy)
         stringAttr("cloud.platform", "aws_lambda"),
         stringAttr("cloud.account.id", arn.accountId),
         stringAttr("cloud.region", arn.region),
-        stringAttr("cloud.resource_id", resource_id),
+        stringAttr("cloud.resource_id", resourceId),
         stringAttr("faas.name", arn.functionName),
         stringAttr("faas.version", fv.Version),
         intAttr("faas.max_memory", fv.MemorySize),
@@ -176,7 +176,7 @@ const makeLambdaFunctionVersionResource = (fv, eventSourceMappings, maybePolicy)
     }
 
     return {
-        resourceId: resource_id,
+        resourceId: resourceId,
         resourceType: "aws:lambda:function-version",
         attributes,
         schemaUrl,
@@ -207,7 +207,7 @@ const makeAliasResource = (functionName, alias) => {
     }
 }
 
-const parseLambdaFunctionArn = (lambdaFunctionArn) => {
+export const parseLambdaFunctionArn = (lambdaFunctionArn) => {
     const arn = lambdaFunctionArn.split(":");
     return {
         region: arn[3],

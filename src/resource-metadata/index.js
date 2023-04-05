@@ -12,14 +12,16 @@
 
 "use strict";
 
-import { collectLambdaResources } from './lambda.js'
+import { collectLambdaResources, parseLambdaFunctionArn } from './lambda.js'
 import { sendToCoralogix } from './coralogix.js'
 
 /**
  * @description Lambda function handler
  */
-export const handler = async () => {
-    const collectorId = "resource-metadata"
+export const handler = async (_, context) => {
+    const invokedArn = parseLambdaFunctionArn(context.invokedFunctionArn) // The invoked arn may contain a version or an alias
+    const collectorId = `arn:aws:lambda:${invokedArn.region}:${invokedArn.accountId}:function:${invokedArn.functionName}`
+    console.info(`Collector ${collectorId} starting collection`)
 
     console.info("Collecting Lambda resources")
     const lambdaResources = await collectLambdaResources()
@@ -28,5 +30,5 @@ export const handler = async () => {
 
     // TODO EC2 metadata collection
 
-    console.info("Done")
+    console.info("Collection done")
 }
