@@ -5,6 +5,7 @@
   "description": "AWS Lambda function to send AWS resource tags to Coralogix",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",
+  "type":"module",
   "main": "index.js",
   "author": {
     "name": "Coralogix",
@@ -12,15 +13,9 @@
     "url": "https://coralogix.com"
   },
   "engines": {
-    "node": "16.x"
+    "node": "18.x"
   },
-  "contributors": [
-    {
-      "name": "Roman Timushev",
-      "email": "roman.timushev@coralogix.com",
-      "url": "https://github.com/rtimush"
-    }
-  ],
+  "contributors": [],
   "keywords": [
     "coralogix",
     "logs",
@@ -53,7 +48,7 @@
   "files": [
     "LICENSE",
     "common.js",
-    "ec2.js",
+    "coralogix.js",
     "lambda.js",
     "proto/service.proto",
     "proto/opentelemetry/proto/common/v1/common.proto"

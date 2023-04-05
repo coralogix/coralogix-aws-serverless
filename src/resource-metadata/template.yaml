@@ -120,19 +120,19 @@ Parameters:
 Mappings:
   CoralogixRegionMap:
     DevShared:
-      MetadataUrl: metadata-gateway.dev-shared.coralogix.net:443
+      MetadataUrl: ingress.dev-shared.coralogix.net:443
     Staging:
-      MetadataUrl: metadata-gateway.staging.coralogix.net:443
+      MetadataUrl: ingress.staging.coralogix.net:443
     Europe:
-      MetadataUrl: metadata-gateway.coralogix.com:443
+      MetadataUrl: ingress.coralogix.com:443
     Europe2:
-      MetadataUrl: metadata-gateway.eu2.coralogix.com:443
+      MetadataUrl: ingress.eu2.coralogix.com:443
     India:
-      MetadataUrl: metadata-gateway.app.coralogix.in:443
+      MetadataUrl: ingress.app.coralogix.in:443
     Singapore:
-      MetadataUrl: metadata-gateway.coralogixsg.com:443
+      MetadataUrl: ingress.coralogixsg.com:443
     US:
-      MetadataUrl: metadata-gateway.coralogix.us:443
+      MetadataUrl: ingress.coralogix.us:443
 Conditions:
   IsNotificationEnabled:
     Fn::Not:
@@ -146,7 +146,7 @@ Resources:
       Description: Send resource metadata to Coralogix.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs16.x
+      Runtime: nodejs18.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:

@@ -1,34 +1,49 @@
-const assert = require("assert");
-const { LambdaClient, ListFunctionsCommand, GetFunctionCommand, ListAliasesCommand, GetPolicyCommand, ListVersionsByFunctionCommand, ListEventSourceMappingsCommand } = require("@aws-sdk/client-lambda");
-const pLimit = require('p-limit');
-const pThrottle = require('p-throttle');
-const { schemaUrl, extractArchitecture, intAttr, stringAttr, traverse } = require("./common.js")
+import assert from 'assert'
+import { LambdaClient, ListFunctionsCommand, GetFunctionCommand, ListAliasesCommand, GetPolicyCommand, ListVersionsByFunctionCommand, ListEventSourceMappingsCommand } from '@aws-sdk/client-lambda'
+import pLimit from 'p-limit'
+import pThrottle from 'p-throttle'
+import { schemaUrl, extractArchitecture, intAttr, stringAttr, traverse } from './common.js'
+
+const validateAndExtractConfiguration = () => {
+    assert(process.env.LAMBDA_API_RATE_LIMIT, "LAMBDA_API_RATE_LIMIT env var missing!")
+    const rateLimit = parseInt(process.env.LAMBDA_API_RATE_LIMIT, 10)
+    assert(process.env.LATEST_VERSIONS_PER_FUNCTION, "LATEST_VERSIONS_PER_FUNCTION env var missing!")
+    const latestVersionsPerFunction = parseInt(process.env.LATEST_VERSIONS_PER_FUNCTION, 10)
+    assert(process.env.RESOURCE_TTL_MINUTES, "RESOURCE_TTL_MINUTES env var missing!")
+    const resourceTtlMinutes = parseInt(process.env.RESOURCE_TTL_MINUTES, 10)
+    return { rateLimit, latestVersionsPerFunction, resourceTtlMinutes };
+};
+const { rateLimit, latestVersionsPerFunction, resourceTtlMinutes } = validateAndExtractConfiguration();
 
 const lambdaClient = new LambdaClient();
 
-assert(process.env.LAMBDA_API_RATE_LIMIT, "LAMBDA_API_RATE_LIMIT env var missing!")
-const rateLimit = parseInt(process.env.LAMBDA_API_RATE_LIMIT, 10)
-
-assert(process.env.LATEST_VERSIONS_PER_FUNCTION, "LATEST_VERSIONS_PER_FUNCTION env var missing!")
-const latestVersionsPerFunction = parseInt(process.env.LATEST_VERSIONS_PER_FUNCTION, 10)
-
-assert(process.env.RESOURCE_TTL_MINUTES, "RESOURCE_TTL_MINUTES env var missing!")
-const resourceTtlMinutes = parseInt(process.env.RESOURCE_TTL_MINUTES, 10)
-
-async function collectLambdaResources() {
+export const collectLambdaResources = async () => {
 
     console.info("Collecting list of functions")
-
     const listOfFunctions = await lambdaClient.send(new ListFunctionsCommand({}))
 
     console.info("Collecting function details")
+    const { functionResources, aliasResources, versionsToCollect } = await collectFunctionAndAliasResources(listOfFunctions)
 
+    console.info("Collecting function version details")
+    const functionVersionResources = await collectFunctionVersionResources(versionsToCollect)
+
+    const resources = [...functionResources, ...functionVersionResources, ...aliasResources]
+
+    resources.forEach(f =>
+        console.info(`Resource: ${JSON.stringify(f)}`)
+    )
+
+    return resources
+}
+
+const collectFunctionAndAliasResources = async (listOfFunctions) => {
     // This is important, because it avoids hitting the AWS API rate limits.
-    // The AWS API rate limit is 15req/s. The API rate limit is divided by 2, because the code it does two (GetFunction count's differently) calls per function.
-    // These two throttles are currently identical, but this is so only because both function processing and function version processing do two API calls per element. This may change as the implementation evolves.
-    const functionThrottle = pThrottle({ limit: rateLimit/2, interval: 1000 }) 
-    const functionVersionThrottle = pThrottle({ limit: rateLimit/2, interval: 1000 }) 
-     // This is just an additional protection against doing to much in parallel, but typically the throttle should kick in first.
+    // The AWS API rate limit is 15req/s. rateLimit is typically specified to a lower value to leave some margin.
+    // The rateLimit is divided by 2, because the code it does two (GetFunction count's differently) calls per function.
+    const functionThrottle = pThrottle({ limit: rateLimit / 2, interval: 1000 })
+
+    // This is just an additional protection against doing to much in parallel, but typically the throttle should kick in first.
     const limit = pLimit(10);
 
     const results = (await traverse(listOfFunctions.Functions, (lambdaFunctionVersionLatest) => {
@@ -50,15 +65,23 @@ async function collectLambdaResources() {
             }
         }))
     }))
-    const functionResources = results.map(x => x.functionResource)
-    const aliasResources = results.flatMap(x => x.aliasResources)
-    const versionsToCollect = results.flatMap(x => x.versionsToCollect)
 
-    console.info("Collecting function version details")
+    return {
+        functionResources: results.map(x => x.functionResource),
+        aliasResources: results.flatMap(x => x.aliasResources),
+        versionsToCollect: results.flatMap(x => x.versionsToCollect),
+    }
+}
 
-    const functionVersionResources = await traverse(versionsToCollect, (lambdaFunctionVersion) => {
+const collectFunctionVersionResources = async (versionsToCollect) => {
+    // The rateLimit is divided by 2, because the code it does two (ListEventSourceMappingsCommand, GetPolicyCommand) calls per function version.
+    const functionVersionThrottle = pThrottle({ limit: rateLimit / 2, interval: 1000 })
+    // This is just an additional protection against doing to much in parallel, but typically the throttle should kick in first.
+    const limit = pLimit(10);
+
+    return await traverse(versionsToCollect, (lambdaFunctionVersion) => {
         return limit(functionVersionThrottle(async () => {
-            const functionNameForRequests = lambdaFunctionVersion.Version === "$LATEST" 
+            const functionNameForRequests = lambdaFunctionVersion.Version === "$LATEST"
                 ? lambdaFunctionVersion.FunctionName
                 : `${lambdaFunctionVersion.FunctionName}:${lambdaFunctionVersion.Version}`
 
@@ -73,19 +96,9 @@ async function collectLambdaResources() {
             return makeLambdaFunctionVersionResource(lambdaFunctionVersion, eventSourceMappings, maybePolicy)
         }))
     })
-
-    const resources = [...functionResources, ...functionVersionResources, ...aliasResources]
-
-    resources.forEach(f =>
-        console.info(`Resource: ${JSON.stringify(f)}`)
-    )
-
-    return resources
 }
 
-exports.collectLambdaResources = collectLambdaResources
-
-function makeLambdaFunctionResource(f) {
+const makeLambdaFunctionResource = (f) => {
     const arn = parseLambdaFunctionArn(f.Configuration.FunctionArn)
 
     const attributes = [
@@ -121,7 +134,7 @@ function makeLambdaFunctionResource(f) {
     }
 }
 
-function makeLambdaFunctionVersionResource(fv, eventSourceMappings, maybePolicy) {
+const makeLambdaFunctionVersionResource = (fv, eventSourceMappings, maybePolicy) => {
     const functionVersionArn = fv.FunctionArn
     const arn = parseLambdaFunctionVersionArn(fv.FunctionArn)
     const functionArn = `arn:aws:lambda:${arn.region}:${arn.accountId}:function:${arn.functionName}`
@@ -174,7 +187,7 @@ function makeLambdaFunctionVersionResource(fv, eventSourceMappings, maybePolicy)
     }
 }
 
-function makeAliasResource(functionName, alias) {
+const makeAliasResource = (functionName, alias) => {
     const resourceId = alias.AliasArn
     const attributes = [
         stringAttr("cloud.resource_id", resourceId),
@@ -194,7 +207,7 @@ function makeAliasResource(functionName, alias) {
     }
 }
 
-function parseLambdaFunctionArn(lambdaFunctionArn) {
+const parseLambdaFunctionArn = (lambdaFunctionArn) => {
     const arn = lambdaFunctionArn.split(":");
     return {
         region: arn[3],
@@ -203,7 +216,7 @@ function parseLambdaFunctionArn(lambdaFunctionArn) {
     }
 }
 
-function parseLambdaFunctionVersionArn(lambdaFunctionVersionArn) {
+const parseLambdaFunctionVersionArn = (lambdaFunctionVersionArn) => {
     const arn = lambdaFunctionVersionArn.split(":");
     return {
         region: arn[3],

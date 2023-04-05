@@ -1,41 +1,30 @@
-exports.schemaUrl = ""
+export const schemaUrl = ""
 
-function extractArchitecture(architectures) {
-    const aws_arch = architectures?.[0]
-
-    return (aws_arch === 'x86_64')
-        ? 'amd64'
-        : (aws_arch === 'arm64')
-            ? 'arm64'
-            : ''
-}
-
-exports.extractArchitecture = extractArchitecture;
-
-function intAttr(key, value) {
-    return {
-        key: key,
-        value: {
-            intValue: value,
-        },
+export const extractArchitecture = architectures => {
+    const awsArchitecture = architectures?.[0]
+    switch (awsArchitecture) {
+        case 'x86_64':
+            return 'amd64'
+        case 'arm64':
+            return 'arm64'
+        default:
+            return ''
     }
 }
 
-exports.intAttr = intAttr;
+export const intAttr = (key, value) => ({
+    key: key,
+    value: {
+        intValue: value,
+    },
+})
 
-function stringAttr(key, value) {
-    return {
-        key: key,
-        value: {
-            stringValue: value,
-        },
-    }
-}
+export const stringAttr = (key, value) => ({
+    key: key,
+    value: {
+        stringValue: value,
+    },
+})
 
-exports.stringAttr = stringAttr;
-
-async function traverse(array, f) {
-    return (await Promise.all(array.map(f)))
-}
-
-exports.traverse = traverse;
+export const traverse = async (array, f) =>
+    await Promise.all(array.map(f))
