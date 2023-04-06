@@ -141,7 +141,7 @@ Resources:
       Description: Send resource metadata to Coralogix.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs18.x
+      Runtime: nodejs16.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
