@@ -1,19 +1,15 @@
 import assert from 'assert'
 import { LambdaClient, ListFunctionsCommand, GetFunctionCommand, ListAliasesCommand, GetPolicyCommand, ListVersionsByFunctionCommand, ListEventSourceMappingsCommand } from '@aws-sdk/client-lambda'
-import pLimit from 'p-limit'
-import pThrottle from 'p-throttle'
 import { schemaUrl, extractArchitecture, intAttr, stringAttr, traverse } from './common.js'
 
 const validateAndExtractConfiguration = () => {
-    assert(process.env.LAMBDA_API_RATE_LIMIT, "LAMBDA_API_RATE_LIMIT env var missing!")
-    const rateLimit = parseInt(process.env.LAMBDA_API_RATE_LIMIT, 10)
     assert(process.env.LATEST_VERSIONS_PER_FUNCTION, "LATEST_VERSIONS_PER_FUNCTION env var missing!")
     const latestVersionsPerFunction = parseInt(process.env.LATEST_VERSIONS_PER_FUNCTION, 10)
     assert(process.env.RESOURCE_TTL_MINUTES, "RESOURCE_TTL_MINUTES env var missing!")
     const resourceTtlMinutes = parseInt(process.env.RESOURCE_TTL_MINUTES, 10)
-    return { rateLimit, latestVersionsPerFunction, resourceTtlMinutes };
+    return { latestVersionsPerFunction, resourceTtlMinutes };
 };
-const { rateLimit, latestVersionsPerFunction, resourceTtlMinutes } = validateAndExtractConfiguration();
+const { latestVersionsPerFunction, resourceTtlMinutes } = validateAndExtractConfiguration();
 
 const lambdaClient = new LambdaClient();
 
@@ -38,33 +34,23 @@ export const collectLambdaResources = async () => {
 }
 
 const collectFunctionAndAliasResources = async (listOfFunctions) => {
-    // This is important, because it avoids hitting the AWS API rate limits.
-    // The AWS API rate limit is 15req/s. rateLimit is typically specified to a lower value to leave some margin.
-    // The rateLimit is divided by 2, because the code it does two (GetFunction count's differently) calls per function.
-    const functionThrottle = pThrottle({ limit: rateLimit / 2, interval: 1000 })
+    const results = await traverse(listOfFunctions.Functions, async (lambdaFunctionVersionLatest) => {
+        const functionName = lambdaFunctionVersionLatest.FunctionName
+        const lambdaFunction = await lambdaClient.send(new GetFunctionCommand({ FunctionName: functionName }))
+        const versions = await lambdaClient.send(new ListVersionsByFunctionCommand({ FunctionName: functionName }))
+        const aliases = await lambdaClient.send(new ListAliasesCommand({ FunctionName: functionName }))
 
-    // This is just an additional protection against doing to much in parallel, but typically the throttle should kick in first.
-    const limit = pLimit(10);
+        const versionsToCollect = versions.Versions.filter((version, index) => {
+            return (index <= latestVersionsPerFunction) // Is either $LATEST or one of the latestVersionsPerFunction latest released versions // This relies on the fact that AWS returns the functions in latest -> oldest order
+                || (aliases.Aliases.some(alias => version.Version === alias.FunctionVersion)) // has an alias
+        })
 
-    const results = (await traverse(listOfFunctions.Functions, (lambdaFunctionVersionLatest) => {
-        return limit(functionThrottle(async () => {
-            const functionName = lambdaFunctionVersionLatest.FunctionName
-            const lambdaFunction = await lambdaClient.send(new GetFunctionCommand({ FunctionName: functionName }))
-            const versions = await lambdaClient.send(new ListVersionsByFunctionCommand({ FunctionName: functionName }))
-            const aliases = await lambdaClient.send(new ListAliasesCommand({ FunctionName: functionName }))
-
-            const versionsToCollect = versions.Versions.filter((version, index) => {
-                return (index <= latestVersionsPerFunction) // Is either $LATEST or one of the latestVersionsPerFunction latest released versions // This relies on the fact that AWS returns the functions in latest -> oldest order
-                    || (aliases.Aliases.some(alias => version.Version === alias.FunctionVersion)) // has an alias
-            })
-
-            return {
-                functionResource: makeLambdaFunctionResource(lambdaFunction),
-                aliasResources: aliases.Aliases.map(alias => makeAliasResource(functionName, alias)),
-                versionsToCollect,
-            }
-        }))
-    }))
+        return {
+            functionResource: makeLambdaFunctionResource(lambdaFunction),
+            aliasResources: aliases.Aliases.map(alias => makeAliasResource(functionName, alias)),
+            versionsToCollect,
+        }
+    })
 
     return {
         functionResources: results.map(x => x.functionResource),
@@ -73,30 +59,22 @@ const collectFunctionAndAliasResources = async (listOfFunctions) => {
     }
 }
 
-const collectFunctionVersionResources = async (versionsToCollect) => {
-    // The rateLimit is divided by 2, because the code it does two (ListEventSourceMappingsCommand, GetPolicyCommand) calls per function version.
-    const functionVersionThrottle = pThrottle({ limit: rateLimit / 2, interval: 1000 })
-    // This is just an additional protection against doing to much in parallel, but typically the throttle should kick in first.
-    const limit = pLimit(10);
+const collectFunctionVersionResources = async (versionsToCollect) =>
+    await traverse(versionsToCollect, async (lambdaFunctionVersion) => {
+        const functionNameForRequests = lambdaFunctionVersion.Version === "$LATEST"
+            ? lambdaFunctionVersion.FunctionName
+            : `${lambdaFunctionVersion.FunctionName}:${lambdaFunctionVersion.Version}`
 
-    return await traverse(versionsToCollect, (lambdaFunctionVersion) => {
-        return limit(functionVersionThrottle(async () => {
-            const functionNameForRequests = lambdaFunctionVersion.Version === "$LATEST"
-                ? lambdaFunctionVersion.FunctionName
-                : `${lambdaFunctionVersion.FunctionName}:${lambdaFunctionVersion.Version}`
-
-            const eventSourceMappings = await lambdaClient.send(new ListEventSourceMappingsCommand({ FunctionName: functionNameForRequests }))
-            let maybePolicy = null
-            try {
-                maybePolicy = await lambdaClient.send(new GetPolicyCommand({ FunctionName: functionNameForRequests }))
-            } catch (e) {
-                // GetPolicyCommand results in an error if the lambda has no policy defined.
-                // Ignore this error, and proceed with maybePolicy = null
-            }
-            return makeLambdaFunctionVersionResource(lambdaFunctionVersion, eventSourceMappings, maybePolicy)
-        }))
+        const eventSourceMappings = await lambdaClient.send(new ListEventSourceMappingsCommand({ FunctionName: functionNameForRequests }))
+        let maybePolicy = null
+        try {
+            maybePolicy = await lambdaClient.send(new GetPolicyCommand({ FunctionName: functionNameForRequests }))
+        } catch (e) {
+            // GetPolicyCommand results in an error if the lambda has no policy defined.
+            // Ignore this error, and proceed with maybePolicy = null
+        }
+        return makeLambdaFunctionVersionResource(lambdaFunctionVersion, eventSourceMappings, maybePolicy)
     })
-}
 
 const makeLambdaFunctionResource = (f) => {
     const arn = parseLambdaFunctionArn(f.Configuration.FunctionArn)

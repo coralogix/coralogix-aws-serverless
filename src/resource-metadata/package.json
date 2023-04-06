@@ -41,9 +41,7 @@
   "dependencies": {
     "@aws-sdk/client-lambda": "^3.299.0",
     "@grpc/grpc-js": "^1.6.8",
-    "@grpc/proto-loader": "^0.7.0",
-    "p-limit": "^3.0.0",
-    "p-throttle": "^4.0.0"
+    "@grpc/proto-loader": "^0.7.0"
   },
   "files": [
     "LICENSE",

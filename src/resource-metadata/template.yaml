@@ -29,7 +29,6 @@ Metadata:
       - Label:
           default: AWS Lambda Metadata Collection Configuration
         Parameters:
-          - LambdaApiRateLimit
           - LatestVersionsPerFunction
           - ResourceTtlMinutes
       - Label:
@@ -46,8 +45,6 @@ Metadata:
         default: Private Key
       Schedule:
         default: Schedule
-      LambdaApiRateLimit:
-        default: Lambda API Rate Limit
       LatestVersionsPerFunction:
         default: Latest Versions Per Function
       ResourceTtlMinutes:
@@ -82,15 +79,13 @@ Parameters:
     Description: Collect metadata on a specific schedule
     MaxLength: 256
     Default: "rate(10 minutes)"
-  LambdaApiRateLimit:
-    Description: Maximum number of calls (other than GetFunction) to Lambda API that the lambda will make
-    MinValue: 1
-    Default: 10
   LatestVersionsPerFunction:
+    Type: Number
     Description: How many latest published versions of each Lambda function should be collected
     MinValue: 0
     Default: 5
   ResourceTtlMinutes:
+    Type: Number
     Description: Once a resource is collected, how long should it remain valid?
     Default: 60
   FunctionArchitecture:
@@ -162,8 +157,6 @@ Resources:
               - MetadataUrl
           PRIVATE_KEY:
             Ref: PrivateKey
-          LAMBDA_API_RATE_LIMIT:
-            Ref: LambdaApiRateLimit
           LATEST_VERSIONS_PER_FUNCTION:
             Ref: LatestVersionsPerFunction
           RESOURCE_TTL_MINUTES:

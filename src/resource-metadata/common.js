@@ -26,5 +26,10 @@ export const stringAttr = (key, value) => ({
     },
 })
 
-export const traverse = async (array, f) =>
-    await Promise.all(array.map(f))
+export const traverse = async (array, f) => {
+    const results = [];
+    for (const a of array) {
+        results.push(await f(a));
+    }
+    return results;
+}
