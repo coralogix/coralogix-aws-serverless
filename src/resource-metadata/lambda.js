@@ -114,9 +114,9 @@ const makeLambdaFunctionResource = (f) => {
 
 const makeLambdaFunctionVersionResource = (fv, eventSourceMappings, maybePolicy) => {
     const functionVersionArn = fv.FunctionArn
-    const arn = parseLambdaFunctionVersionArn(fv.FunctionArn)
+    const arn = parseLambdaFunctionVersionArn(functionVersionArn)
     const functionArn = `arn:aws:lambda:${arn.region}:${arn.accountId}:function:${arn.functionName}`
-    const resourceId = fv.FunctionArn
+    const resourceId = functionVersionArn
     const arch = extractArchitecture(fv.Architectures)
 
     const attributes = [
@@ -135,7 +135,7 @@ const makeLambdaFunctionVersionResource = (fv, eventSourceMappings, maybePolicy)
         stringAttr("lambda.ephemeral_storage.size", fv.EphemeralStorage.Size),
         intAttr("lambda.timeout", fv.Timeout),
         stringAttr("lambda.iam_role", fv.Role),
-        stringAttr("lambda.function_arn", fv.FunctionArn),
+        stringAttr("lambda.function_arn", functionArn),
     ]
 
     if (fv.Layers) {
