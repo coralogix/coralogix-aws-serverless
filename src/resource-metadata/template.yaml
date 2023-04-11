@@ -13,7 +13,7 @@ Metadata:
       - coralogix
       - metadata
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.1
+    SemanticVersion: 1.0.2
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -100,7 +100,7 @@ Parameters:
     Description: Lambda function memory limit
     MinValue: 128
     MaxValue: 10240
-    Default: 1024
+    Default: 256
   FunctionTimeout:
     Type: Number
     Description: Lambda function timeout limit
