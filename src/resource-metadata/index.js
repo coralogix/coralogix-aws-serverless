@@ -12,6 +12,7 @@
 
 import { collectLambdaResources, parseLambdaFunctionArn } from './lambda.js'
 import { sendToCoralogix } from './coralogix.js'
+import { collectEc2Resources } from './ec2.js';
 
 /**
  * @description Lambda function handler
@@ -26,7 +27,10 @@ export const handler = async (_, context) => {
     console.info("Sending Lambda resources to coralogix")
     await sendToCoralogix({ collectorId, resources: lambdaResources })
 
-    // TODO EC2 metadata collection
+    console.info("Collecting EC2 resources")
+    const ec2Resources = await collectEc2Resources(invokedArn.region, invokedArn.accountId)
+    console.info("Sending EC2 resources to coralogix")
+    await sendToCoralogix({ collectorId, resources: ec2Resources })
 
     console.info("Collection done")
 }
