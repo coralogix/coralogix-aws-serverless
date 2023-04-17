@@ -22,15 +22,26 @@ export const handler = async (_, context) => {
     const collectorId = `arn:aws:lambda:${invokedArn.region}:${invokedArn.accountId}:function:${invokedArn.functionName}`
     console.info(`Collector ${collectorId} starting collection`)
 
+    const lambda = collectAndSendLambdaResources(collectorId)
+    const ec2 = collectAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId)
+
+    await Promise.all([lambda, ec2])
+
+    console.info("Collection done")
+}
+
+const collectAndSendLambdaResources = async (collectorId) => {
     console.info("Collecting Lambda resources")
     const lambdaResources = await collectLambdaResources()
     console.info("Sending Lambda resources to coralogix")
     await sendToCoralogix({ collectorId, resources: lambdaResources })
+    console.info("Sent Lambda resources to coralogix")
+}
 
+const collectAndSendEc2Resources = async (collectorId, region, accountId) => {
     console.info("Collecting EC2 resources")
-    const ec2Resources = await collectEc2Resources(invokedArn.region, invokedArn.accountId)
+    const ec2Resources = await collectEc2Resources(region, accountId)
     console.info("Sending EC2 resources to coralogix")
     await sendToCoralogix({ collectorId, resources: ec2Resources })
-
-    console.info("Collection done")
+    console.info("Sent EC2 resources to coralogix")
 }
