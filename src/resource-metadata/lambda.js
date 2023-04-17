@@ -1,5 +1,5 @@
 import assert from 'assert'
-import { LambdaClient, ListFunctionsCommand, GetFunctionCommand, ListAliasesCommand, GetPolicyCommand, ListVersionsByFunctionCommand, ListEventSourceMappingsCommand } from '@aws-sdk/client-lambda'
+import { paginateListFunctions, LambdaClient, GetFunctionCommand, ListAliasesCommand, GetPolicyCommand, ListVersionsByFunctionCommand, ListEventSourceMappingsCommand } from '@aws-sdk/client-lambda'
 import { schemaUrl, extractArchitecture, intAttr, stringAttr, traverse } from './common.js'
 
 const validateAndExtractConfiguration = () => {
@@ -16,7 +16,7 @@ const lambdaClient = new LambdaClient();
 export const collectLambdaResources = async () => {
 
     console.info("Collecting list of functions")
-    const listOfFunctions = await lambdaClient.send(new ListFunctionsCommand({}))
+    const listOfFunctions = await collectListOfFunctions()
 
     console.info("Collecting function details")
     const { functionResources, aliasResources, versionsToCollect } = await collectFunctionAndAliasResources(listOfFunctions)
@@ -29,12 +29,21 @@ export const collectLambdaResources = async () => {
     resources.forEach(f =>
         console.debug(`Resource: ${JSON.stringify(f)}`)
     )
+    console.debug(`Collected ${functionResources.length} functions, ${functionVersionResources.length} function versions and ${aliasResources.length} aliases`)
 
     return resources
 }
 
+const collectListOfFunctions = async () => {
+    const listOfFunctions = [];
+    for await (const page of paginateListFunctions({ client: lambdaClient }, {})) {
+        listOfFunctions.push(...page.Functions);
+    }
+    return listOfFunctions
+}
+
 const collectFunctionAndAliasResources = async (listOfFunctions) => {
-    const results = await traverse(listOfFunctions.Functions, async (lambdaFunctionVersionLatest) => {
+    const results = await traverse(listOfFunctions, async (lambdaFunctionVersionLatest) => {
         const functionName = lambdaFunctionVersionLatest.FunctionName
         const lambdaFunction = await lambdaClient.send(new GetFunctionCommand({ FunctionName: functionName }))
         const versions = await lambdaClient.send(new ListVersionsByFunctionCommand({ FunctionName: functionName }))

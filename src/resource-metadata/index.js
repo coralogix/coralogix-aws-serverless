@@ -12,6 +12,7 @@
 
 import { collectLambdaResources, parseLambdaFunctionArn } from './lambda.js'
 import { sendToCoralogix } from './coralogix.js'
+import { collectEc2Resources } from './ec2.js';
 
 /**
  * @description Lambda function handler
@@ -21,12 +22,26 @@ export const handler = async (_, context) => {
     const collectorId = `arn:aws:lambda:${invokedArn.region}:${invokedArn.accountId}:function:${invokedArn.functionName}`
     console.info(`Collector ${collectorId} starting collection`)
 
+    const lambda = collectAndSendLambdaResources(collectorId)
+    const ec2 = collectAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId)
+
+    await Promise.all([lambda, ec2])
+
+    console.info("Collection done")
+}
+
+const collectAndSendLambdaResources = async (collectorId) => {
     console.info("Collecting Lambda resources")
     const lambdaResources = await collectLambdaResources()
     console.info("Sending Lambda resources to coralogix")
     await sendToCoralogix({ collectorId, resources: lambdaResources })
+    console.info("Sent Lambda resources to coralogix")
+}
 
-    // TODO EC2 metadata collection
-
-    console.info("Collection done")
+const collectAndSendEc2Resources = async (collectorId, region, accountId) => {
+    console.info("Collecting EC2 resources")
+    const ec2Resources = await collectEc2Resources(region, accountId)
+    console.info("Sending EC2 resources to coralogix")
+    await sendToCoralogix({ collectorId, resources: ec2Resources })
+    console.info("Sent EC2 resources to coralogix")
 }

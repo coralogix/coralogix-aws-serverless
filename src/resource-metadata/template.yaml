@@ -13,7 +13,7 @@ Metadata:
       - coralogix
       - metadata
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.2
+    SemanticVersion: 1.1.0
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -26,11 +26,11 @@ Metadata:
           default: Metadata Collection Configuration
         Parameters:
           - Schedule
+          - ResourceTtlMinutes
       - Label:
           default: AWS Lambda Metadata Collection Configuration
         Parameters:
           - LatestVersionsPerFunction
-          - ResourceTtlMinutes
       - Label:
           default: Lambda Configuration
         Parameters:
