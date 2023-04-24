@@ -178,6 +178,7 @@ Resources:
             - Sid: GetLambdaMetadata
               Effect: Allow
               Action:
+                - ec2:DescribeInstances
                 - lambda:ListFunctions
                 - lambda:ListVersionsByFunction
                 - lambda:GetFunction
