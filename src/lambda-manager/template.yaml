@@ -4,21 +4,25 @@ Description: Lambda-Manager
 Metadata:
   AWS::ServerlessRepo::Application:
     Name: Coralogix-Lambda-Manager
-    Description: Lambda-Manager
-    Author: Coralogix
+    Description: Lambda-Manager provides automatic log group subscription for lambda functions.
+    Author: CoralogixDev
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
     ReadmeUrl: README.md
     Labels:
       - coralogix
       - logs
-      - cloudtrail
-      - s3
+      - loggroup
+      - cloudwatch
       - lambda
     HomePageUrl: https://coralogix.com
     SemanticVersion: 1.0.0
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
+  LogsFilter:
+    Type: String
+    Description: Subscription Filter.
+    Default: '?REPORT ?"Task timed out" ?"Process exited before completing" ?errorMessage ?"module initialization error:" ?"Unable to import module" ?"ERROR Invoke Error" ?"EPSAGON_TRACE:"'
   RegexPattern:
     Type: String
     Description: Loggroup name regex pattern
@@ -216,6 +220,8 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
+          LOGS_FILTER:
+            Ref: LogsFilter
           REGEX_PATTERN:
             Ref: RegexPattern
           FIREHOSE_ARN: !GetAtt 
