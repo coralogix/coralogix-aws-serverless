@@ -1,18 +1,41 @@
-# Coralogix-CloudTrail
+# AWS cloud trail integarion for Coralogix
 
-This application retrieves **CloudTrail** logs and sends them to your **Coralogix** account.
+Coralogix provides a seamless integration with ``AWS`` cloud so you can send your logs from anywhere and parse them according to your needs.
 
-It requires the following parameters:
-* **S3BucketName** - The name of the `S3` bucket storing the **CloudTrail** logs.
-* **ApplicationName** - A mandatory metadata field that is sent with each log and helps to classify it.
-* **CoralogixRegion** - Possible values are `Europe`, `Europe2`, `US`, `Singapore` or `India`. Choose `Europe` if your Coralogix account URL ends with `.com`, `US` if it ends with `.us` and `India` if it ends with `.in`. This is a **Coralogix** parameter and does not relate to your to your AWS region.
-* **PrivateKey** - Can be found in your **Coralogix** account under `Settings` -> `Send your logs`. It is located in the upper left corner.
-* **SubsystemName** - A mandatory metadata field that is sent with each log and helps to classify it.
+## Prerequisites
 
-`S3KeyPrefix` and `S3KeySuffix` should be adjusted based on your configuration.
+* An account AWS.
+* An coralogix account.
 
-Do not change the `FunctionMemorySize` and `FunctionTimeout` parameters. The application should be installed in the same AWS region as the S3 archive's bucket.
+## AWS Resource Manager Template Deployment
 
-## License
+The Cloud trail integration can be deployed by clicking the link below and signing into your AWS account:
 
-This project is licensed under the Apache-2.0 License.
+[deployment link](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/create/app?applicationId=arn:aws:serverlessrepo:eu-central-1:597078901540:applications/Coralogix-CloudTrail)
+
+
+## Fields
+
+**Application name** - The stack name of this application created via AWS CloudFormation.
+
+**NotificationEmail** - Should the lambda will fail to execute we can send an email to notify you via SNS (requires you have a working SNS, with a validated domain).
+
+**S3BucketName** - The name of the S3 bucket with CloudTrail logs to watch (must be in the same region asstack that you will create).
+
+**ApplicationName** - The name of the Coralogix application you wish to assign to this lambda.
+
+**CoralogixRegion** - The Coralogix location region, possible options are [Europe, India, Singapore, US].
+
+**FunctionArchitecture** - Lambda function architecture, possible options are [x86_64, arm64].
+
+**FunctionMemorySize** - The maximum allocated memory this lambda may consume, the default is 1024.
+
+**FunctionTimeout** - The maximum time in seconds the function may be allowed to run, the default is 300.
+
+**PrivateKey** - Your Coralogix secret key.
+
+**SubsystemName** - The subsystem name you wish to allocate to this log shipper.
+
+**S3KeyPrefix** - 	The prefix of the path within the log, this way you can choose if only part of your bucket is shipped.
+
+**S3KeySuffix** - A filter for the suffix of the file path in your bucket, the default is .json.gz.
