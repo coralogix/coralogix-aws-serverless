@@ -5,7 +5,7 @@ Metadata:
   AWS::ServerlessRepo::Application:
     Name: Coralogix-Lambda-Manager
     Description: Lambda-Manager provides automatic log group subscription for lambda functions.
-    Author: CoralogixDev
+    Author: Coralogix
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
     ReadmeUrl: README.md
@@ -16,7 +16,7 @@ Metadata:
       - cloudwatch
       - lambda
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.0
+    SemanticVersion: 1.0.1
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   LogsFilter:
