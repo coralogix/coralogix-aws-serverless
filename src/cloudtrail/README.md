@@ -4,7 +4,7 @@ Coralogix provides a seamless integration with ``AWS`` cloud so you can send you
 
 ## Prerequisites
 
-* An account AWS.
+* An AWS account.
 * An coralogix account.
 
 ## AWS Resource Manager Template Deployment
@@ -18,13 +18,13 @@ The Cloud trail integration can be deployed by clicking the link below and signi
 
 **Application name** - The stack name of this application created via AWS CloudFormation.
 
-**NotificationEmail** - Should the lambda will fail to execute we can send an email to notify you via SNS (requires you have a working SNS, with a validated domain).
+**NotificationEmail** (optinal) - If the lambda fails a notification email will be sent to this address via SNS (requires you have a working SNS, with a validated domain).
 
-**S3BucketName** - The name of the S3 bucket with CloudTrail logs to watch (must be in the same region asstack that you will create).
+**S3BucketName** - The name of the S3 bucket with CloudTrail logs to watch (must be in the same region as stack that you will create).
 
-**ApplicationName** - The name of the Coralogix application you wish to assign to this lambda.
+**ApplicationName** - Application Name as it will be seen in Coralogix UI.
 
-**CoralogixRegion** - The Coralogix location region, possible options are [Europe, India, Singapore, US].
+**CoralogixRegion** - The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US]
 
 **FunctionArchitecture** - Lambda function architecture, possible options are [x86_64, arm64].
 
@@ -34,7 +34,7 @@ The Cloud trail integration can be deployed by clicking the link below and signi
 
 **PrivateKey** - Your Coralogix secret key.
 
-**SubsystemName** - The subsystem name you wish to allocate to this log shipper.
+**SubsystemName** - Sybsystem Name as it will be seen in Coralogix UI.
 
 **S3KeyPrefix** - 	The prefix of the path within the log, this way you can choose if only part of your bucket is shipped.
 
