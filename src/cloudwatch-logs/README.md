@@ -40,6 +40,7 @@ It requires the following parameters:
 * **NotificationEmail** - the email address to get notifications about function failures.
 
 * **SsmEnabled** - Set this to True to use AWS Secrets  (When enable it creates the secret in with the following pattern "lambda/coralogix/<AWS_REGION>/<Cloudwatch_lambda_name>") - optional. The field receive 'True' or 'False'.
+
 **Note:** Both layers and lambda need to be in the same AWS Region.
 
 
