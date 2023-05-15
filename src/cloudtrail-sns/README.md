@@ -1,4 +1,4 @@
-# Coralogix-CloudTrail
+# Coralogix-CloudTrail-SNS
 
 This application retrieves **CloudTrail** logs and sends them to your **Coralogix** account.
 
