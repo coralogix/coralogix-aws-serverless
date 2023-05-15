@@ -34,7 +34,6 @@ Parameters:
       - India
       - Singapore
       - US
-      - Custom
     Default: Europe
   PrivateKey:
     Type: String
@@ -160,8 +159,6 @@ Resources:
             Ref: BufferCharset
           sampling:
             Ref: SamplingRate
-          custom_domain:
-            Ref: CustomDomain
       EventInvokeConfig:
         DestinationConfig:
           OnFailure:
