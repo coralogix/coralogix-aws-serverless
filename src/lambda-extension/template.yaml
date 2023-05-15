@@ -4,7 +4,7 @@ Description: Lambda function extension for logging to Coralogix.
 Metadata:
   AWS::ServerlessRepo::Application:
     Name: Coralogix-Lambda-Extension
-    Description: Lambda function extension for logging to Coralogix.
+    Description: (Deprecated) Lambda function extension for logging to Coralogix.
     Author: Coralogix
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
@@ -15,7 +15,7 @@ Metadata:
       - lambda
       - extension
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.6
+    SemanticVersion: 1.0.7
     SourceCodeUrl: https://github.com/coralogix/aws-lambda-extension
 Parameters:
   CompatibleRuntimes:
