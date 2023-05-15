@@ -34,6 +34,7 @@ Parameters:
       - India
       - Singapore
       - US
+      - Custom
     Default: Europe
   PrivateKey:
     Type: String
@@ -95,6 +96,10 @@ Parameters:
     Description: Failure notification email address
     MaxLength: 320
     Default: ''
+  CustomDomain:
+    Type: String
+    Description: The Coralogix custom domain
+    Default: '' 
 Mappings:
   CoralogixRegionMap:
     Europe:
@@ -121,10 +126,8 @@ Conditions:
     Fn::Equals:
       - Ref: SsmEnabled
       - 'False'
-  
-Resources:
-
-    
+  IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
+Resources:    
   LambdaFunction:
     Condition: IsNotSsmEnabled
     Type: AWS::Serverless::Function
@@ -141,11 +144,10 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
-          CORALOGIX_URL:
-            Fn::FindInMap:
-              - CoralogixRegionMap
-              - Ref: CoralogixRegion
-              - LogUrl
+          CORALOGIX_URL: !If 
+            - IsRegionCustomUrlEmpty
+            - !Ref CustomDomain
+            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
           private_key:
             Ref: PrivateKey
           app_name:
@@ -158,6 +160,8 @@ Resources:
             Ref: BufferCharset
           sampling:
             Ref: SamplingRate
+          custom_domain:
+            Ref: CustomDomain
       EventInvokeConfig:
         DestinationConfig:
           OnFailure:
@@ -189,11 +193,10 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
-          CORALOGIX_URL:
-            Fn::FindInMap:
-              - CoralogixRegionMap
-              - Ref: CoralogixRegion
-              - LogUrl
+          CORALOGIX_URL: !If
+            - IsRegionCustomUrlEmpty
+            - !Ref CustomDomain
+            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
           AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
           app_name:
             Ref: ApplicationName
@@ -225,7 +228,6 @@ Resources:
         - 'lambda/coralogix/${AWS::Region}/${function}'
         - function: !Ref LambdaFunctionSsm
       SecretString: !Ref PrivateKey
-  
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
     Condition: IsNotificationEnabled
@@ -234,4 +236,7 @@ Resources:
       Endpoint:
         Ref: NotificationEmail
       TopicArn:
-        Ref: LambdaFunction.DestinationTopic
+        !If
+          - IsSsmEnabled
+          - !Ref LambdaFunctionSsm.DestinationTopic
+          - !Ref LambdaFunction.DestinationTopic
