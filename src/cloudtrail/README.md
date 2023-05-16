@@ -2,6 +2,10 @@
 
 Coralogix provides a seamless integration with ``AWS`` cloud so you can send your logs from anywhere and parse them according to your needs.
 
+This application retrieves cloudtrail logs from s3 and sends them to your Coralogix account.
+
+IF you want to use AWS Secrets to store the private_key, first you need to deploy Coralogix SecretLayer form AWS Serverless Repository. Take in consideration that both layers and lambda need to be in the same AWS Region.
+
 ## Prerequisites
 
 * An AWS account.
@@ -24,13 +28,19 @@ The Cloud trail integration can be deployed by clicking the link below and signi
 
 **ApplicationName** - Application Name as it will be seen in Coralogix UI.
 
-**CoralogixRegion** - The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US]
+**CoralogixRegion** - The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US].In case that you want to use Custom domain, leave this as default and write the Custom doamin in the ``CustomDomain`` filed.
+
+**CustomDomain** - The Coralogix custom domain,leave empty if you don't use Custom domain.
 
 **FunctionArchitecture** - Lambda function architecture, possible options are [x86_64, arm64].
 
 **FunctionMemorySize** - The maximum allocated memory this lambda may consume, the default is 1024.
 
 **FunctionTimeout** - The maximum time in seconds the function may be allowed to run, the default is 300.
+
+**SsmEnabled** - store coralogix private_key as a secret so that it will not be save in the lambda. True/False
+
+**LayerARN** - Coralogix SSM Layer ARN (if SsmEnabled set to false, can leave as empty).
 
 **PrivateKey** - Your Coralogix secret key.
 
@@ -39,3 +49,8 @@ The Cloud trail integration can be deployed by clicking the link below and signi
 **S3KeyPrefix** - 	The prefix of the path within the log, this way you can choose if only part of your bucket is shipped.
 
 **S3KeySuffix** - A filter for the suffix of the file path in your bucket, the default is .json.gz.
+
+
+## License
+
+This project is licensed under the Apache-2.0 License.
