@@ -35,7 +35,9 @@ It requires the following parameters:
 
 * **FunctionMemorySize** - The maximum allocated memory this lambda may consume, the default is 1024. Don't change
 
-* **FunctionTimeout** - The maximum time in seconds the function may be allowed to run, the default is 300. Don't change
+* **FunctionTimeout** - The maximum time in seconds the function may be allowed to run, the default is 300. Don't change.
+
+* **NewlinePattern** - Do not change! This is the pattern for lines splitting, the default is ``(?:\r\n|\r|\n)``.
 
 * **PrivateKey** - Your Coralogix secret key.
 
@@ -49,10 +51,8 @@ It requires the following parameters:
 
 * **LayerARN** - This is the ARN of the Coralogix SecurityLayer. Copy from the ``SSM`` serverless application the ARN that was installed on the AWS account. 
 
-Do not change the `FunctionMemorySize`, `FunctionTimeout` and `NewlinePattern` parameters. The application should be installed in the same AWS region as the CloudWatch log group.
-
-**Note:** You can use log field as `Application/Subsystem` names. Use following syntax: `$.my_log.field`.
-
+Do not change the `FunctionMemorySize`, `FunctionTimeout` and `NewlinePattern` parameters. 
+The application should be installed in the same AWS region as the CloudWatch log group.
 
 ## License
 
