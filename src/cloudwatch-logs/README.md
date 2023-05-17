@@ -1,6 +1,6 @@
 # AWS CloudWatch-logs integarion for Coralogix
 
-Coralogix provides a seamless integration with ``AWS`` cloud so you can send your logs from anywhere and parse them according to your needs.
+Coralogix provides a predefined Lambda function to easily forward your CloudTrail logs straight to the Coralogix platform.
 
 This application retrieves **CloudWatch** logs and sends them to your **Coralogix** account.
 
@@ -18,7 +18,7 @@ Take in consideration that both layers and lambda need to be in the same AWS Reg
 
 The CloudWatch-logs integration deployment link and sign in to your AWS account:
 
-[Cloudwatch-logs deployment link](https://eu-west-1.console.aws.amazon.com/lambda/home?region=eu-west-1#/create/app?applicationId=arn:aws:serverlessrepo:eu-central-1:597078901540:applications/Coralogix-CloudWatch)
+[Cloudwatch-logs deployment link]([https://eu-west-1.console.aws.amazon.com/lambda/home?region=eu-west-1#/create/app?applicationId=arn:aws:serverlessrepo:eu-central-1:597078901540:applications/Coralogix-CloudWatch](https://serverlessrepo.aws.amazon.com/applications/eu-central-1/597078901540/Coralogix-CloudWatch))
 
 
 ## Fields
@@ -33,21 +33,21 @@ It requires the following parameters:
 
 * **CustomDomain** - An optional field for custom domain that receive an URL. 
 
-* **PrivateKey** - Can be found in your **Coralogix** account under `Settings` -> `Send your logs`. It is located in the upper left corner.
+* **PrivateKey** - Can be found in your **Coralogix** account under `Data Flow` -> `API Keys`, it is located on the bar on top of the page. The Coralogix private key is under `Send Your Data`. 
 
 * **SubsystemName** - An optional metadata field that is sent with each log and helps to classify it (default: *Log Group name*).
 
-* **NotificationEmail** - the email address to get notifications about function failures.
+* **NotificationEmail** - The email address to get notifications about function failures.
 
-* **SsmEnabled** - Set this to True to use AWS Secrets  (When enable it creates the secret in with the following pattern "lambda/coralogix/<AWS_REGION>/<Cloudwatch_lambda_name>") - optional. The field receive 'True' or 'False'.
- **Note:** Both layers and lambda need to be in the same AWS Region.
+* **SsmEnabled** - Set this to True to use AWS Secrets  (When enable it creates the secret in with the following pattern "lambda/coralogix/<AWS_REGION>/<Cloudwatch_lambda_name>") - optional. The field receive 'True' or 'False'. 
+**Note:** Both layers and lambda need to be in the same AWS Region.
 
 
 * **LayerARN** - This is the ARN of the Coralogix SecurityLayer. Copy from the ``SSM`` serverless application the ARN that was installed on the AWS account. 
 
 Do not change the `FunctionMemorySize`, `FunctionTimeout` and `NewlinePattern` parameters. The application should be installed in the same AWS region as the CloudWatch log group.
 
-**Note:** You can use log field as `Application/Subsystem` names. Just use following syntax: `$.my_log.field`.
+**Note:** You can use log field as `Application/Subsystem` names. Use following syntax: `$.my_log.field`.
 
 
 ## License
