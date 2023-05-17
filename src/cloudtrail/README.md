@@ -6,7 +6,7 @@ Coralogix provides a predefined Lambda function to easily forward your CloudTrai
 * Active CloudTrail 
 * Permissions to create lambda functions
 * An AWS account.
-* An coralogix account.
+* A coralogix account.
 
 ## AWS Resource Manager Template Deployment
 
@@ -44,7 +44,7 @@ The application should be installed in the same AWS region as the CloudWatch log
 
 **S3KeySuffix** - A filter for the suffix of the file path in your bucket, the default is .json.gz.
 
-Do not change the `FunctionMemorySize`, `FunctionTimeout` and `NewlinePattern` parameters.
+Do not change the `FunctionMemorySize`, `FunctionTimeout` parameters.
 
 ## License
 
