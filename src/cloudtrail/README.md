@@ -1,13 +1,10 @@
 # AWS cloud trail integarion for Coralogix
 
-Coralogix provides a seamless integration with ``AWS`` cloud so you can send your logs from anywhere and parse them according to your needs.
-
-This application retrieves cloudtrail logs from s3 and sends them to your Coralogix account.
-
-IF you want to use AWS Secrets to store the private_key, first you need to deploy Coralogix SecretLayer form AWS Serverless Repository. Take in consideration that both layers and lambda need to be in the same AWS Region.
+Coralogix provides a predefined Lambda function to easily forward your CloudTrail logs straight to the Coralogix platform.
 
 ## Prerequisites
-
+* Active CloudTrail 
+* Permissions to create lambda functions
 * An AWS account.
 * An coralogix account.
 
@@ -15,8 +12,9 @@ IF you want to use AWS Secrets to store the private_key, first you need to deplo
 
 The Cloud trail integration can be deployed by clicking the link below and signing into your AWS account:
 
-[deployment link](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/create/app?applicationId=arn:aws:serverlessrepo:eu-central-1:597078901540:applications/Coralogix-CloudTrail)
+[deployment link](https://serverlessrepo.aws.amazon.com/applications/eu-central-1/597078901540/Coralogix-CloudTrail)
 
+The application should be installed in the same AWS region as the CloudWatch log group. Make sure that after you click on deploy for the application, that you are in right region.
 
 ## Fields
 
@@ -32,20 +30,21 @@ The Cloud trail integration can be deployed by clicking the link below and signi
 
 **CustomDomain** - The Coralogix custom domain,leave empty if you don't use Custom domain.
 
-**FunctionArchitecture** - Lambda function architecture, possible options are [x86_64, arm64].
+**FunctionArchitecture** - Lambda function architecture, possible options are [x86_64, arm64]. 
 
-**FunctionMemorySize** - The maximum allocated memory this lambda may consume, the default is 1024.
+**FunctionMemorySize** - The maximum allocated memory this lambda may consume, the default is 1024. Don't change
 
-**FunctionTimeout** - The maximum time in seconds the function may be allowed to run, the default is 300.
+**FunctionTimeout** - The maximum time in seconds the function may be allowed to run, the default is 300. Don't change
 
 **PrivateKey** - Your Coralogix secret key.
 
 **SubsystemName** - Sybsystem Name as it will be seen in Coralogix UI.
 
-**S3KeyPrefix** - 	The prefix of the path within the log, this way you can choose if only part of your bucket is shipped.
+**S3KeyPrefix** - The prefix of the path within the log, this way you can choose if only part of your bucket is shipped.
 
 **S3KeySuffix** - A filter for the suffix of the file path in your bucket, the default is .json.gz.
 
+Do not change the `FunctionMemorySize`, `FunctionTimeout` and `NewlinePattern` parameters.
 
 ## License
 
