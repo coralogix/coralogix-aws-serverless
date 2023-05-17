@@ -1,8 +1,6 @@
 # AWS CloudWatch-logs integarion for Coralogix
 
-Coralogix provides a predefined Lambda function to easily forward your CloudTrail logs straight to the Coralogix platform.
-
-This application retrieves **CloudWatch** logs and sends them to your **Coralogix** account.
+Coralogix provides a predefined Lambda function to easily forward your CloudWatch logs straight to the Coralogix platform.
 
 IF you want to use **AWS Secrets** to store the private_key, first you need to deploy Coralogix SecretLayer form AWS Serverless Repository.
 Take in consideration that both layers and lambda need to be in the same AWS Region.
@@ -18,7 +16,7 @@ Take in consideration that both layers and lambda need to be in the same AWS Reg
 
 The CloudWatch-logs integration deployment link and sign in to your AWS account:
 
-[Cloudwatch-logs deployment link]([https://eu-west-1.console.aws.amazon.com/lambda/home?region=eu-west-1#/create/app?applicationId=arn:aws:serverlessrepo:eu-central-1:597078901540:applications/Coralogix-CloudWatch](https://serverlessrepo.aws.amazon.com/applications/eu-central-1/597078901540/Coralogix-CloudWatch))
+[Cloudwatch-logs deployment link](https://serverlessrepo.aws.amazon.com/applications/eu-central-1/597078901540/Coralogix-CloudWatch)
 
 
 ## Fields
@@ -29,15 +27,21 @@ It requires the following parameters:
 
 * **CloudWatchLogGroupName** - Has to contain one *log group* name from the set of log groups you would like to forward to **Coralogix**. If more than one groups is forwarded add each log group as a trigger to the Lambda being created by this application.
 
-* **CoralogixRegion** - Possible values are `Europe`, `Europe2`, `US`, `Singapore` or `India`. Choose `Europe` if your Coralogix account URL ends with `.com`, `US` if it ends with `.us` and `India` if it ends with `.in`. This is a **Coralogix** parameter and does not relate to your to your AWS region.
+* **CoralogixRegion** - The Coralogix location region, possible options are [Europe, India, Singapore, US].
 
-* **CustomDomain** - An optional field for custom domain that receive an URL. 
+* **CustomDomain** - The Coralogix custom domain,leave empty if you don't use Custom domain.
 
-* **PrivateKey** - Can be found in your **Coralogix** account under `Data Flow` -> `API Keys`, it is located on the bar on top of the page. The Coralogix private key is under `Send Your Data`. 
+* **FunctionArchitecture** - Lambda function architecture, possible options are [x86_64, arm64]. 
 
-* **SubsystemName** - An optional metadata field that is sent with each log and helps to classify it (default: *Log Group name*).
+* **FunctionMemorySize** - The maximum allocated memory this lambda may consume, the default is 1024. Don't change
 
-* **NotificationEmail** - The email address to get notifications about function failures.
+* **FunctionTimeout** - The maximum time in seconds the function may be allowed to run, the default is 300. Don't change
+
+* **PrivateKey** - Your Coralogix secret key.
+
+* **SubsystemName** - Sybsystem Name as it will be seen in Coralogix UI.
+
+* **NotificationEmail** - (optinal) - If the lambda fails a notification email will be sent to this address via SNS (requires you have a working SNS, with a validated domain).
 
 * **SsmEnabled** - Set this to True to use AWS Secrets  (When enable it creates the secret in with the following pattern "lambda/coralogix/<AWS_REGION>/<Cloudwatch_lambda_name>") - optional. The field receive 'True' or 'False'. 
 **Note:** Both layers and lambda need to be in the same AWS Region.
