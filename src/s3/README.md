@@ -1,13 +1,12 @@
 # AWS S3 integarion for Coralogix
 
-This application retrieves logs stored on an S3 bucket and sends them to your **Coralogix** account. 
 Coralogix provides a predefined Lambda function to easily forward your S3 logs straight to the Coralogix platform.
 
 ## Prerequisites
 
 * AWS account (Your AWS user should have permissions to create lambdas and IAM roles).
 * Coralogix account.
-* OPTIONAL- AWS S3 bucket.
+* AWS S3 bucket.
 
 ## AWS Resource Manager Template Deployment
 
@@ -25,13 +24,13 @@ The S3 integration can be deployed by clicking the link below and signing into y
 
 * **ApplicationName** - The name of the Coralogix application you wish to assign to this lambda.
 
-* **BlockingPattern** - OPTIONAL, The pattern for lines blocking.
+* **BlockingPattern** - OPTIONAL, a regular expression for lines that should be excluded.
 
 * **BufferSize** - The Coralogix logger buffer size, possible option is ``134217728``.
 
-* **CoralogixRegion** - The Coralogix location region, possible options are ``Europe``, ``India``, ``Singapore``, ``US``.
+* **CoralogixRegion** - The Coralogix location region, possible options are ``Europe``, ``Europe2``, ``India``, ``Singapore``, ``US``. In case that you want to use Custom domain, leave this as default and write the Custom doamin in the ``CustomDomain`` filed.
 
-* **CustomDomain** - Your Custom URL for the Coralogix account. Ignore unless you have a custom URL. 
+* **CustomDomain** - The Coralogix custom domain, leave empty if you don't use Custom domain.
 
 * **Debug** - The Coralogix logger debug mode, possible options are ``true``, ``false``.
 
@@ -49,10 +48,11 @@ The S3 integration can be deployed by clicking the link below and signing into y
 
 * **SubsystemName** - The subsystem name you wish to allocate to this log shipper.
 
-* **S3KeyPrefix** - 	OPTIONAL, The prefix of the path within the log, this way you can choose if only part of your bucket is shipped.
+* **S3KeyPrefix** - OPTIONAL, The prefix of the path within the log, this way you can choose if only part of your bucket is shipped.
 
 * **S3KeySuffix** - OPTIONAL, A filter for the suffix of the file path in your bucket.
 
+**Note:** You can use log field as Application/Subsystem names. Just use following syntax: ``$.my_log.field``.
 
 ## License
 
