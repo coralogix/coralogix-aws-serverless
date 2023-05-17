@@ -119,6 +119,10 @@ Parameters:
     Description: Coralogix logger buffer size
     MinValue: 12582912
     Default: 134217728
+  CustomDomain:
+    Type: String
+    Description: The Coralogix custom domain
+    Default: ''
   Debug:
     Type: String
     Description: Coralogix logger debug mode
@@ -184,6 +188,7 @@ Conditions:
       - Fn::Equals:
           - Ref: NotificationEmail
           - ''
+  IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
 Resources:
   LambdaFunction:
     Type: AWS::Serverless::Function
@@ -200,11 +205,10 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
-          CORALOGIX_URL:
-            Fn::FindInMap:
-              - CoralogixRegionMap
-              - Ref: CoralogixRegion
-              - LogUrl
+          CORALOGIX_URL: !If 
+            - IsRegionCustomUrlEmpty
+            - !Ref CustomDomain
+            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
           CORALOGIX_BUFFER_SIZE:
             Ref: BufferSize
           private_key:
@@ -261,24 +265,24 @@ Resources:
       SourceArn:
         Fn::Sub: "arn:aws:s3:::${S3BucketName}"
 
-  LambdaTrigger:
-    Type: Custom::LambdaTrigger
-    DependsOn: LambdaFunctionInvokePermission
-    Properties:
-      ServiceToken:
-        Fn::GetAtt:
-          - CustomResourceLambdaTriggerFunction
-          - Arn
-      LambdaArn:
-        Fn::GetAtt:
-          - LambdaFunction
-          - Arn
-      Bucket:
-        Ref: S3BucketName
-      Prefix:
-        Ref: S3KeyPrefix
-      Suffix:
-        Ref: S3KeySuffix
+  # LambdaTrigger:
+  #   Type: Custom::LambdaTrigger
+  #   DependsOn: LambdaFunctionInvokePermission
+  #   Properties:
+  #     ServiceToken:
+  #       Fn::GetAtt:
+  #         - CustomResourceLambdaTriggerFunction
+  #         - Arn
+  #     LambdaArn:
+  #       Fn::GetAtt:
+  #         - LambdaFunction
+  #         - Arn
+  #     Bucket:
+  #       Ref: S3BucketName
+  #     Prefix:
+  #       Ref: S3KeyPrefix
+  #     Suffix:
+  #       Ref: S3KeySuffix
 
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
