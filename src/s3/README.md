@@ -1,18 +1,18 @@
 # AWS S3 integarion for Coralogix
 
 This application retrieves logs stored on an S3 bucket and sends them to your **Coralogix** account. 
-Coralogix provides a seamless integration with ``AWS`` cloud so you can send your logs from anywhere and parse them according to your needs.
+Coralogix provides a predefined Lambda function to easily forward your S3 logs straight to the Coralogix platform.
 
 ## Prerequisites
 
-* AWS account.
+* AWS account (Your AWS user should have permissions to create lambdas and IAM roles).
 * Coralogix account.
 * OPTIONAL- AWS S3 bucket.
 
 ## AWS Resource Manager Template Deployment
 
 The S3 integration can be deployed by clicking the link below and signing into your AWS account:
-[Deployment link](https://eu-central-1.console.aws.amazon.com/lambda/home?region=eu-central-1#/create/app?applicationId=arn:aws:serverlessrepo:eu-central-1:597078901540:applications/Coralogix-S3)
+[Deployment link](https://serverlessrepo.aws.amazon.com/applications/eu-central-1/597078901540/Coralogix-S3)
 
 
 ## Fields
