@@ -171,24 +171,24 @@ Resources:
       SourceArn:
         Fn::Sub: "arn:aws:s3:::${S3BucketName}"
 
-  # LambdaTrigger:
-  #   Type: Custom::LambdaTrigger
-  #   DependsOn: LambdaFunctionInvokePermission
-  #   Properties:
-  #     ServiceToken:
-  #       Fn::GetAtt:
-  #         - CustomResourceLambdaTriggerFunction
-  #         - Arn
-  #     LambdaArn:
-  #       Fn::GetAtt:
-  #         - LambdaFunction
-  #         - Arn
-  #     Bucket:
-  #       Ref: S3BucketName
-  #     Prefix:
-  #       Ref: S3KeyPrefix
-  #     Suffix:
-  #       Ref: S3KeySuffix
+  LambdaTrigger:
+    Type: Custom::LambdaTrigger
+    DependsOn: LambdaFunctionInvokePermission
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomResourceLambdaTriggerFunction
+          - Arn
+      LambdaArn:
+        Fn::GetAtt:
+          - LambdaFunction
+          - Arn
+      Bucket:
+        Ref: S3BucketName
+      Prefix:
+        Ref: S3KeyPrefix
+      Suffix:
+        Ref: S3KeySuffix
 
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
