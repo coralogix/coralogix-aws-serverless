@@ -2,6 +2,8 @@
 
 Coralogix provides a predefined Lambda function to easily forward your CloudTrail logs straight to the Coralogix platform.
 
+IF you want to use AWS Secrets to store the private_key, first you need to deploy Coralogix SecretLayer form AWS Serverless Repository. Take in consideration that both layers and lambda need to be in the same AWS Region.
+
 ## Prerequisites
 * Active CloudTrail 
 * Permissions to create lambda functions
