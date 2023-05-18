@@ -18,14 +18,6 @@ Metadata:
     SemanticVersion: 1.0.16
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
-  LayerARN:
-    Type: String
-    Description: Coralogix SSM Layer ARN
-    Default: ''
-  SsmEnabled:
-    Type: String
-    Description: store coralogix private_key as a secret. True/False
-    Default: 'False'
   CoralogixRegion:
     Type: String
     Description: The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US]
@@ -44,6 +36,14 @@ Parameters:
     Type: String
     Description: The Coralogix private key which is used to validate your authenticity
     NoEcho: true
+  LayerARN:
+    Type: String
+    Description: Coralogix SSM Layer ARN
+    Default: ''
+  SsmEnabled:
+    Type: String
+    Description: store coralogix private_key as a secret. True/False
+    Default: 'False'
   ApplicationName:
     Type: String
     Description: The name of your application
