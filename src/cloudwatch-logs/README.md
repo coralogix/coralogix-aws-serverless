@@ -29,7 +29,7 @@ It requires the following parameters:
 
 * **CoralogixRegion** - The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US].In case that you want to use Custom domain, leave this as default and write the `Custom doamin` in the CustomDomain filed.
 
-* **CustomDomain** - The Coralogix custom domain,leave empty if you don't use Custom domain.
+* **CustomDomain** - The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US].In case that you want to use Custom domain, leave this as default and write the `Custom doamin` in the CustomDomain filed.
 
 * **FunctionArchitecture** - Lambda function architecture, possible options are [x86_64, arm64]. 
 
