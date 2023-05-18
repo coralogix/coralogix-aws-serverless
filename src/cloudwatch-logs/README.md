@@ -54,6 +54,9 @@ It requires the following parameters:
 Do not change the `FunctionMemorySize`, `FunctionTimeout` and `NewlinePattern` parameters. 
 The application should be installed in the same AWS region as the CloudWatch log group.
 
+**Note:** You can use log field as `Application/Subsystem` names. Use following syntax: `$.my_log.field`.
+
+
 ## License
 
 This project is licensed under the Apache-2.0 License.
