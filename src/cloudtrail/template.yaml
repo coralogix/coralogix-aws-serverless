@@ -18,6 +18,14 @@ Metadata:
     SemanticVersion: 1.0.16
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
+  LayerARN:
+    Type: String
+    Description: Coralogix SSM Layer ARN
+    Default: ''
+  SsmEnabled:
+    Type: String
+    Description: store coralogix private_key as a secret. True/False
+    Default: 'False'
   CoralogixRegion:
     Type: String
     Description: The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US]
@@ -104,9 +112,18 @@ Conditions:
       - Fn::Equals:
           - Ref: NotificationEmail
           - ''
+  IsSsmEnabled:
+    Fn::Equals:
+      - Ref: SsmEnabled
+      - 'True'
+  IsNotSsmEnabled:
+    Fn::Equals:
+      - Ref: SsmEnabled
+      - 'False'
   IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
 Resources:
   LambdaFunction:
+    Condition: IsNotSsmEnabled
     Type: AWS::Serverless::Function
     Properties:
       Description: Send CloudTrail logs from S3 bucket to Coralogix.
@@ -122,9 +139,9 @@ Resources:
       Environment:
         Variables:
           CORALOGIX_URL: !If 
-              - IsRegionCustomUrlEmpty
-              - !Ref CustomDomain
-              - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
+            - IsRegionCustomUrlEmpty
+            - !Ref CustomDomain
+            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
           private_key:
             Ref: PrivateKey
           app_name:
@@ -140,24 +157,8 @@ Resources:
           OnFailure:
             Type: SNS
 
-  CustomResourceLambdaTriggerFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ../helper
-      Handler: index.lambda_handler
-      Runtime: python3.9
-      Timeout: 50
-      Policies:
-        - Statement:
-            - Sid: S3NotificationPolicy
-              Effect: Allow
-              Action:
-                - s3:GetBucketNotification
-                - s3:PutBucketNotification
-              Resource:
-                Fn::Sub: "arn:aws:s3:::${S3BucketName}"
-
   LambdaFunctionInvokePermission:
+    Condition: IsNotSsmEnabled
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName:
@@ -172,6 +173,7 @@ Resources:
         Fn::Sub: "arn:aws:s3:::${S3BucketName}"
 
   LambdaTrigger:
+    Condition: IsNotSsmEnabled
     Type: Custom::LambdaTrigger
     DependsOn: LambdaFunctionInvokePermission
     Properties:
@@ -190,6 +192,106 @@ Resources:
       Suffix:
         Ref: S3KeySuffix
 
+
+  LambdaFunctionSSM:
+      Condition: IsSsmEnabled
+      Type: AWS::Serverless::Function
+      Properties:
+        Description: Send CloudTrail logs from S3 bucket to Coralogix.
+        CodeUri: .
+        Handler: index.handler
+        Layers:
+          - Ref: LayerARN
+        Runtime: nodejs16.x
+        Architectures:
+          - Ref: FunctionArchitecture
+        MemorySize:
+          Ref: FunctionMemorySize
+        Timeout:
+          Ref: FunctionTimeout
+        Environment:
+          Variables:
+            CORALOGIX_URL: !If 
+            - IsRegionCustomUrlEmpty
+            - !Ref CustomDomain
+            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
+            AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
+            app_name:
+              Ref: ApplicationName
+            sub_name:
+              Ref: SubsystemName
+        Policies:
+          - S3ReadPolicy:
+              BucketName:
+                Ref: S3BucketName
+          - SecretsManagerReadWrite
+        EventInvokeConfig:
+          DestinationConfig:
+            OnFailure:
+              Type: SNS
+
+  PrivateKeySecret:
+    Condition: IsSsmEnabled
+    Type: AWS::SecretsManager::Secret
+    Properties: 
+      Description: Coralogix Send Your Data key Secret
+      Name: !Sub
+        - 'lambda/coralogix/${AWS::Region}/${function}'
+        - function: !Ref LambdaFunctionSSM
+      SecretString: !Ref PrivateKey
+
+  CustomResourceLambdaTriggerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../helper
+      Handler: index.lambda_handler
+      Runtime: python3.9
+      Timeout: 50
+      Policies:
+        - Statement:
+            - Sid: S3NotificationPolicy
+              Effect: Allow
+              Action:
+                - s3:GetBucketNotification
+                - s3:PutBucketNotification
+              Resource:
+                Fn::Sub: "arn:aws:s3:::${S3BucketName}"
+
+  LambdaFunctionSSMInvokePermission:
+    Condition: IsSsmEnabled
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Fn::GetAtt:
+          - LambdaFunctionSSM
+          - Arn
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Fn::Sub: "arn:aws:s3:::${S3BucketName}"
+
+  LambdaSSMTrigger:
+    Condition: IsSsmEnabled
+    Type: Custom::LambdaTrigger
+    DependsOn: LambdaFunctionSSMInvokePermission
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomResourceLambdaTriggerFunction
+          - Arn
+      LambdaArn:
+        Fn::GetAtt:
+          - LambdaFunctionSSM
+          - Arn
+      Bucket:
+        Ref: S3BucketName
+      Prefix:
+        Ref: S3KeyPrefix
+      Suffix:
+        Ref: S3KeySuffix
+
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
     Condition: IsNotificationEnabled
@@ -198,4 +300,7 @@ Resources:
       Endpoint:
         Ref: NotificationEmail
       TopicArn:
-        Ref: LambdaFunction.DestinationTopic
+        !If
+          - IsSsmEnabled
+          - !Ref LambdaFunctionSSM.DestinationTopic
+          - !Ref LambdaFunction.DestinationTopic
