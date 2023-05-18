@@ -14,7 +14,7 @@ Metadata:
       - logs
       - s3
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.23
+    SemanticVersion: 1.0.24
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -77,6 +77,14 @@ Metadata:
       NotificationEmail:
         default: Notification Email
 Parameters:
+  LayerARN:
+    Type: String
+    Description: Coralogix SSM Layer ARN
+    Default: ''
+  SsmEnabled:
+    Type: String
+    Description: store coralogix private_key as a secret. True/False
+    Default: 'False'
   CoralogixRegion:
     Type: String
     Description: The Coralogix location region [Europe, Europe2, India, Singapore, US]
@@ -119,6 +127,10 @@ Parameters:
     Description: Coralogix logger buffer size
     MinValue: 12582912
     Default: 134217728
+  CustomDomain:
+    Type: String
+    Description: The Coralogix custom domain
+    Default: ''
   Debug:
     Type: String
     Description: Coralogix logger debug mode
@@ -184,8 +196,18 @@ Conditions:
       - Fn::Equals:
           - Ref: NotificationEmail
           - ''
+  IsSsmEnabled:
+    Fn::Equals:
+      - Ref: SsmEnabled
+      - 'True'
+  IsNotSsmEnabled:
+    Fn::Equals:
+      - Ref: SsmEnabled
+      - 'False'
+  IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
 Resources:
   LambdaFunction:
+    Condition: IsNotSsmEnabled
     Type: AWS::Serverless::Function
     Properties:
       Description: Send logs from S3 bucket to Coralogix.
@@ -200,11 +222,10 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
-          CORALOGIX_URL:
-            Fn::FindInMap:
-              - CoralogixRegionMap
-              - Ref: CoralogixRegion
-              - LogUrl
+          CORALOGIX_URL: !If 
+            - IsRegionCustomUrlEmpty
+            - !Ref CustomDomain
+            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
           CORALOGIX_BUFFER_SIZE:
             Ref: BufferSize
           private_key:
@@ -230,6 +251,55 @@ Resources:
             BucketName:
               Ref: S3BucketName
 
+  LambdaFunctionSSM:
+      Condition: IsSsmEnabled 
+      Type: AWS::Serverless::Function
+      Properties:
+        Description: Send logs from S3 bucket to Coralogix.
+        CodeUri: .
+        Policies:
+          - SecretsManagerReadWrite
+        Layers:
+          - Ref: LayerARN
+        Handler: index.handler
+        Runtime: nodejs16.x
+        Architectures:
+          - Ref: FunctionArchitecture
+        MemorySize:
+          Ref: FunctionMemorySize
+        Timeout:
+          Ref: FunctionTimeout
+        Environment:
+          Variables:
+            CORALOGIX_URL:
+              Fn::FindInMap:
+                - CoralogixRegionMap
+                - Ref: CoralogixRegion
+                - LogUrl
+            CORALOGIX_BUFFER_SIZE:
+              Ref: BufferSize
+            AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
+            app_name:
+              Ref: ApplicationName
+            sub_name:
+              Ref: SubsystemName
+            newline_pattern:
+              Ref: NewlinePattern
+            blocking_pattern:
+              Ref: BlockingPattern
+            sampling:
+              Ref: SamplingRate
+            debug:
+              Ref: Debug
+        EventInvokeConfig:
+          DestinationConfig:
+            OnFailure:
+              Type: SNS
+        Policies:
+          - S3ReadPolicy:
+              BucketName:
+                Ref: S3BucketName
+
   CustomResourceLambdaTriggerFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -248,6 +318,7 @@ Resources:
                 Fn::Sub: "arn:aws:s3:::${S3BucketName}"
 
   LambdaFunctionInvokePermission:
+    Condition: IsNotSsmEnabled
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName:
@@ -261,7 +332,23 @@ Resources:
       SourceArn:
         Fn::Sub: "arn:aws:s3:::${S3BucketName}"
 
+  LambdaFunctionSSMInvokePermission: 
+    Condition: IsSsmEnabled
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Fn::GetAtt:
+          - LambdaFunctionSSM
+          - Arn
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Fn::Sub: "arn:aws:s3:::${S3BucketName}"
+
   LambdaTrigger:
+    Condition: IsNotSsmEnabled
     Type: Custom::LambdaTrigger
     DependsOn: LambdaFunctionInvokePermission
     Properties:
@@ -280,6 +367,26 @@ Resources:
       Suffix:
         Ref: S3KeySuffix
 
+  LambdaTriggerSSM: 
+      Condition: IsSsmEnabled
+      Type: Custom::LambdaTrigger
+      DependsOn: LambdaFunctionSSMInvokePermission
+      Properties:
+        ServiceToken:
+          Fn::GetAtt:
+            - CustomResourceLambdaTriggerFunction
+            - Arn
+        LambdaArn:
+          Fn::GetAtt:
+            - LambdaFunctionSSM
+            - Arn
+        Bucket:
+          Ref: S3BucketName
+        Prefix:
+          Ref: S3KeyPrefix
+        Suffix:
+          Ref: S3KeySuffix
+
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
     Condition: IsNotificationEnabled
@@ -289,3 +396,4 @@ Resources:
         Ref: NotificationEmail
       TopicArn:
         Ref: LambdaFunction.DestinationTopic
+        
