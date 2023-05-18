@@ -1,12 +1,12 @@
 /**
- * AWS CloudTrail Lambda function for Coralogix
+ * AWS CloudTrail-Sns Lambda function for Coralogix
  *
  * @file        This file is lambda function source code
  * @author      Coralogix Ltd. <info@coralogix.com>
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.19
+ * @version     1.0.0
  * @since       1.0.0
  */
 
@@ -58,8 +58,9 @@ function sendLogs(content) {
  * @param {object} callback - Function callback
  */
 function handler(event, context, callback) {
-    const bucket = event.Records[0].s3.bucket.name;
-    const key = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, " "));
+    const s3_event = JSON.parse(event.Records[0].Sns.Message);
+    const bucket = s3_event.Records[0].s3.bucket.name;
+    const key = decodeURIComponent(s3_event.Records[0].s3.object.key.replace(/\+/g, " "));
 
     s3.getObject({
         Bucket: bucket,

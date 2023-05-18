@@ -1,8 +1,8 @@
 {
   "name": "coralogix-cloudtrail",
-  "title": "AWS CloudTrail Lambda function for Coralogix",
-  "version": "1.0.19",
-  "description": "AWS Lambda function to send CloudTrail logs from S3 bucket to Coralogix",
+  "title": "AWS CloudTrail-SNS Lambda function for Coralogix",
+  "version": "1.0.17",
+  "description": "AWS Lambda function to send CloudTrail logs from S3 bucket to Coralogix using SNS Triggers",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",
   "main": "index.js",
@@ -16,9 +16,8 @@
   },
   "contributors": [
     {
-      "name": "Eldar Aliiev",
-      "email": "eldar@coralogix.com",
-      "url": "https://github.com/EldarAliiev"
+      "name": "Juan Gimenez",
+      "email": "juan@coralogix.com"
     }
   ],
   "keywords": [

@@ -1,10 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Send CloudTrail logs from S3 bucket to Coralogix.
+Description: Send CloudTrail logs from SNS bucket to Coralogix.
 Metadata:
   AWS::ServerlessRepo::Application:
-    Name: Coralogix-CloudTrail
-    Description: Send CloudTrail logs from S3 bucket to Coralogix.
+    Name: Coralogix-CloudTrail-via-SNS
+    Description: Send CloudTrail logs from SNS bucket to Coralogix.
     Author: Coralogix
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
@@ -13,9 +13,9 @@ Metadata:
       - coralogix
       - logs
       - cloudtrail
-      - s3
+      - sns
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.19
+    SemanticVersion: 1.0.0
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -28,10 +28,6 @@ Parameters:
       - Singapore
       - US
     Default: Europe
-  CustomDomain:
-    Type: String
-    Description: The Coralogix custom domain
-    Default: '' 
   PrivateKey:
     Type: String
     Description: The Coralogix private key which is used to validate your authenticity
@@ -46,6 +42,11 @@ Parameters:
     Description: The subsystem name of your application
     MinLength: 1
     MaxLength: 64
+  SNSTopicArn:
+    Type: String
+    Description: The ARN of SNS topic to subscribe
+    MinLength: 20
+    MaxLength: 2048
   S3BucketName:
     Type: String
     Description: The name of the S3 bucket with CloudTrail logs to watch
@@ -104,12 +105,11 @@ Conditions:
       - Fn::Equals:
           - Ref: NotificationEmail
           - ''
-  IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
 Resources:
   LambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Description: Send CloudTrail logs from S3 bucket to Coralogix.
+      Description: Send CloudTrail logs from Sns to Coralogix.
       CodeUri: .
       Handler: index.handler
       Runtime: nodejs16.x
@@ -121,16 +121,23 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
-          CORALOGIX_URL: !If 
-              - IsRegionCustomUrlEmpty
-              - !Ref CustomDomain
-              - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
+          CORALOGIX_URL:
+            Fn::FindInMap:
+              - CoralogixRegionMap
+              - Ref: CoralogixRegion
+              - LogUrl
           private_key:
             Ref: PrivateKey
           app_name:
             Ref: ApplicationName
           sub_name:
             Ref: SubsystemName
+      Events:
+        SNSEvent:
+          Type: SNS
+          Properties:
+            Topic:
+              Ref: SNSTopicArn
       Policies:
         - S3ReadPolicy:
             BucketName:
@@ -140,55 +147,7 @@ Resources:
           OnFailure:
             Type: SNS
 
-  CustomResourceLambdaTriggerFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ../helper
-      Handler: index.lambda_handler
-      Runtime: python3.9
-      Timeout: 50
-      Policies:
-        - Statement:
-            - Sid: S3NotificationPolicy
-              Effect: Allow
-              Action:
-                - s3:GetBucketNotification
-                - s3:PutBucketNotification
-              Resource:
-                Fn::Sub: "arn:aws:s3:::${S3BucketName}"
 
-  LambdaFunctionInvokePermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName:
-        Fn::GetAtt:
-          - LambdaFunction
-          - Arn
-      Action: lambda:InvokeFunction
-      Principal: s3.amazonaws.com
-      SourceAccount:
-        Ref: AWS::AccountId
-      SourceArn:
-        Fn::Sub: "arn:aws:s3:::${S3BucketName}"
-
-  LambdaTrigger:
-    Type: Custom::LambdaTrigger
-    DependsOn: LambdaFunctionInvokePermission
-    Properties:
-      ServiceToken:
-        Fn::GetAtt:
-          - CustomResourceLambdaTriggerFunction
-          - Arn
-      LambdaArn:
-        Fn::GetAtt:
-          - LambdaFunction
-          - Arn
-      Bucket:
-        Ref: S3BucketName
-      Prefix:
-        Ref: S3KeyPrefix
-      Suffix:
-        Ref: S3KeySuffix
 
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription

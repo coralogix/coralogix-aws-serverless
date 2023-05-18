@@ -1,4 +1,5 @@
-# Coralogix-Lambda-Extension
+# DEPRECATED
+## Coralogix-Lambda-Extension
 
 This extension provides full integration of lambda function with Coralogix service.
 
