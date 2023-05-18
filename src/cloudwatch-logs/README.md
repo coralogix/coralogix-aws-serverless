@@ -27,13 +27,13 @@ It requires the following parameters:
 
 * **CloudWatchLogGroupName** - Has to contain one *log group* name from the set of log groups you would like to forward to **Coralogix**. If more than one groups is forwarded add each log group as a trigger to the Lambda being created by this application.
 
-* **CoralogixRegion** - The Coralogix location region, possible options are [Europe, India, Singapore, US].
+* **CoralogixRegion** - The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US].In case that you want to use Custom domain, leave this as default and write the `Custom doamin` in the CustomDomain filed.
 
 * **CustomDomain** - The Coralogix custom domain,leave empty if you don't use Custom domain.
 
 * **FunctionArchitecture** - Lambda function architecture, possible options are [x86_64, arm64]. 
 
-* **FunctionMemorySize** - The maximum allocated memory this lambda may consume, the default is 1024. Don't change
+* **FunctionMemorySize** - The maximum allocated memory this lambda may consume, the default is 1024. Don't change.
 
 * **FunctionTimeout** - The maximum time in seconds the function may be allowed to run, the default is 300. Don't change.
 
