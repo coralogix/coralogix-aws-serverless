@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.3
+ * @version     1.0.4
  * @since       1.0.0
  */
 
@@ -101,3 +101,4 @@ exports.handler = function (event, context, callback) {
         return JSON.stringify(Object.assign(...fields.map((field, index) => ({ [field]: ((!isNaN(record[index])) ? parseInt(record[index]) : record[index]) }))))
     }
 };
+
