@@ -15,7 +15,7 @@ Metadata:
       - s3
       - vpc
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.3
+    SemanticVersion: 1.0.4
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   
   AWS::CloudFormation::Interface:
@@ -24,6 +24,7 @@ Metadata:
           default: Coralogix Configuration
         Parameters:
           - CoralogixRegion
+          - CustomDomain
           - PrivateKey
           - ApplicationName
           - SubsystemName
@@ -47,12 +48,20 @@ Metadata:
           - FunctionMemorySize
           - FunctionTimeout
           - NotificationEmail
+          - SsmEnabled
+          - LayerARN
 
     ParameterLabels:
       CoralogixRegion:
         default: Region
       PrivateKey:
         default: Private Key
+      SsmEnabled:
+        default: SsmEnabled
+      LayerARN:
+        default: Layer ARN
+      CustomDomain:
+        default: ""
       ApplicationName:
         default: Application Name
       SubsystemName:
@@ -91,10 +100,22 @@ Parameters:
       - Singapore
       - US
     Default: Europe
+  CustomDomain:
+    Type: String
+    Description: The Coralogix custom domain
+    Default: ''
   PrivateKey:
     Type: String
     Description: The Coralogix private key which is used to validate your authenticity
     NoEcho: true
+  LayerARN:
+    Type: String
+    Description: Coralogix SSM Layer ARN
+    Default: ''
+  SsmEnabled:
+    Type: String
+    Description: store coralogix private_key as a secret. True/False
+    Default: 'False'
   ApplicationName:
     Type: String
     Description: The name of your application
@@ -190,9 +211,18 @@ Conditions:
       - Fn::Equals:
           - Ref: NotificationEmail
           - ''
-
+  IsSsmEnabled:
+    Fn::Equals:
+      - Ref: SsmEnabled
+      - 'True'
+  IsNotSsmEnabled:
+    Fn::Equals:
+      - Ref: SsmEnabled
+      - 'False'
+  IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
 Resources:
   LambdaFunction:
+    Condition: IsNotSsmEnabled
     Type: AWS::Serverless::Function
     Properties:
       Description: Send logs from S3 bucket to Coralogix.
@@ -207,7 +237,10 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
-          CORALOGIX_URL: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, LogUrl]
+          CORALOGIX_URL: !If 
+            - IsRegionCustomUrlEmpty
+            - !Ref CustomDomain
+            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
           CORALOGIX_BUFFER_SIZE: !Ref BufferSize
           private_key: !Ref PrivateKey
           app_name: !Ref ApplicationName
@@ -226,6 +259,7 @@ Resources:
 
 
   LambdaFunctionInvokePermission:
+    Condition: IsNotSsmEnabled
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName:
@@ -240,6 +274,7 @@ Resources:
         Fn::Sub: "arn:aws:s3:::${S3BucketName}"
 
   LambdaTrigger:
+    Condition: IsNotSsmEnabled
     Type: Custom::LambdaTrigger
     DependsOn: LambdaFunctionInvokePermission
     Properties:
@@ -266,7 +301,95 @@ Resources:
       Endpoint:
         Ref: NotificationEmail
       TopicArn:
-        Ref: LambdaFunction.DestinationTopic
+        !If
+          - IsSsmEnabled
+          - !Ref LambdaFunctionSSM.DestinationTopic
+          - !Ref LambdaFunction.DestinationTopic
+  
+  LambdaFunctionSSM:
+    Condition: IsSsmEnabled
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Send logs from S3 bucket to Coralogix.
+      CodeUri: .
+      Handler: index.handler
+      Layers:
+        - Ref: LayerARN
+      Runtime: nodejs16.x
+      Architectures:
+        - !Ref FunctionArchitecture
+      MemorySize:
+        Ref: FunctionMemorySize
+      Timeout:
+        Ref: FunctionTimeout
+      Environment:
+        Variables:
+          CORALOGIX_URL: !If 
+            - IsRegionCustomUrlEmpty
+            - !Ref CustomDomain
+            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
+          CORALOGIX_BUFFER_SIZE: !Ref BufferSize
+          AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
+          app_name: !Ref ApplicationName
+          sub_name: !Ref SubsystemName
+          newline_pattern: !Ref NewlinePattern
+          blocking_pattern: !Ref BlockingPattern
+          sampling: !Ref SamplingRate
+          debug: !Ref Debug
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: SNS
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref S3BucketName
+        - SecretsManagerReadWrite
+
+
+  LambdaFunctionSSMInvokePermission:
+    Condition: IsSsmEnabled
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Fn::GetAtt:
+          - LambdaFunctionSSM
+          - Arn
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Fn::Sub: "arn:aws:s3:::${S3BucketName}"
+
+  LambdaSSMTrigger:
+    Condition: IsSsmEnabled
+    Type: Custom::LambdaTrigger
+    DependsOn: LambdaFunctionSSMInvokePermission
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomResourceLambdaTriggerFunction
+          - Arn
+      LambdaArn:
+        Fn::GetAtt:
+          - LambdaFunctionSSM
+          - Arn
+      Bucket:
+        Ref: S3BucketName
+      Prefix:
+        Ref: S3KeyPrefix
+      Suffix:
+        Ref: S3KeySuffix
+
+  PrivateKeySecret:
+    Condition: IsSsmEnabled
+    Type: AWS::SecretsManager::Secret
+    Properties: 
+      Description: Coralogix Send Your Data key Secret
+      Name: !Sub
+        - 'lambda/coralogix/${AWS::Region}/${function}'
+        - function: !Ref LambdaFunctionSSM
+      SecretString: !Ref PrivateKey
 
   # define a custom resource to create the trigger
   CustomResourceLambdaTriggerFunction:
@@ -360,3 +483,4 @@ Resources:
                     {},
                     event.get('PhysicalResourceId', context.aws_request_id)
                 )
+

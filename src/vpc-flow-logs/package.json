@@ -1,6 +1,6 @@
 {
   "name": "coralogix-vpc-flow-logs",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "AWS Lambda function to send VPC Flow Logs from S3 bucket to Coralogix",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",
@@ -41,3 +41,4 @@
     "README.md"
   ]
 }
+
