@@ -38,6 +38,11 @@ The application should be installed in the same AWS region as the CloudWatch log
 
 **PrivateKey** - Your Coralogix secret key.
 
+* **SsmEnabled** - Set this to True to use AWS Secrets  (When enable it creates the secret in with the following pattern "lambda/coralogix/<AWS_REGION>/<Cloudwatch_lambda_name>") - optional. The field receive 'True' or 'False'. 
+**Note:** Both layers and lambda need to be in the same AWS Region.
+
+* **LayerARN** - This is the ARN of the Coralogix SecurityLayer. Copy from the ``SSM`` serverless application the ARN that was installed on the AWS account. 
+
 **SubsystemName** - Sybsystem Name as it will be seen in Coralogix UI.
 
 **S3KeyPrefix** - The prefix of the path within the log, this way you can choose if only part of your bucket is shipped.
