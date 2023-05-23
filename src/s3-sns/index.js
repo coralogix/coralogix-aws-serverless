@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.23
+ * @version     1.0.24
  * @since       1.0.0
  */
 
@@ -107,7 +107,6 @@ function getSeverityLevel(message) {
  */
 function handler(event, context, callback) {
     const s3_event = JSON.parse(event.Records[0].Sns.Message);
-    console.log(event.Records[0].Sns.Message);
     const bucket = s3_event.Records[0].s3.bucket.name;
     const key = decodeURIComponent(s3_event.Records[0].s3.object.key.replace(/\+/g, " "));
 
