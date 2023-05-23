@@ -1,7 +1,7 @@
 {
-  "name": "coralogix-cloudtrail",
+  "name": "coralogix-cloudtrail-sns",
   "title": "AWS CloudTrail-SNS Lambda function for Coralogix",
-  "version": "1.0.17",
+  "version": "1.0.1",
   "description": "AWS Lambda function to send CloudTrail logs from S3 bucket to Coralogix using SNS Triggers",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",
