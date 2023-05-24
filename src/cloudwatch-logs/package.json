@@ -1,7 +1,7 @@
 {
   "name": "coralogix-cloudwatch-lambda",
   "title": "AWS CloudWatch Logs Lambda function for Coralogix",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "description": "AWS Lambda function to send CloudWatch logs to Coralogix",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",
