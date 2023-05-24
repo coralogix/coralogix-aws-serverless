@@ -50,10 +50,6 @@ Metadata:
         default: Region
       PrivateKey:
         default: Private Key
-      SsmEnabled:
-        default: SsmEnabled
-      LayerARN:
-        default: Layer ARN
       CustomDomain:
         default: ""
       ApplicationName:
@@ -70,6 +66,8 @@ Metadata:
         default: Debug Mode
       S3BucketName:
         default: Bucket Name
+      SNSTopicArn:
+        default: Topic Arn
       FunctionArchitecture:
         default: Architecture
       FunctionMemorySize:
@@ -97,14 +95,6 @@ Parameters:
     Type: String
     Description: The Coralogix private key which is used to validate your authenticity
     NoEcho: true
-  LayerARN:
-    Type: String
-    Description: Coralogix SSM Layer ARN
-    Default: ''
-  SsmEnabled:
-    Type: String
-    Description: store coralogix private_key as a secret. True/False
-    Default: 'False'
   ApplicationName:
     Type: String
     Description: The name of your application
@@ -193,19 +183,10 @@ Conditions:
       - Fn::Equals:
           - Ref: NotificationEmail
           - ''
-  IsSsmEnabled:
-    Fn::Equals:
-      - Ref: SsmEnabled
-      - 'True'
-  IsNotSsmEnabled:
-    Fn::Equals:
-      - Ref: SsmEnabled
-      - 'False'
   IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]] 
 
 Resources:
   LambdaFunction:
-    Condition: IsNotSsmEnabled
     Type: AWS::Serverless::Function
     Properties:
       Description: Send logs from S3 bucket to Coralogix via SNS Trigger.
@@ -224,10 +205,10 @@ Resources:
             - IsRegionCustomUrlEmpty
             - !Ref CustomDomain
             - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
+          CORALOGIX_BUFFER_SIZE:
+            Ref: BufferSize
           private_key:
             Ref: PrivateKey
-          CORALOGIX_BUFFER_SIZE:
-            Ref: BufferSize
           app_name:
             Ref: ApplicationName
           sub_name:
@@ -253,71 +234,7 @@ Resources:
       Policies:
         - S3ReadPolicy:
             BucketName:
-              Ref: S3BucketName
-        - SecretsManagerReadWrite
-
-  LambdaFunctionSSM:
-    Condition: IsSsmEnabled
-    Type: AWS::Serverless::Function
-    Properties:
-      Description: Send logs from S3 bucket to Coralogix via SNS Trigger.
-      CodeUri: .
-      Handler: index.handler
-      Layers: 
-          - Ref: LayerARN
-      Runtime: nodejs16.x
-      Architectures:
-        - Ref: FunctionArchitecture
-      MemorySize:
-        Ref: FunctionMemorySize
-      Timeout:
-        Ref: FunctionTimeout
-      Environment:
-        Variables:
-          CORALOGIX_URL: !If
-            - IsRegionCustomUrlEmpty
-            - !Ref CustomDomain
-            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
-          AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
-          CORALOGIX_BUFFER_SIZE:
-            Ref: BufferSize
-          app_name:
-            Ref: ApplicationName
-          sub_name:
-            Ref: SubsystemName
-          newline_pattern:
-            Ref: NewlinePattern
-          blocking_pattern:
-            Ref: BlockingPattern
-          sampling:
-            Ref: SamplingRate
-          debug:
-            Ref: Debug
-      Events:
-        SNSEvent:
-          Type: SNS
-          Properties:
-            Topic:
-              Ref: SNSTopicArn
-      EventInvokeConfig:
-        DestinationConfig:
-          OnFailure:
-            Type: SNS
-      Policies:
-        - S3ReadPolicy:
-            BucketName:
-              Ref: S3BucketName
-        - SecretsManagerReadWrite
-
-  PrivateKeySecret:
-    Condition: IsSsmEnabled
-    Type: AWS::SecretsManager::Secret
-    Properties: 
-      Description: Coralogix Send Your Data key Secret
-      Name: !Sub
-        - 'lambda/coralogix/${AWS::Region}/${function}'
-        - function: !Ref LambdaFunctionSSM
-      SecretString: !Ref PrivateKey
+              Ref: S3BucketName        
 
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
@@ -327,7 +244,4 @@ Resources:
       Endpoint:
         Ref: NotificationEmail
       TopicArn:
-        !If 
-          - IsSsmEnabled
-          - !Ref LambdaFunctionSSM.DestinationTopic
-          - !Ref LambdaFunction.DestinationTopic
+        Ref: LambdaFunction.DestinationTopic

@@ -42,11 +42,6 @@ The S3 via SNS integration can be deployed by clicking the link below and signin
 
 * **PrivateKey** - Your Coralogix secret key. Can be found in your **Coralogix** account under `Settings` -> `Send your logs`. It is located in the upper left corner.
 
-* **SsmEnabled** - Set this to True to use AWS Secrets  (When enable it creates the secret in with the following pattern "lambda/coralogix/<AWS_REGION>/<Cloudwatch_lambda_name>") - optional. The field receive 'True' or 'False'. 
-**Note:** Both layers and lambda need to be in the same AWS Region.
-
-* **LayerARN** - This is the ARN of the Coralogix SecurityLayer. Copy from the ``SSM`` serverless application the ARN that was installed on the AWS account. 
-
 * **S3BucketName** - The name of the `S3` bucket containing the log files to process.
 
 * **SNSTopicArn** - The ARN of the `SNS` service receiving your S3 bucket notification events.
