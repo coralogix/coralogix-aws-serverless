@@ -13,7 +13,7 @@ Metadata:
       - coralogix
       - metadata
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.1.1
+    SemanticVersion: 1.1.2
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -161,6 +161,8 @@ Resources:
             Ref: LatestVersionsPerFunction
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
+          AWS_RETRY_MODE: adaptive
+          AWS_MAX_ATTEMPTS: 10
       Events:
         ScheduledEvent:
           Type: Schedule
