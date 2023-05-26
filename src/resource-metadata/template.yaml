@@ -161,6 +161,8 @@ Resources:
             Ref: LatestVersionsPerFunction
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
+          AWS_RETRY_MODE: adaptive
+          AWS_MAX_ATTEMPTS: 10
       Events:
         ScheduledEvent:
           Type: Schedule
