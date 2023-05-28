@@ -4,8 +4,8 @@ import grpc from '@grpc/grpc-js'
 import util from 'util';
 
 const validateAndExtractConfiguration = () => {
-    assert(process.env.PRIVATE_KEY, "No private key!")
-    const privateKey = process.env.PRIVATE_KEY
+    assert(process.env.private_key, "No private key!")
+    const privateKey = process.env.private_key
     assert(process.env.CORALOGIX_METADATA_URL, "No Coralogix metadata URL key!")
     const coralogixMetadataUrl = process.env.CORALOGIX_METADATA_URL
     return { privateKey, coralogixMetadataUrl };

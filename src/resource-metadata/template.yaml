@@ -13,7 +13,7 @@ Metadata:
       - coralogix
       - metadata
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.1.2
+    SemanticVersion: 1.1.3
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -22,6 +22,7 @@ Metadata:
         Parameters:
           - CoralogixRegion
           - PrivateKey
+          - CustomDomain
       - Label:
           default: Metadata Collection Configuration
         Parameters:
@@ -38,9 +39,17 @@ Metadata:
           - FunctionMemorySize
           - FunctionTimeout
           - NotificationEmail
+          - LayerARN
+          - SsmEnabled
     ParameterLabels:
       CoralogixRegion:
         default: Region
+      CustomDomain:
+        default: CustomDomain
+      LayerARN:
+        default: coralogix ssm layer
+      SsmEnabled:
+        default: false
       PrivateKey:
         default: Private Key
       Schedule:
@@ -70,10 +79,22 @@ Parameters:
       - Singapore
       - US
     Default: Europe
+  CustomDomain:
+    Type: String
+    Description: The Coralogix custom domain
+    Default: ''
   PrivateKey:
     Type: String
     Description: The Coralogix private key which is used to validate your authenticity
     NoEcho: true
+  LayerARN:
+    Type: String
+    Description: Coralogix SSM Layer ARN
+    Default: ''
+  SsmEnabled:
+    Type: String
+    Description: store coralogix private_key as a secret. True/False
+    Default: 'False'
   Schedule:
     Type: String
     Description: Collect metadata on a specific schedule
@@ -128,14 +149,26 @@ Mappings:
       MetadataUrl: ingress.coralogixsg.com:443
     US:
       MetadataUrl: ingress.coralogix.us:443
+
 Conditions:
   IsNotificationEnabled:
     Fn::Not:
       - Fn::Equals:
           - Ref: NotificationEmail
           - ""
+  IsSsmEnabled:
+    Fn::Equals:
+      - Ref: SsmEnabled
+      - 'True'
+  IsNotSsmEnabled:
+    Fn::Equals:
+      - Ref: SsmEnabled
+      - 'False'
+  IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
+
 Resources:
   LambdaFunction:
+    Condition: IsNotSsmEnabled
     Type: AWS::Serverless::Function
     Properties:
       Description: Send resource metadata to Coralogix.
@@ -150,12 +183,11 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
-          CORALOGIX_METADATA_URL:
-            Fn::FindInMap:
-              - CoralogixRegionMap
-              - Ref: CoralogixRegion
-              - MetadataUrl
-          PRIVATE_KEY:
+          CORALOGIX_METADATA_URL: !If 
+            - IsRegionCustomUrlEmpty
+            - !Ref CustomDomain
+            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, MetadataUrl ]
+          private_key:
             Ref: PrivateKey
           LATEST_VERSIONS_PER_FUNCTION:
             Ref: LatestVersionsPerFunction
@@ -188,6 +220,72 @@ Resources:
                 - lambda:ListEventSourceMappings
                 - lambda:GetPolicy
               Resource: "*"
+  LambdaFunctionSSM:
+    Condition: IsSsmEnabled
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Send resource metadata to Coralogix.
+      CodeUri: .
+      Layers:
+        - Ref: LayerARN
+      Handler: index.handler
+      Runtime: nodejs16.x
+      Architectures:
+        - Ref: FunctionArchitecture
+      MemorySize:
+        Ref: FunctionMemorySize
+      Timeout:
+        Ref: FunctionTimeout
+      Environment:
+        Variables:
+          CORALOGIX_METADATA_URL: !If 
+            - IsRegionCustomUrlEmpty
+            - !Ref CustomDomain
+            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, MetadataUrl ]
+          AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
+          LATEST_VERSIONS_PER_FUNCTION:
+            Ref: LatestVersionsPerFunction
+          RESOURCE_TTL_MINUTES:
+            Ref: ResourceTtlMinutes
+          AWS_RETRY_MODE: adaptive
+          AWS_MAX_ATTEMPTS: 10
+      Events:
+        ScheduledEvent:
+          Type: Schedule
+          Properties:
+            Schedule:
+              Ref: Schedule
+            Enabled: True
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: SNS
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: GetLambdaMetadata
+              Effect: Allow
+              Action:
+                - ec2:DescribeInstances
+                - lambda:ListFunctions
+                - lambda:ListVersionsByFunction
+                - lambda:GetFunction
+                - lambda:ListAliases
+                - lambda:ListEventSourceMappings
+                - lambda:GetPolicy
+              Resource: "*"
+        - SecretsManagerReadWrite
+
+
+  PrivateKeySecret:
+    Condition: IsSsmEnabled
+    Type: AWS::SecretsManager::Secret
+    Properties: 
+      Description: Coralogix Send Your Data key Secret
+      Name: !Sub
+        - 'lambda/coralogix/${AWS::Region}/${function}'
+        - function: !Ref LambdaFunctionSSM
+      SecretString: !Ref PrivateKey
 
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
@@ -197,4 +295,7 @@ Resources:
       Endpoint:
         Ref: NotificationEmail
       TopicArn:
-        Ref: LambdaFunction.DestinationTopic
+        !If
+          - IsSsmEnabled
+          - !Ref LambdaFunctionSSM.DestinationTopic
+          - !Ref LambdaFunction.DestinationTopic
