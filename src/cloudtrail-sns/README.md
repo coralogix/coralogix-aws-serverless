@@ -21,6 +21,8 @@ The application should be installed in the same AWS region as the CloudWatch log
 
 **Application name** - The stack name of this application created via AWS CloudFormation.
 
+**SubsystemName** - Sybsystem Name as it will be seen in Coralogix UI.
+
 **NotificationEmail** (optinal) - If the lambda fails a notification email will be sent to this address via SNS (requires you have a working SNS, with a validated domain).
 
 **S3BucketName** - The name of the S3 bucket with CloudTrail logs to watch (must be in the same region as stack that you will create).
@@ -40,12 +42,6 @@ The application should be installed in the same AWS region as the CloudWatch log
 **FunctionTimeout** - The maximum time in seconds the function may be allowed to run, the default is 300. Don't change
 
 **PrivateKey** - Your Coralogix secret key.
-
-**SubsystemName** - Sybsystem Name as it will be seen in Coralogix UI.
-
-**S3KeyPrefix** - The prefix of the path within the log, this way you can choose if only part of your bucket is shipped.
-
-**S3KeySuffix** - A filter for the suffix of the file path in your bucket, the default is .json.gz.
 
 Do not change the `FunctionMemorySize`, `FunctionTimeout` parameters.
 
