@@ -36,14 +36,6 @@ Parameters:
     Type: String
     Description: The Coralogix private key which is used to validate your authenticity
     NoEcho: true
-  LayerARN: 
-    Type: String
-    Description: Coralogix SSM Layer ARN
-    Default: ''
-  SsmEnabled: 
-    Type: String
-    Description: store coralogix private_key as a secret. True/False
-    Default: 'False'
   ApplicationName:
     Type: String
     Description: The name of your application
@@ -117,23 +109,13 @@ Conditions:
       - Fn::Equals:
           - Ref: NotificationEmail
           - ''
-  IsSsmEnabled: 
-    Fn::Equals:
-      - Ref: SsmEnabled
-      - 'True'
-  IsNotSsmEnabled: 
-    Fn::Equals:
-      - Ref: SsmEnabled
-      - 'False'
   IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]] 
 
 Resources:
-
   LambdaFunction:
-    Condition: IsNotSsmEnabled 
     Type: AWS::Serverless::Function
     Properties:
-      Description: Send CloudTrail logs from Sns to Coralogix.
+      Description: Send logs from S3 bucket to Coralogix via SNS Trigger.
       CodeUri: .
       Handler: index.handler
       Runtime: nodejs16.x
@@ -145,7 +127,7 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
-          CORALOGIX_URL: !If 
+          CORALOGIX_URL: !If
             - IsRegionCustomUrlEmpty
             - !Ref CustomDomain
             - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
@@ -161,68 +143,15 @@ Resources:
           Properties:
             Topic:
               Ref: SNSTopicArn
-      Policies:
-        - S3ReadPolicy:
-            BucketName:
-              Ref: S3BucketName
       EventInvokeConfig:
         DestinationConfig:
           OnFailure:
             Type: SNS
-  
-  LambdaFunctionSSM: 
-    Condition: IsSsmEnabled 
-    Type: AWS::Serverless::Function
-    Properties:
-      Description: Send CloudTrail logs from Sns to Coralogix.
-      CodeUri: .
-      Handler: index.handler
-      Layers: 
-          - Ref: LayerARN
-      Runtime: nodejs16.x
-      Architectures:
-        - Ref: FunctionArchitecture
-      MemorySize:
-        Ref: FunctionMemorySize
-      Timeout:
-        Ref: FunctionTimeout
-      Environment:
-        Variables:
-          CORALOGIX_URL: !If 
-            - IsRegionCustomUrlEmpty
-            - !Ref CustomDomain
-            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
-          AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh 
-          app_name:
-            Ref: ApplicationName
-          sub_name:
-            Ref: SubsystemName
-      Events:
-        SNSEvent:
-          Type: SNS
-          Properties:
-            Topic:
-              Ref: SNSTopicArn
       Policies:
         - S3ReadPolicy:
             BucketName:
-              Ref: S3BucketName
-        - SecretsManagerReadWrite 
-      EventInvokeConfig:
-        DestinationConfig:
-          OnFailure:
-            Type: SNS
-
-  PrivateKeySecret:
-    Condition: IsSsmEnabled
-    Type: AWS::SecretsManager::Secret
-    Properties: 
-      Description: Coralogix Send Your Data key Secret
-      Name: !Sub
-        - 'lambda/coralogix/${AWS::Region}/${function}'
-        - function: !Ref LambdaFunctionSSM
-      SecretString: !Ref PrivateKey
-  
+              Ref: S3BucketName      
+      
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
     Condition: IsNotificationEnabled
@@ -231,7 +160,4 @@ Resources:
       Endpoint:
         Ref: NotificationEmail
       TopicArn:
-        !If 
-          - IsSsmEnabled
-          - !Ref LambdaFunctionSSM.DestinationTopic
-          - !Ref LambdaFunction.DestinationTopic
+        Ref: LambdaFunction.DestinationTopic
