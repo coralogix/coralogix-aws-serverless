@@ -1,0 +1,137 @@
+name: Release
+
+on:
+  push:
+    branches-ignore: [master]
+  pull_request:
+    types: [closed]
+    branches: [master]
+
+env:
+  AWS_DEFAULT_REGION: eu-central-1
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.get-changed-packages.outputs.packages }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Get Changed Packages
+        id: get-changed-packages
+        run: |
+          export PACKAGES=$(git diff --name-only --diff-filter=d ${{ github.event.pull_request.base.sha || 'origin/master' }} ${{ github.sha }} src/ | xargs -n1 dirname | sed -r 's/src\/([^\/]+).*$/src\/\1/g' | xargs -n1 basename | sort | uniq | jq -rcnR '[inputs]')
+          echo "::set-output name=packages::$PACKAGES"
+
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.check.outputs.packages) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Validate
+        working-directory: src/${{ matrix.package }}
+        run: sam validate
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    env:
+      AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
+    needs: [check, validate]
+    strategy:
+      matrix:
+        package: ${{ fromJSON(needs.check.outputs.packages) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+  
+      - name: Build
+        working-directory: ./src/${{ matrix.package }}
+        run: sam build --use-container
+
+      - name: Package
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true }}
+        working-directory: ./src/${{ matrix.package }}
+        run: |
+          sam package \
+            --s3-bucket ${{ env.AWS_SERVERLESS_BUCKET }} \
+            --s3-prefix ${{ matrix.package }} \
+            --output-template-file packaged.yaml
+
+      - name: Store
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.package }}-packaged.yaml
+          path: src/${{ matrix.package }}/packaged.yaml
+
+  publish:
+    name: Publish
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true }}
+    runs-on: ubuntu-latest
+    env:
+      AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
+    needs: 
+      - check
+      - build
+
+    strategy:
+      matrix:
+        package: ${{ fromJSON(needs.check.outputs.packages) }}
+    steps:
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Download
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ matrix.package }}-packaged.yaml
+  
+      - uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Publish
+        run: sam publish --template packaged.yaml
+
+      - name: Store
+        run: |
+          aws s3 cp \
+            $(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "LambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml) \
+            s3://${{ env.AWS_SERVERLESS_BUCKET }}-${{ env.AWS_DEFAULT_REGION }}/${{ matrix.package }}.zip

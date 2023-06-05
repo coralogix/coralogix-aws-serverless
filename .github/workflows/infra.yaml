@@ -1,0 +1,37 @@
+name: Infrastructure
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'infra/**'
+  pull_request:
+    types: [closed]
+    branches: [master]
+    paths:
+      - 'infra/**'
+
+env:
+  AWS_DEFAULT_REGION: eu-central-1
+
+jobs:
+  infrastructure:
+    name: Infrastructure
+    runs-on: aws-sam
+    env:
+      AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
+    steps:
+      - name: Init
+        working-directory: infra/
+        run: terragrunt init
+
+      - name: Validate
+        working-directory: infra/
+        run: terragrunt validate
+
+      - name: Apply
+        working-directory: infra/
+        run: |
+          terragrunt apply \
+            -var="s3_bucket_name_prefix=${{ env.AWS_SERVERLESS_BUCKET }}" \
+            -auto-approve
