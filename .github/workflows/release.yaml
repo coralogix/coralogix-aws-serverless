@@ -11,37 +11,6 @@ env:
   AWS_DEFAULT_REGION: eu-central-1
 
 jobs:
-  infrastructure:
-    name: Infrastructure
-    runs-on: ubuntu-latest
-    env:
-      AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
-    steps:
-      - uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
-
-      - name: Checkout
-        uses: actions/checkout@v3
-      - uses: hashicorp/setup-terraform@v1
-
-      - name: Init
-        working-directory: infra/
-        run: terragrunt init
-
-      - name: Validate
-        working-directory: infra/
-        run: terragrunt validate
-
-      - name: Apply
-        working-directory: infra/
-        run: |
-          terragrunt apply \
-            -var="s3_bucket_name_prefix=${{ env.AWS_SERVERLESS_BUCKET }}" \
-            -auto-approve
-
   check:
     name: Check
     runs-on: ubuntu-latest
@@ -138,7 +107,7 @@ jobs:
     needs: 
       - check
       - build
-      
+
     strategy:
       matrix:
         package: ${{ fromJSON(needs.check.outputs.packages) }}
