@@ -14,6 +14,12 @@ Do not change the `FunctionMemorySize` and `FunctionTimeout` parameters. The app
 
 **Important:** Your VPC must be able to connect to `Lambda` and `STS`, as well as `Secrets Manager` if you use cluster auth. You can provide access by configuring `PrivateLink` or a `NAT Gateway`.
 
+**Notes:**
+You can dynamically set the application and subsystem names by setting the corresponding parameter above with a filter string with the following syntax:
+`$.first_key.additional_key`
+Example:
+`$.computedValues.functionName` would use the functionName of a computedValues array as your dynamic value.
+
 ## License
 
 This project is licensed under the Apache-2.0 License.

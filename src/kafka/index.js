@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.7
+ * @version     1.0.8
  * @since       1.0.0
  */
 
@@ -19,16 +19,29 @@ const assert = require("assert");
 
 // Check Lambda function parameters
 assert(process.env.private_key, "No private key!");
-const appName = process.env.app_name || "NO_APPLICATION";
-const subName = process.env.sub_name || "NO_SUBSYSTEM";
 const coralogixUrl = process.env.CORALOGIX_URL || "api.coralogix.com";
+const bufferCharset = process.env.buffer_charset || "utf8";
+
+/**
+ * @description Extract nested field from object
+ * @param {string} path - Path to field
+ * @param {*} object - JavaScript object
+ * @returns {*} Field value
+ */
+function dig(path, object) {
+    if (path.startsWith("$.")) {
+        return path.split(".").slice(1).reduce((xs, x) => (xs && xs[x]) ? xs[x] : path, object);
+    }
+    return path;
+}
+
 
 /**
  * @description Send logs to Coralogix via API
  * @param {Buffer} logs - GZip compressed logs messages payload
  * @param {function} callback - Function callback
- * @param {int} retryNumber - Retry attempt
- * @param {int} retryLimit - Retry attempts limit
+ * @param {number} retryNumber - Retry attempt
+ * @param {number} retryLimit - Retry attempts limit
  */
 function postToCoralogix(logs, callback, retryNumber = 0, retryLimit = 3) {
     let responseBody = "";
@@ -37,12 +50,13 @@ function postToCoralogix(logs, callback, retryNumber = 0, retryLimit = 3) {
         const request = https.request({
             hostname: coralogixUrl,
             port: 443,
-            path: "/api/v1/logs",
+            path: "/logs/rest/singles",
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "Content-Encoding": "gzip",
-                "Content-Length": logs.length
+                "Content-Length": logs.length,
+                "private_key": process.env.private_key
             },
             timeout: 10000
         });
@@ -106,28 +120,41 @@ function getSeverityLevel(message) {
  * @param {object} callback - Function callback
  */
 function handler(event, context, callback) {
-    zlib.gzip(JSON.stringify({
-        "privateKey": process.env.private_key,
-        "applicationName": appName,
-        "subsystemName": subName,
-        "logEntries": Object.values(event.records).map((records) => {
-            return records.map((record) => {
-                let text = Buffer.from(record.value, "base64").toString();
-                return {
-                    "timestamp": record.timestamp,
-                    "severity": getSeverityLevel(text.toLowerCase()),
-                    "text": text,
-                    "threadId": record.topic
-                };
-            });
-        }).flat()
-    }), (error, compressedEvents) => {
+  const messages = [];
+  for (const partition in event.records) {
+    for (const record of event.records[partition]) {
+        let value;
+        try {
+            value = Buffer.from(record.value, 'base64').toString(bufferCharset)
+        } catch {
+            value = Buffer.from(record.value, 'base64').toString("ascii")
+        }
+        let appName = process.env.app_name || "NO_APPLICATION";
+        let subName = process.env.sub_name || "NO_SUBSYSTEM";
+    
+        try {
+            appName = appName.startsWith("$.") ? dig(appName, JSON.parse(value)) : appName;
+            subName = subName.startsWith("$.") ? dig(subName, JSON.parse(value)) : subName;
+        } catch {}
+        const message = {
+            "applicationName": appName,
+            "subsystemName": subName,
+            "timestamp": record.timestamp,
+            "severity": getSeverityLevel(value.toLowerCase()),
+            "text": value
+        };
+      messages.push(message);
+    }
+  }
+  console.log(messages);
+  zlib.gzip(JSON.stringify(messages),
+    (error, compressedEvents) => {
         if (error) {
             callback(error);
         } else {
             postToCoralogix(compressedEvents, callback);
         }
-    });
+  });
 }
 
 exports.handler = handler;
