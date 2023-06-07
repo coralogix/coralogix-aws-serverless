@@ -15,7 +15,7 @@ Metadata:
       - stream
       - kinesis
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.11
+    SemanticVersion: 1.0.12
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -84,6 +84,18 @@ Parameters:
     Description: Failure notification email address
     MaxLength: 320
     Default: ''
+  CustomUrl:
+    Type: String
+    Description: The Coralogix custom url
+    Default: '' 
+  LayerARN:
+    Type: String
+    Description: Coralogix SSM Layer ARN
+    Default: ''
+  SsmEnabled:
+    Type: String
+    Description: store coralogix private_key as a secret. True/False
+    Default: 'False'
 Mappings:
   CoralogixRegionMap:
     Europe:
@@ -102,8 +114,18 @@ Conditions:
       - Fn::Equals:
           - Ref: NotificationEmail
           - ''
+  IsSsmEnabled:
+    Fn::Equals:
+      - Ref: SsmEnabled
+      - 'True'
+  IsNotSsmEnabled:
+    Fn::Equals:
+      - Ref: SsmEnabled
+      - 'False'
+  IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomUrl, ""]]
 Resources:
   LambdaFunction:
+    Condition: IsNotSsmEnabled
     Type: AWS::Serverless::Function
     Properties:
       Description: Send Kinesis stream data to Coralogix.
@@ -118,11 +140,10 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
-          CORALOGIX_URL:
-            Fn::FindInMap:
-              - CoralogixRegionMap
-              - Ref: CoralogixRegion
-              - LogUrl
+          CORALOGIX_URL: !If 
+            - IsRegionCustomUrlEmpty
+            - !Ref CustomUrl
+            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
           private_key:
             Ref: PrivateKey
           app_name:
@@ -146,6 +167,62 @@ Resources:
             BatchSize: 10
             StartingPosition: LATEST
 
+  LambdaFunctionSsm:
+    Condition: IsSsmEnabled
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Send Kinesis stream data to Coralogix.
+      CodeUri: .
+      Policies:
+        - SecretsManagerReadWrite
+      Handler: index.handler
+      Runtime: nodejs16.x
+      Layers:
+        - Ref: LayerARN
+      Architectures:
+        - Ref: FunctionArchitecture
+      MemorySize:
+        Ref: FunctionMemorySize
+      Timeout:
+        Ref: FunctionTimeout
+      Environment:
+        Variables:
+          CORALOGIX_URL: !If 
+            - IsRegionCustomUrlEmpty
+            - !Ref CustomUrl
+            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
+          AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
+          app_name:
+            Ref: ApplicationName
+          sub_name:
+            Ref: SubsystemName
+          newline_pattern:
+            Ref: NewlinePattern
+          buffer_charset:
+            Ref: BufferCharset
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: SNS
+      Events:
+        KinesisEvent:
+          Type: Kinesis
+          Properties:
+            Stream:
+              Ref: KinesisStreamArn
+            BatchSize: 10
+            StartingPosition: LATEST
+
+  PrivateKeySecret:
+    Condition: IsSsmEnabled
+    Type: AWS::SecretsManager::Secret
+    Properties: 
+      Description: Coralogix Send Your Data key Secret
+      Name: !Sub
+        - 'lambda/coralogix/${AWS::Region}/${function}'
+        - function: !Ref LambdaFunctionSsm
+      SecretString: !Ref PrivateKey
+
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
     Condition: IsNotificationEnabled
@@ -154,4 +231,7 @@ Resources:
       Endpoint:
         Ref: NotificationEmail
       TopicArn:
-        Ref: LambdaFunction.DestinationTopic
+        !If
+          - IsSsmEnabled
+          - !Ref LambdaFunctionSsm.DestinationTopic
+          - !Ref LambdaFunction.DestinationTopic
