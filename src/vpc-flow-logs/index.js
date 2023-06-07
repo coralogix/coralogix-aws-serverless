@@ -48,6 +48,8 @@ exports.handler = function (event, context, callback) {
         Bucket: bucket,
         Key: key,
     };
+
+    console.log(`fetching object: s3://${bucket}/${key}}`)
     s3.getObject(params, (err, data) => {
         if (err) {
             console.log(err);
@@ -77,7 +79,7 @@ exports.handler = function (event, context, callback) {
         var logs =  content.toString('utf8').split(newlinePattern);
     
         // get fields from the first line of the log file
-        fields = logs.shift().split(' ')
+        var fields = logs.shift().split(' ')
         console.log('numbers of logs:', logs.length)
         for (var i = 0; i < logs.length; i++) {
             // create a log
