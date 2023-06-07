@@ -15,8 +15,6 @@ It requires the following parameters:
 
 * **LayerARN** - This is the ARN of the Coralogix SecurityLayer. Copy from the ``SSM`` serverless application the ARN that was installed on the AWS account. 
 
-Do not change the `FunctionMemorySize`, `FunctionTimeout` and `NewlinePattern` parameters. The application should be installed in the same AWS region as the **Kinesis** stream.
-
 ## License
 
 This project is licensed under the Apache-2.0 License.
