@@ -5,7 +5,7 @@ Metadata:
   AWS::ServerlessRepo::Application:
     Name: Coralogix-MSK
     Description: Send data from Amazon MSK to Coralogix.
-    Author: Coralogix-ya
+    Author: Coralogix
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
     ReadmeUrl: README.md
@@ -17,7 +17,7 @@ Metadata:
       - msk
       - stream
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.8
+    SemanticVersion: 1.0.9
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
