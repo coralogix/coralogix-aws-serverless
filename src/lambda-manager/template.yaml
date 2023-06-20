@@ -154,7 +154,7 @@ Resources:
             - AttributeName: "dynamicMetadata"
               AttributeValue: "true"
             - AttributeName: "integrationType"
-              AttributeValue: "CloudWatch_Epsagon"
+              AttributeValue: "CloudWatch_Lambda"
         BufferingHints:
           IntervalInSeconds: 60
           SizeInMBs: 6
