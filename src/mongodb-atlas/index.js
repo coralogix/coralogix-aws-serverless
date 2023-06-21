@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.10
+ * @version     1.0.11
  * @since       1.0.0
  */
 
@@ -34,6 +34,7 @@ coralogix.CoralogixCentralLogger.configure(new coralogix.LoggerConfig({
     privateKey: process.env.CORALOGIX_PRIVATE_KEY
 }));
 const logger = new coralogix.CoralogixCentralLogger();
+const encodedProjectName = encodeURIComponent(process.env.MONGODB_ATLAS_PROJECT_NAME);
 
 /**
  * @description Authorizes to MongoDB Atlas API
@@ -176,7 +177,7 @@ function handler(event, context, callback) {
         FunctionName: context.functionName
     }, (error, func) => {
         if (!error) {
-            mongoApi(`/api/atlas/v1.0/groups/byName/${process.env.MONGODB_ATLAS_PROJECT_NAME}`).then((project) => {
+            mongoApi(`/api/atlas/v1.0/groups/byName/${encodedProjectName}`).then((project) => {
                 process.env.MONGODB_ATLAS_RESOURCES.split(",").forEach((resource) => {
                     switch(resource) {
                         case "mongodb":
