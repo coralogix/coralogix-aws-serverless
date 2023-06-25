@@ -257,8 +257,6 @@ Resources:
       Properties:
         Description: Send logs from S3 bucket to Coralogix.
         CodeUri: .
-        Policies:
-          - SecretsManagerReadWrite
         Layers:
           - Ref: LayerARN
         Handler: index.handler
@@ -299,6 +297,7 @@ Resources:
           - S3ReadPolicy:
               BucketName:
                 Ref: S3BucketName
+          - SecretsManagerReadWrite
 
   CustomResourceLambdaTriggerFunction:
     Type: AWS::Serverless::Function
@@ -386,6 +385,16 @@ Resources:
           Ref: S3KeyPrefix
         Suffix:
           Ref: S3KeySuffix
+
+  PrivateKeySecret:
+    Condition: IsSsmEnabled
+    Type: AWS::SecretsManager::Secret
+    Properties: 
+      Description: Coralogix Send Your Data key Secret
+      Name: !Sub
+        - 'lambda/coralogix/${AWS::Region}/${function}'
+        - function: !Ref LambdaFunctionSSM
+      SecretString: !Ref PrivateKey
 
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
