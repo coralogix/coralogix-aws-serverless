@@ -17,7 +17,7 @@ Metadata:
       - image
       - vulnerabilities
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.16
+    SemanticVersion: 1.0.0
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -52,15 +52,15 @@ Metadata:
 Mappings:
   CoralogixDomainMap:
     Europe:
-      Domain: https://api.coralogix.com:443/api/v1/logs
+      LogUrl: https://ingress.coralogix.com/api/v1/logs
     Europe2:
-      Domain: https://eu2.coralogix.com:443/api/v1/logs
+      LogUrl: https://ingress.eu2.coralogix.com/api/v1/logs
     India:
-      Domain: https://app.coralogix.in:443/api/v1/logs
+      LogUrl: https://ingress.coralogix.in/api/v1/logs
     Singapore:
-      Domain: https://coralogixsg.com:443/api/v1/logs
+      LogUrl: https://ingress.coralogixsg.com/api/v1/logs
     US:
-      Domain: https://coralogix.us:443/api/v1/logs
+      LogUrl: https://ingress.coralogix.us/api/v1/logs
 Parameters:
   PrivateKey:
     Type: String
@@ -123,7 +123,7 @@ Resources:
           APPLICATION_NAME: !Ref ApplicationName
           SUBSYSTEM_NAME: !Ref SubsystemName
           PRIVATE_KEY: !Ref PrivateKey
-          CORALOGIX_LOG_URL: !FindInMap [ CoralogixDomainMap, !Ref CoralogixRegion, Domain ]
+          CORALOGIX_LOG_URL: !FindInMap [ CoralogixDomainMap, !Ref CoralogixRegion, LogUrl ]
   LambdaFunctionInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
