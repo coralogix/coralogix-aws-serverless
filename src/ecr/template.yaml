@@ -105,6 +105,18 @@ Parameters:
     MinValue: 30
     MaxValue: 900
     Default: 300
+  CustomDomain:
+    Type: String
+    Description: The Coralogix custom domain
+    Default: ''
+  NotificationEmail:
+    Type: String
+    Description: Failure notification email address
+    MaxLength: 320
+    Default: ''
+Conditions:
+  IsNotificationEnabled: !Not [!Equals [!Ref NotificationEmail, '']]
+  IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
 Resources:
   LambdaFunction:
     Type: AWS::Serverless::Function
@@ -123,7 +135,10 @@ Resources:
           APPLICATION_NAME: !Ref ApplicationName
           SUBSYSTEM_NAME: !Ref SubsystemName
           PRIVATE_KEY: !Ref PrivateKey
-          CORALOGIX_LOG_URL: !FindInMap [ CoralogixDomainMap, !Ref CoralogixRegion, LogUrl ]
+          CORALOGIX_LOG_URL: !If
+            - IsRegionCustomUrlEmpty
+            - !Ref CustomDomain
+            - !FindInMap [ CoralogixDomainMap, !Ref CoralogixRegion, LogUrl ]
   LambdaFunctionInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -148,3 +163,12 @@ Resources:
       Targets:
         - Arn: !GetAtt LambdaFunction.Arn
           Id: !Ref LambdaFunction
+  LambdaFunctionNotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: IsNotificationEnabled
+    Properties:
+      Protocol: email
+      Endpoint:
+        Ref: NotificationEmail
+      TopicArn:
+        Ref: LambdaFunction.DestinationTopic
