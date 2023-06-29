@@ -1,0 +1,514 @@
+Parameters:
+#NOTE! THE parameters in a comment are apart of the tf module but not apart of this cf, 
+# it is a better solution to remove resource cloudwatch metric stream than to create a lambda that 
+# will take a parameter and make it as an object for the "include_filter"
+# For more info see the notion "aws integrations - new"
+  FirehoseStream:
+    Description: "AWS Kinesis firehose delivery stream name"
+    Type: String
+  PrivateKey:
+    Description: "Coralogix account private key"
+    Type: String
+    NoEcho: true
+  CoralogixRegion:
+    Description: "Coralogix account region: us, singapore, ireland, india, stockholm [firest letter upper-case]"
+    Type: String
+    AllowedValues: [Ireland, Stockholm, India, Singapore, Us]
+  # include_metric_stream_namespaces
+  # include_metric_stream_filter
+  # enable_cloudwatch_metricstream
+  OutputFormat:
+    Type: String
+    Description: "The output format of the cloudwatch metric stream: 'json' or 'opentelemetry0.7'"
+    Default: "opentelemetry0.7"
+    AllowedValues:
+    - "opentelemetry0.7"
+    - "json"
+  IntegrationTypeMetrics:
+    Description: "The integration type of the Firehose delivery stream: 'CloudWatch_Metrics_JSON' or 'CloudWatch_Metrics_OpenTelemetry070'"
+    Type: String
+    AllowedValues: [CloudWatch_Metrics_OpenTelemetry070, CloudWatch_Metrics_JSON ]
+    Default: CloudWatch_Metrics_OpenTelemetry070 
+  ApplicationName:
+    Description: "The name of your application in Coralogix"
+    Type: String
+    Default: ""
+  SubsystemName:
+    Description: "The subsystem name of your application in Coralogix"
+    Type: String
+    Default: ""
+  # user_supplied_tags
+  CloudWatchRetentionDays:
+    Description: "Days of retention in CloudWatch retention days"
+    Type: Number
+    Default: 1
+  CoralogixFirehoseCustomEndpoint:
+    Description: "Custom endpoint for Coralogix firehose integration endpoint (https://firehose-ingress.private.coralogix.net:8443/firehose)"
+    Type: String
+    Default: ""
+  LogsEnable:
+    Description: Enble sending logs to Coralogix
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - true
+      - false
+  MetricEnable:
+    Description: "Enble sending metrics to Coralogix"
+    Type: String
+    Default: "true" 
+    AllowedValues:
+      - true
+      - false
+  #Logs:
+  SourceTypeLogs:
+    Description: "The source_type of kinesis firehose: KinesisStreamAsSource or DirectPut"
+    Type: String
+    AllowedValues:
+      - "KinesisStreamAsSource"
+      - "DirectPut"
+    Default: "DirectPut"
+  KinesisStreamArn:
+    Description: "The kinesis stream name for the logs - used in kinesis stream as a source"
+    Type: String
+    Default: ""
+  IntegrationTypeLogs:
+    Description: "The integration type of the firehose delivery stream: 'CloudWatch_JSON', 'WAF', 'CloudWatch_CloudTrail', 'EksFargate', 'Default', 'RawText'"
+    Type: String
+    AllowedValues: [CloudWatch_JSON, CloudWatch_CloudTrail, Default, EksFargate, WAF, RawText]
+    Default: Default 
+  DynamicMetadata:
+    Description: "Dynamic metadata"
+    Type: String
+    Default: "false"
+
+Mappings:
+  CoralogixRegionMap:
+    Ireland:
+      LogUrl: https://firehose-ingress.coralogix.com/firehose
+    Stockholm:
+      LogUrl: https://firehose-ingress.eu2.coralogix.com/firehose
+    India:
+      LogUrl: https://firehose-ingress.coralogix.in/firehose
+    Singapore:
+      LogUrl: https://firehose-ingress.coralogixsg.com/firehose
+    Us:
+      LogUrl: https://firehose-ingress.coralogix.us/firehose
+
+Conditions:
+  IsApplicationNameNull:
+    Fn::Equals:
+      - !Ref ApplicationName
+      - ""
+  IsKinesisStreamAsSource:  
+    Fn::Equals:
+      - !Ref SourceTypeLogs
+      - "KinesisStreamAsSource"
+  IsDirectPutAsSource:  
+    Fn::Equals:
+      - !Ref SourceTypeLogs
+      - "DirectPut"
+  IsCustomEndpointEnabled:
+    Fn::Not:
+      - Fn::Equals:
+        - !Ref CoralogixFirehoseCustomEndpoint
+        - ""
+  MetricEnableIsTrue: 
+    Fn::Equals:
+      - !Ref MetricEnable
+      - true
+  LogsEnableIsTrue: 
+    Fn::Equals:
+      - !Ref LogsEnable
+      - true
+  EnableLogsKinesisAsStream:
+    !And [!Equals [!Ref LogsEnable, true], !Equals [!Ref SourceTypeLogs, "KinesisStreamAsSource"]]
+  EnableLogsDirectPutAsStream:
+    !And [!Equals [!Ref LogsEnable, true], !Equals [!Ref SourceTypeLogs, "DirectPut"]]
+  # EnableMetricStreamsToFirehoseWithCloudWatchMetricStream: 
+  #   !And [!Equals [!Ref EnableCloudWatchMetricStream, true], !Equals [!Ref MetricEnable, true]]
+
+Resources:
+  FirehoseLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: !Sub "/aws/kinesisfirehose/${FirehoseStream}"
+      RetentionInDays: !Ref CloudWatchRetentionDays
+
+  FirehoseLogStreamDest:
+    Type: "AWS::Logs::LogStream"
+    Properties:
+      LogGroupName: !Ref FirehoseLogGroup
+
+  FirehoseLogStreamBackup:
+    Type: "AWS::Logs::LogStream"
+    Properties:
+      LogGroupName: !Ref FirehoseLogGroup
+
+  FirehoseBucket:
+    Type: "AWS::S3::Bucket"
+    #DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub "${FirehoseStream}-backup"
+      Tags:
+        - Key: Name
+          Value: !Sub "${FirehoseStream}-backup"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  FirehoseToCoralogixRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "${FirehoseStream}-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: firehose.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonKinesisFirehoseFullAccess"
+        - "arn:aws:iam::aws:policy/AmazonKinesisReadOnlyAccess"
+        - "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+
+# logs
+  FirehoseToHttpLogsPolicy:
+    Type: "AWS::IAM::Policy"
+    Condition: LogsEnableIsTrue
+    Properties:
+      PolicyName: "firehose-to-http-logs-policy"
+      Roles:
+        - !Ref FirehoseToCoralogixRole 
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "s3:AbortMultipartUpload"
+              - "s3:GetBucketLocation"
+              - "s3:GetObject"
+              - "s3:ListBucket"
+              - "s3:ListBucketMultipartUploads"
+              - "s3:PutObject"
+            Resource:
+              - !Sub "${FirehoseBucket.Arn}"
+              - !Sub "${FirehoseBucket.Arn}/*"
+          - Effect: Allow
+            Action:
+              - "kms:Decrypt"
+              - "kms:GenerateDataKey"
+            Resource:
+              - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/key-id"
+            Condition:
+              StringEquals:
+                kms:ViaService: !Sub "s3.${AWS::Region}.amazonaws.com"
+              StringLike:
+                kms:EncryptionContext:aws:s3:arn: !Sub "${FirehoseBucket.Arn}/prefix*"
+          - Effect: Allow
+            Action:
+              - "kinesis:DescribeStream"
+              - "kinesis:GetShardIterator"
+              - "kinesis:GetRecords"
+              - "kinesis:ListShards"
+            Resource: !Sub "${KinesisStreamArn}" 
+          - Effect: Allow
+            Action:
+              - "logs:*"
+            Resource:
+              - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${FirehoseLogGroup}:log-stream:${FirehoseLogStreamDest}"
+  
+  CoralogixStreamFromKinesis:
+    Type: "AWS::KinesisFirehose::DeliveryStream"
+    Condition: EnableLogsKinesisAsStream 
+    Properties:
+      DeliveryStreamName: !Sub "Coralogix-${FirehoseStream}-logs"
+      DeliveryStreamType: !Ref SourceTypeLogs 
+      KinesisStreamSourceConfiguration: 
+        KinesisStreamARN: !Ref KinesisStreamArn
+        RoleARN: !GetAtt FirehoseToCoralogixRole.Arn
+      HttpEndpointDestinationConfiguration:
+        EndpointConfiguration:
+          Url: !If 
+            - IsCustomEndpointEnabled
+            - !Ref CoralogixFirehoseCustomEndpoint
+            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
+          Name: "Coralogix"
+          AccessKey: !Ref PrivateKey
+        BufferingHints:
+          IntervalInSeconds: 60
+          SizeInMBs: 6
+        RetryOptions:
+          DurationInSeconds: 300
+        RoleARN: !GetAtt FirehoseToCoralogixRole.Arn
+        S3BackupMode: "FailedDataOnly"
+        S3Configuration:
+          RoleARN: !GetAtt FirehoseToCoralogixRole.Arn
+          BucketARN: !GetAtt FirehoseBucket.Arn
+          BufferingHints:
+            IntervalInSeconds: 300
+            SizeInMBs: 5
+          CompressionFormat: "GZIP" 
+        CloudWatchLoggingOptions: 
+          Enabled: true
+          LogGroupName: !Ref FirehoseLogGroup
+          LogStreamName: !Ref FirehoseLogStreamDest
+        RequestConfiguration:
+          ContentEncoding: "GZIP"
+          CommonAttributes:
+            - AttributeName: "integrationType" 
+              AttributeValue: !Ref IntegrationTypeLogs
+            - AttributeName: "applicationName"
+              AttributeValue: !If 
+              - IsApplicationNameNull 
+              - !Sub "Coralogix-${FirehoseStream}" 
+              - !Ref ApplicationName
+            - AttributeName: "subsystemName"
+              AttributeValue: !Ref SubsystemName
+            - AttributeName: "dynamicMetadata"
+              AttributeValue: !Ref DynamicMetadata
+      Tags: 
+        - Key: "customEndpoint"
+          Value: !If 
+            - IsCustomEndpointEnabled
+            - !Ref CoralogixFirehoseCustomEndpoint
+            - "false"
+
+  CoralogixStreamFromIsDirectPut:
+    Type: "AWS::KinesisFirehose::DeliveryStream"
+    Condition: EnableLogsDirectPutAsStream
+    Properties:
+      DeliveryStreamName: !Sub "Coralogix-${FirehoseStream}-logs"
+      DeliveryStreamType: !Ref SourceTypeLogs 
+      HttpEndpointDestinationConfiguration:
+        EndpointConfiguration:
+          Url: !If 
+            - IsCustomEndpointEnabled
+            - !Ref CoralogixFirehoseCustomEndpoint
+            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
+          Name: "Coralogix"
+          AccessKey: !Ref PrivateKey
+        BufferingHints:
+          IntervalInSeconds: 60
+          SizeInMBs: 6
+        RetryOptions:
+          DurationInSeconds: 300
+        RoleARN: !GetAtt FirehoseToCoralogixRole.Arn
+        S3BackupMode: "FailedDataOnly"
+        S3Configuration:
+          RoleARN: !GetAtt FirehoseToCoralogixRole.Arn
+          BucketARN: !GetAtt FirehoseBucket.Arn
+          BufferingHints:
+            IntervalInSeconds: 300
+            SizeInMBs: 5
+          CompressionFormat: "GZIP" 
+        CloudWatchLoggingOptions: 
+          Enabled: true
+          LogGroupName: !Ref FirehoseLogGroup
+          LogStreamName: !Ref FirehoseLogStreamDest
+        RequestConfiguration:
+          ContentEncoding: "GZIP"
+          CommonAttributes:
+            - AttributeName: "integrationType" 
+              AttributeValue: !Ref IntegrationTypeLogs
+            - AttributeName: "applicationName"
+              AttributeValue: !If 
+              - IsApplicationNameNull 
+              - !Sub "Coralogix-${FirehoseStream}" 
+              - !Ref ApplicationName
+            - AttributeName: "subsystemName"
+              AttributeValue: !Ref SubsystemName
+            - AttributeName: "dynamicMetadata"
+              AttributeValue: !Ref DynamicMetadata
+      Tags: 
+        - Key: "customEndpoint"
+          Value: !If 
+            - IsCustomEndpointEnabled
+            - !Ref CoralogixFirehoseCustomEndpoint
+            - "false"
+  
+#metrics:
+# 1
+  FirehoseToHttpMetricPolicy:
+    Type: 'AWS::IAM::Policy'
+    Condition: MetricEnableIsTrue
+    Properties:
+      Roles: 
+        - !Ref FirehoseToCoralogixRole 
+      PolicyName: firehose_to_http_metric_policy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - 's3:AbortMultipartUpload'
+              - 's3:GetBucketLocation'
+              - 's3:GetObject'
+              - 's3:ListBucket'
+              - 's3:ListBucketMultipartUploads'
+              - 's3:PutObject'
+            Resource:
+              - !Sub "${FirehoseBucket.Arn}"
+              - !Sub "${FirehoseBucket.Arn}/*"
+          - Effect: Allow
+            Action:
+              - 'kms:Decrypt'
+              - 'kms:GenerateDataKey'
+            Resource:
+              - !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/key-id'
+            Condition:
+              StringEquals:
+                'kms:ViaService': !Sub 's3.${AWS::Region}.amazonaws.com'
+              StringLike:
+                'kms:EncryptionContext:aws:s3:arn': !Sub "${FirehoseBucket.Arn}/prefix*"
+          - Effect: Allow
+            Action:
+              - 'kinesis:DescribeStream'
+              - 'kinesis:GetShardIterator'
+              - 'kinesis:GetRecords'
+              - 'kinesis:ListShards'
+            Resource: !Sub "arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/${FirehoseStream}-metric"
+          - Effect: Allow
+            Action:
+              - 'logs:PutLogEvents'
+            Resource:
+              - !GetAtt FirehoseLogGroup.Arn
+          - Effect: Allow
+            Action:
+              - 'lambda:InvokeFunction'
+              - 'lambda:GetFunctionConfiguration'
+            Resource: !Sub "${LambdaProcessorFunction.Arn}:*"
+
+# 3
+  LambdaIAMRole:
+    Type: 'AWS::IAM::Role'
+    Condition: MetricEnableIsTrue
+    Properties:
+      RoleName: !Sub '${FirehoseStream}-metrics-transform-lambda-iam'
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+
+# 4
+  LambdaIAMPolicy:
+    Type: 'AWS::IAM::Policy'
+    Condition: MetricEnableIsTrue
+    Properties:
+      PolicyName: !Sub '${FirehoseStream}-metrics-transform-lambda-iam'
+      Roles:
+        - !Ref LambdaIAMRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'tag:GetResources'
+              - 'cloudwatch:GetMetricData'
+              - 'cloudwatch:GetMetricStatistics'
+              - 'cloudwatch:ListMetrics'
+              - 'apigateway:GET'
+              - 'aps:ListWorkspaces'
+              - 'autoscaling:DescribeAutoScalingGroups'
+              - 'dms:DescribeReplicationInstances'
+              - 'dms:DescribeReplicationTasks'
+              - 'ec2:DescribeTransitGatewayAttachments'
+              - 'ec2:DescribeSpotFleetRequests'
+              - 'storagegateway:ListGateways'
+              - 'storagegateway:ListTagsForResource'
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - 'logs:PutLogEvents'
+              - 'logs:CreateLogStream'
+              - 'logs:CreateLogGroup'
+            Resource: 'arn:aws:logs:*:*:*'
+
+# 5 
+  LogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Condition: MetricEnableIsTrue
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${LambdaProcessorFunction}'
+      RetentionInDays: !Ref CloudWatchRetentionDays
+
+# 6
+  LambdaProcessorFunction: 
+    Type: 'AWS::Lambda::Function'
+    Condition: MetricEnableIsTrue
+    Properties:
+      Code:
+        S3Bucket: !Sub "cx-cw-metrics-tags-lambda-processor-${AWS::Region}" 
+        S3Key: function.zip
+      FunctionName: !Sub '${FirehoseStream}-metrics-tags-processor'
+      Role:  !GetAtt LambdaIAMRole.Arn 
+      Handler: function
+      Runtime: go1.x
+      Timeout: '60'
+
+# 7 
+  CoralogixDeliveryStreamMetrics:
+    Type: 'AWS::KinesisFirehose::DeliveryStream'
+    Condition: MetricEnableIsTrue
+    Properties:
+      DeliveryStreamName: !Sub "Coralogix-${FirehoseStream}-metrics"
+      DeliveryStreamType: 'DirectPut'
+      HttpEndpointDestinationConfiguration:
+        RoleARN: !GetAtt FirehoseToCoralogixRole.Arn
+        EndpointConfiguration:
+          Url: !If 
+            - IsCustomEndpointEnabled 
+            - !Ref CoralogixFirehoseCustomEndpoint
+            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
+          Name: 'Coralogix'
+          AccessKey: !Ref PrivateKey
+        RetryOptions:
+          DurationInSeconds: 30
+        BufferingHints:
+          IntervalInSeconds: 60
+          SizeInMBs: 6
+        S3BackupMode: 'FailedDataOnly'
+        S3Configuration:
+          RoleARN: !GetAtt FirehoseToCoralogixRole.Arn
+          BucketARN: !GetAtt FirehoseBucket.Arn
+          BufferingHints:
+            IntervalInSeconds: 300
+            SizeInMBs: 5
+          CompressionFormat: 'GZIP'
+        CloudWatchLoggingOptions:
+          Enabled: true
+          LogGroupName: !Ref FirehoseLogGroup
+          LogStreamName: !Ref FirehoseLogStreamDest
+        ProcessingConfiguration:
+          Enabled: true
+          Processors:
+            - Type: 'Lambda'
+              Parameters:
+                - ParameterName: 'LambdaArn'
+                  ParameterValue: !Sub '${LambdaProcessorFunction.Arn}:$LATEST'
+                - ParameterName: 'BufferSizeInMBs'
+                  ParameterValue: '1'
+                - ParameterName: 'BufferIntervalInSeconds'
+                  ParameterValue: '61'
+        RequestConfiguration:
+          ContentEncoding: "GZIP"
+          CommonAttributes:
+            - AttributeName: "integrationType" 
+              AttributeValue: !Ref IntegrationTypeMetrics
+            - AttributeName: "applicationName"
+              AttributeValue: !If 
+              - IsApplicationNameNull 
+              - !Sub "Coralogix-${FirehoseStream}" 
+              - !Ref ApplicationName
+      Tags: 
+        - Key: "customEndpoint"
+          Value: !If 
+            - IsCustomEndpointEnabled
+            - !Ref CoralogixFirehoseCustomEndpoint
+            - "false"
