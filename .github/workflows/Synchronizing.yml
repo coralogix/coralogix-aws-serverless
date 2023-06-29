@@ -1,4 +1,4 @@
-name: Synchronizing cloudformation with serverless repo
+name: Synchronizing Cloudformation repo with serverless
 
 on:
   pull_request:
@@ -6,6 +6,7 @@ on:
     branches: [master, main]
     paths:
       - "src/**/template.*"
+      - "src/**/README.md"
      
 jobs:
   Get-files:
@@ -40,37 +41,50 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        
+      - name: Change template and README to CF
+        run: |
+          chmod +x replace_codeuri.sh
+          ./replace_codeuri.sh src/${{ matrix.package }}/template.* ${{ matrix.package }} src/${{ matrix.package }}/README.md
       
       - name: Upload template file
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.package }}
+          name: ${{ matrix.package }}-template
           path: src/${{ matrix.package }}/template.*
+      
+      - name: Upload README file
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.package }}-README
+          path: src/${{ matrix.package }}/README.md
           
       - name: Checkout destination repository
         uses: actions/checkout@v2
         with:
           repository: coralogix/cloudformation-coralogix-aws
-          token: ${{ secrets.CLOUDFORMATION_REPO_TOKEN }}
+          token: ${{ secrets.DESTINATION_REPO_TOKEN }}
        
       - name: Download template file
         uses: actions/download-artifact@v3
         with:
-          name: ${{ matrix.package }}
+          name: ${{ matrix.package }}-template
+          
+      - name: Download README file
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ matrix.package }}-README
         
       - name: Commit and push changes
         run: |
           if test -e "aws-integrations/lambda-integrations/${{ matrix.package }}" || test -e "aws-integrations/${{ matrix.package }}" ; then
             if test -e "aws-integrations/lambda-integrations/${{ matrix.package }}"; then
-              rm aws-integrations/lambda-integrations/${{ matrix.package }}/template.*
-              chmod +x replace_codeuri.sh
-              ./replace_codeuri.sh template.* ${{ matrix.package }}
+              ls
               mv template.* aws-integrations/lambda-integrations/${{ matrix.package }}/
+              mv README.md aws-integrations/lambda-integrations/${{ matrix.package }}/
             else
-              rm aws-integrations/${{ matrix.package }}/template.*
-              chmod +x replace_codeuri.sh
-              ./replace_codeuri.sh template.* ${{ matrix.package }}
               mv template.* aws-integrations/${{ matrix.package }}/
+              mv README.md aws-integrations/${{ matrix.package }}/
             fi
             git config --local user.email "github-actions[bot]@users.noreply.github.com"
             git config --local user.name "github-actions[bot]"
