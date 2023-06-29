@@ -1,0 +1,82 @@
+name: Synchronizing cloudformation with serverless repo
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [master, main]
+    paths:
+      - "src/**/template.*"
+     
+jobs:
+  Get-files:
+    name: Get-files
+    runs-on: ubuntu-latest 
+    if: github.event.pull_request.merged == true
+    outputs: 
+      packages: ${{ env.packages }} 
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Get changed packages
+        id: get-changed-packages
+        run: |
+          export PACKAGES=$(git diff --name-only --diff-filter=d ${{ github.event.pull_request.base.sha || 'origin/master' }} ${{ github.sha }} src/ | xargs -n1 dirname | sed -r 's/src\/([^\/]+).*$/src\/\1/g' | xargs -n1 basename | sort | uniq | jq -rcnR '[inputs]')
+          echo "packages=$PACKAGES" >> $GITHUB_ENV
+          
+          
+  Upload:
+    name: Upload
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    needs: Get-files
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.Get-files.outputs.packages) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Upload template file
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.package }}
+          path: src/${{ matrix.package }}/template.*
+          
+      - name: Checkout destination repository
+        uses: actions/checkout@v2
+        with:
+          repository: coralogix/cloudformation-coralogix-aws
+          token: ${{ secrets.CLOUDFORMATION_REPO_TOKEN }}
+       
+      - name: Download template file
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ matrix.package }}
+        
+      - name: Commit and push changes
+        run: |
+          if test -e "aws-integrations/lambda-integrations/${{ matrix.package }}" || test -e "aws-integrations/${{ matrix.package }}" ; then
+            if test -e "aws-integrations/lambda-integrations/${{ matrix.package }}"; then
+              rm aws-integrations/lambda-integrations/${{ matrix.package }}/template.*
+              chmod +x replace_codeuri.sh
+              ./replace_codeuri.sh template.* ${{ matrix.package }}
+              mv template.* aws-integrations/lambda-integrations/${{ matrix.package }}/
+            else
+              rm aws-integrations/${{ matrix.package }}/template.*
+              chmod +x replace_codeuri.sh
+              ./replace_codeuri.sh template.* ${{ matrix.package }}
+              mv template.* aws-integrations/${{ matrix.package }}/
+            fi
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            git checkout master
+            git pull
+            git add .
+            git commit -m "Copy file from serverless repository"
+            git push origin HEAD:master -f
+          fi
