@@ -1,18 +1,27 @@
-const aws = require('aws-sdk');
-const coralogix = require("coralogix-logger");
-const assert = require("assert");
+/**
+ * AWS Container Registry Lambda function for Coralogix
+ *
+ * @file        This file is lambda function source code
+ * @author      Coralogix Ltd. <info@coralogix.com>
+ * @link        https://coralogix.com/
+ * @copyright   Coralogix Ltd.
+ * @licence     Apache-2.0
+ * @version     1.0.0
+ * @since       1.0.0
+ */
 
 "use strict";
 
-// Check Lambda function parameters
+// Import required libraries
+const aws = require('aws-sdk');
+const coralogix = require("coralogix-logger");
+const assert = require("assert");
+const ecr = new aws.ECR();
 
+// Check Lambda function parameters
 assert(process.env.private_key, "No private key!");
 const appName = process.env.app_name || "NO_APPLICATION";
 const subName = process.env.sub_name || "NO_SUBSYSTEM";
-
-
-// Create an instance of the ECR service client
-const ecr = new aws.ECR();
 
 // Initialize new Coralogix logger
 coralogix.CoralogixLogger.configure(new coralogix.LoggerConfig({

@@ -121,7 +121,6 @@ Resources:
   LambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Join [ '-', [ 'ECR-Findings-to-Coralogix', !Select [ 4, !Split [ '-', !Select [ 2, !Split [ '/', !Ref AWS::StackId ] ] ] ] ] ]
       Description: Sends ECR image scan findings to Coralogix
       CodeUri: .
       Handler: index.handler
@@ -132,13 +131,20 @@ Resources:
       Timeout: !Ref FunctionTimeout
       Environment:
         Variables:
-          APPLICATION_NAME: !Ref ApplicationName
-          SUBSYSTEM_NAME: !Ref SubsystemName
-          PRIVATE_KEY: !Ref PrivateKey
+          app_name: !Ref ApplicationName
+          sub_name: !Ref SubsystemName
+          private_key: !Ref PrivateKey
           CORALOGIX_LOG_URL: !If
             - IsRegionCustomUrlEmpty
             - !Ref CustomDomain
             - !FindInMap [ CoralogixDomainMap, !Ref CoralogixRegion, LogUrl ]
+      Policies:
+        - Statement:
+          - Sid: EcrDescribeImageScanFindings
+            Effect: Allow
+            Action:
+              - ecr:DescribeImageScanFindings
+            Resource: "*"
   LambdaFunctionInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:

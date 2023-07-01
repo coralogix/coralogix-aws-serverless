@@ -5,7 +5,7 @@
   "description": "AWS Lambda function to send ECR image scan findings to Coralogix",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",
-  "main": "index.py",
+  "main": "index.js",
   "author": {
     "name": "Coralogix",
     "email": "info@coralogix.com",
