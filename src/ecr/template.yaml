@@ -124,8 +124,8 @@ Resources:
       FunctionName: !Join [ '-', [ 'ECR-Findings-to-Coralogix', !Select [ 4, !Split [ '-', !Select [ 2, !Split [ '/', !Ref AWS::StackId ] ] ] ] ] ]
       Description: Sends ECR image scan findings to Coralogix
       CodeUri: .
-      Handler: index.lambda_handler
-      Runtime: python3.8
+      Handler: index.handler
+      Runtime: nodejs16.x
       Architectures:
         - !Ref FunctionArchitecture
       MemorySize: !Ref FunctionMemorySize
@@ -163,12 +163,3 @@ Resources:
       Targets:
         - Arn: !GetAtt LambdaFunction.Arn
           Id: !Ref LambdaFunction
-  LambdaFunctionNotificationSubscription:
-    Type: AWS::SNS::Subscription
-    Condition: IsNotificationEnabled
-    Properties:
-      Protocol: email
-      Endpoint:
-        Ref: NotificationEmail
-      TopicArn:
-        Ref: LambdaFunction.DestinationTopic
