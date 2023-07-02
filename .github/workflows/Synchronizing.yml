@@ -9,73 +9,77 @@ on:
       - "src/**/README.md"
      
 jobs:
-  Get-files:
-    name: Get-files
-    runs-on: ubuntu-latest 
-    if: github.event.pull_request.merged == true
-    outputs: 
-      packages: ${{ env.packages }} 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-
-      - name: Get changed packages
-        id: get-changed-packages
-        run: |
-          export PACKAGES=$(git diff --name-only --diff-filter=d ${{ github.event.pull_request.base.sha || 'origin/master' }} ${{ github.sha }} src/ | xargs -n1 dirname | sed -r 's/src\/([^\/]+).*$/src\/\1/g' | xargs -n1 basename | sort | uniq | jq -rcnR '[inputs]')
-          echo "packages=$PACKAGES" >> $GITHUB_ENV
-          
-          
-  Upload:
-    name: Upload
+  Get-matrix:
     runs-on: ubuntu-latest
     if: github.event.pull_request.merged == true
-    needs: Get-files
-    strategy:
-      fail-fast: false
-      matrix:
-        package: ${{ fromJSON(needs.Get-files.outputs.packages) }}
+    outputs:
+      packages: ${{ env.packages }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        
-      - name: Change template and README to CF
+    - uses: actions/checkout@v2
+    - name: Read matrix YAML
+      id: read-matrix
+      run: |
+        export PACKAGES=$(jq -r '.[].name' matrix.js | jq -rcnR '[inputs]')
+        echo "packages=$PACKAGES" >> $GITHUB_ENV
+        echo ${{ env.packages }}
+
+  Push-changes:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    needs: Get-matrix
+    strategy:
+      matrix:
+        package: ${{ fromJSON(needs.Get-matrix.outputs.packages) }}
+    steps:
+      - uses: actions/checkout@v2
+      - id: changes
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            '${{ matrix.package }}':
+              - 'src/${{ matrix.package }}/**'
+          
+      - if: steps.changes.outputs[matrix.package] == 'true'          
+        name: Change template and README to CF
         run: |
           chmod +x replace_codeuri.sh
           ./replace_codeuri.sh src/${{ matrix.package }}/template.* ${{ matrix.package }} src/${{ matrix.package }}/README.md
-      
-      - name: Upload template file
+    
+      - if: steps.changes.outputs[matrix.package] == 'true'    
+        name: Upload template file
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.package }}-template
           path: src/${{ matrix.package }}/template.*
       
-      - name: Upload README file
+      - if: steps.changes.outputs[matrix.package] == 'true'      
+        name: Upload README file
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.package }}-README
           path: src/${{ matrix.package }}/README.md
-          
-      - name: Checkout destination repository
+        
+      - if: steps.changes.outputs[matrix.package] == 'true'        
+        name: Checkout destination repository
         uses: actions/checkout@v2
         with:
           repository: coralogix/cloudformation-coralogix-aws
           token: ${{ secrets.DESTINATION_REPO_TOKEN }}
        
-      - name: Download template file
+      - if: steps.changes.outputs[matrix.package] == 'true'      
+        name: Download template file
         uses: actions/download-artifact@v3
         with:
           name: ${{ matrix.package }}-template
           
-      - name: Download README file
+      - if: steps.changes.outputs[matrix.package] == 'true'          
+        name: Download README file
         uses: actions/download-artifact@v3
         with:
           name: ${{ matrix.package }}-README
         
-      - name: Commit and push changes
+      - if: steps.changes.outputs[matrix.package] == 'true'        
+        name: Commit and push changes
         run: |
           if test -e "aws-integrations/lambda-integrations/${{ matrix.package }}" || test -e "aws-integrations/${{ matrix.package }}" ; then
             if test -e "aws-integrations/lambda-integrations/${{ matrix.package }}"; then
@@ -83,8 +87,7 @@ jobs:
               mv template.* aws-integrations/lambda-integrations/${{ matrix.package }}/
               mv README.md aws-integrations/lambda-integrations/${{ matrix.package }}/
             else
-              mv template.* aws-integrations/${{ matrix.package }}/
-              mv README.md aws-integrations/${{ matrix.package }}/
+              mv template.* aws-integrations/lambda-integrations/${{ matrix.package }}/
             fi
             git config --local user.email "github-actions[bot]@users.noreply.github.com"
             git config --local user.name "github-actions[bot]"
