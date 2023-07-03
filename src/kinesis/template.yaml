@@ -84,7 +84,7 @@ Parameters:
     Description: Failure notification email address
     MaxLength: 320
     Default: ''
-  CustomUrl:
+  CustomDomain:
     Type: String
     Description: The Coralogix custom url
     Default: '' 
@@ -122,7 +122,7 @@ Conditions:
     Fn::Equals:
       - Ref: SsmEnabled
       - 'False'
-  IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomUrl, ""]]
+  IsRegionCustomDomainEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
 Resources:
   LambdaFunction:
     Condition: IsNotSsmEnabled
@@ -141,7 +141,7 @@ Resources:
       Environment:
         Variables:
           CORALOGIX_URL: !If
-            - IsRegionCustomUrlEmpty
+            - IsRegionCustomDomainEmpty
             - !Sub  'ingress.${CustomDomain}'
             - !Sub
               - '${Prefix}${Domain}'
@@ -191,7 +191,7 @@ Resources:
       Environment:
         Variables:
           CORALOGIX_URL: !If
-            - IsRegionCustomUrlEmpty
+            - IsRegionCustomDomainEmpty
             - !Sub 'ingress.${CustomDomain}'
             - !Sub
               - '${Prefix}${Domain}'
