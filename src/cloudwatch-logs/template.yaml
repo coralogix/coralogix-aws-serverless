@@ -14,7 +14,7 @@ Metadata:
       - logs
       - cloudwatch
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.20
+    SemanticVersion: 1.0.21
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   LayerARN:
@@ -102,15 +102,15 @@ Parameters:
 Mappings:
   CoralogixRegionMap:
     Europe:
-      LogUrl: ingress.coralogix.com
+      LogUrl: coralogix.com
     Europe2:
-      LogUrl: ingress.eu2.coralogix.com
+      LogUrl: eu2.coralogix.com
     India:
-      LogUrl: ingress.coralogix.in
+      LogUrl: coralogix.in
     Singapore:
-      LogUrl: ingress.coralogixsg.com
+      LogUrl: coralogixsg.com
     US:
-      LogUrl: ingress.coralogix.us
+      LogUrl: coralogix.us
 Conditions:
   IsNotificationEnabled:
     Fn::Not:
@@ -143,10 +143,13 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
-          CORALOGIX_URL: !If 
+          CORALOGIX_URL: !If
             - IsRegionCustomUrlEmpty
-            - !Ref CustomDomain
-            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
+            - !Sub  'ingress.${CustomDomain}'
+            - !Sub
+              - '${Prefix}${Domain}'
+              - Prefix: ingress.
+                Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, LogUrl]
           private_key:
             Ref: PrivateKey
           app_name:
@@ -192,8 +195,11 @@ Resources:
         Variables:
           CORALOGIX_URL: !If
             - IsRegionCustomUrlEmpty
-            - !Ref CustomDomain
-            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
+            - !Sub  'ingress.${CustomDomain}'
+            - !Sub
+              - '${Prefix}${Domain}'
+              - Prefix: ingress.
+                Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, LogUrl]
           AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
           app_name:
             Ref: ApplicationName
