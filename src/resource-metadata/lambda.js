@@ -1,5 +1,5 @@
 import assert from 'assert'
-import { paginateListFunctions, LambdaClient, GetFunctionCommand, ListAliasesCommand, GetPolicyCommand, ListVersionsByFunctionCommand, ListEventSourceMappingsCommand } from '@aws-sdk/client-lambda'
+import { paginateListFunctions, LambdaClient, GetFunctionCommand, ListAliasesCommand, GetPolicyCommand, ListVersionsByFunctionCommand, ListEventSourceMappingsCommand, ListFunctionsCommand } from '@aws-sdk/client-lambda'
 import { schemaUrl, extractArchitecture, intAttr, stringAttr, traverse } from './common.js'
 
 const validateAndExtractConfiguration = () => {
@@ -7,9 +7,11 @@ const validateAndExtractConfiguration = () => {
     const latestVersionsPerFunction = parseInt(process.env.LATEST_VERSIONS_PER_FUNCTION, 10)
     assert(process.env.RESOURCE_TTL_MINUTES, "RESOURCE_TTL_MINUTES env var missing!")
     const resourceTtlMinutes = parseInt(process.env.RESOURCE_TTL_MINUTES, 10)
-    return { latestVersionsPerFunction, resourceTtlMinutes };
+    assert(process.env.COLLECT_ALIASES, "COLLECT_ALIASES env var missing!")
+    const collectAliases = String(process.env.COLLECT_ALIASES).toLowerCase() === "true"
+    return { latestVersionsPerFunction, resourceTtlMinutes, collectAliases };
 };
-const { latestVersionsPerFunction, resourceTtlMinutes } = validateAndExtractConfiguration();
+const { latestVersionsPerFunction, resourceTtlMinutes, collectAliases } = validateAndExtractConfiguration();
 
 const lambdaClient = new LambdaClient();
 
@@ -26,39 +28,45 @@ export const collectLambdaResources = async () => {
 
     const resources = [...functionResources, ...functionVersionResources, ...aliasResources]
 
-    resources.forEach(f =>
-        console.debug(`Resource: ${JSON.stringify(f)}`)
-    )
-    console.debug(`Collected ${functionResources.length} functions, ${functionVersionResources.length} function versions and ${aliasResources.length} aliases`)
+    console.info(`Collected ${functionResources.length} functions, ${functionVersionResources.length} function versions and ${aliasResources.length} aliases`)
 
     return resources
 }
 
 const collectListOfFunctions = async () => {
+    ListFunctionsCommand
     const listOfFunctions = [];
-    for await (const page of paginateListFunctions({ client: lambdaClient }, {})) {
+    for await (const page of paginateListFunctions({ client: lambdaClient }, {})) { // this uses the maximum page size of 50
         listOfFunctions.push(...page.Functions);
     }
     return listOfFunctions
 }
 
 const collectFunctionAndAliasResources = async (listOfFunctions) => {
-    const results = await traverse(listOfFunctions, async (lambdaFunctionVersionLatest) => {
+    const results = await traverse(listOfFunctions, async (lambdaFunctionVersionLatest, index) => {
         const functionName = lambdaFunctionVersionLatest.FunctionName
-        const lambdaFunction = await lambdaClient.send(new GetFunctionCommand({ FunctionName: functionName }))
-        const versions = await lambdaClient.send(new ListVersionsByFunctionCommand({ FunctionName: functionName }))
-        const aliases = await lambdaClient.send(new ListAliasesCommand({ FunctionName: functionName }))
 
-        const versionsToCollect = versions.Versions.filter((version, index) => {
+        const lambdaFunction = await lambdaClient.send(new GetFunctionCommand({ FunctionName: functionName }))
+        const functionResource = makeLambdaFunctionResource(lambdaFunction)
+
+        const aliases = collectAliases
+            ? (await lambdaClient.send(new ListAliasesCommand({ FunctionName: functionName })))?.Aliases
+            : []
+        const aliasResources = aliases.map(alias => makeAliasResource(functionName, alias))
+
+        const versions = latestVersionsPerFunction > 0
+            ? (await lambdaClient.send(new ListVersionsByFunctionCommand({ FunctionName: functionName }))).Versions
+            : [lambdaFunctionVersionLatest]
+ 
+        const versionsToCollect = versions.filter((version, index) => {
             return (index <= latestVersionsPerFunction) // Is either $LATEST or one of the latestVersionsPerFunction latest released versions // This relies on the fact that AWS returns the functions in latest -> oldest order
-                || (aliases.Aliases.some(alias => version.Version === alias.FunctionVersion)) // has an alias
+                || (aliases.some(alias => version.Version === alias.FunctionVersion)) // has an alias
         })
 
-        return {
-            functionResource: makeLambdaFunctionResource(lambdaFunction),
-            aliasResources: aliases.Aliases.map(alias => makeAliasResource(functionName, alias)),
-            versionsToCollect,
-        }
+        console.debug(`Function (${index+1}/${listOfFunctions.length}): ${JSON.stringify(functionResource)}`)
+        aliasResources.forEach(a => console.debug(`Alias: ${JSON.stringify(a)}`))
+
+        return { functionResource, aliasResources, versionsToCollect }
     })
 
     return {
@@ -69,7 +77,7 @@ const collectFunctionAndAliasResources = async (listOfFunctions) => {
 }
 
 const collectFunctionVersionResources = async (versionsToCollect) =>
-    await traverse(versionsToCollect, async (lambdaFunctionVersion) => {
+    await traverse(versionsToCollect, async (lambdaFunctionVersion, index) => {
         const functionNameForRequests = lambdaFunctionVersion.Version === "$LATEST"
             ? lambdaFunctionVersion.FunctionName
             : `${lambdaFunctionVersion.FunctionName}:${lambdaFunctionVersion.Version}`
@@ -82,7 +90,11 @@ const collectFunctionVersionResources = async (versionsToCollect) =>
             // GetPolicyCommand results in an error if the lambda has no policy defined.
             // Ignore this error, and proceed with maybePolicy = null
         }
-        return makeLambdaFunctionVersionResource(lambdaFunctionVersion, eventSourceMappings, maybePolicy)
+        const functionVersionResource = makeLambdaFunctionVersionResource(lambdaFunctionVersion, eventSourceMappings, maybePolicy)
+
+        console.debug(`FunctionVersion (${index+1}/${versionsToCollect.length}): ${JSON.stringify(functionVersionResource)}`)
+
+        return functionVersionResource
     })
 
 const makeLambdaFunctionResource = (f) => {
@@ -122,9 +134,10 @@ const makeLambdaFunctionResource = (f) => {
 }
 
 const makeLambdaFunctionVersionResource = (fv, eventSourceMappings, maybePolicy) => {
-    const functionVersionArn = fv.FunctionArn
-    const arn = parseLambdaFunctionVersionArn(functionVersionArn)
+    const originalArn = fv.FunctionArn // this may be a function version arn or a function arn
+    const arn = parseLambdaFunctionVersionArn(originalArn)
     const functionArn = `arn:aws:lambda:${arn.region}:${arn.accountId}:function:${arn.functionName}`
+    const functionVersionArn = `arn:aws:lambda:${arn.region}:${arn.accountId}:function:${arn.functionName}:${fv.Version}`
     const resourceId = functionVersionArn
     const arch = extractArchitecture(fv.Architectures)
 

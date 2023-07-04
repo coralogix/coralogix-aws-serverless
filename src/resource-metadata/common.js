@@ -28,8 +28,8 @@ export const stringAttr = (key, value) => ({
 
 export const traverse = async (array, f) => {
     const results = [];
-    for (const a of array) {
-        results.push(await f(a));
+    for (var i = 0; i < array.length; i++) {
+        results.push(await f(array[i], i));
     }
     return results;
 }

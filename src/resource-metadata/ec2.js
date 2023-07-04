@@ -16,11 +16,11 @@ export const collectEc2Resources = async (region, accountId) => {
     console.info("Collecting EC2 instances")
     const instanceResources = await collectEc2InstanceResources(region, accountId)
 
-    instanceResources.forEach(f =>
-        console.debug(`Resource: ${JSON.stringify(f)}`)
+    instanceResources.forEach((f, index) =>
+        console.debug(`Ec2Instance (${index+1}/${instanceResources.length}): ${JSON.stringify(f)}`)
     )
 
-    console.debug(`Collected ${instanceResources.length} EC2 instances`)
+    console.info(`Collected ${instanceResources.length} EC2 instances`)
 
     return instanceResources
 }

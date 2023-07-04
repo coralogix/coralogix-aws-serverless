@@ -1,7 +1,7 @@
 {
   "name": "coralogix-resource-tags",
   "title": "AWS Resource Tags Lambda function for Coralogix",
-  "version": "1.1.4",
+  "version": "1.2.0",
   "description": "AWS Lambda function to send AWS resource tags to Coralogix",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",
@@ -13,7 +13,7 @@
     "url": "https://coralogix.com"
   },
   "engines": {
-    "node": "16.x"
+    "node": "18.x"
   },
   "contributors": [],
   "keywords": [

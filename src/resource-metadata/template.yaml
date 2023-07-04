@@ -13,7 +13,7 @@ Metadata:
       - coralogix
       - metadata
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.1.4
+    SemanticVersion: 1.2.0
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -32,6 +32,7 @@ Metadata:
           default: AWS Lambda Metadata Collection Configuration
         Parameters:
           - LatestVersionsPerFunction
+          - CollectAliases
       - Label:
           default: Lambda Configuration
         Parameters:
@@ -56,6 +57,8 @@ Metadata:
         default: Schedule
       LatestVersionsPerFunction:
         default: Latest Versions Per Function
+      CollectAliases:
+        default: Collect Aliases
       ResourceTtlMinutes:
         default: Resource Time-to-live (TTL) in Minutes
       FunctionArchitecture:
@@ -104,7 +107,11 @@ Parameters:
     Type: Number
     Description: How many latest published versions of each Lambda function should be collected
     MinValue: 0
-    Default: 5
+    Default: 0
+  CollectAliases:
+    Type: String
+    Description: '[True/False]'
+    Default: 'False'
   ResourceTtlMinutes:
     Type: Number
     Description: Once a resource is collected, how long should it remain valid?
@@ -174,7 +181,7 @@ Resources:
       Description: Send resource metadata to Coralogix.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs16.x
+      Runtime: nodejs18.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
@@ -195,17 +202,19 @@ Resources:
             Ref: PrivateKey
           LATEST_VERSIONS_PER_FUNCTION:
             Ref: LatestVersionsPerFunction
+          COLLECT_ALIASES:
+            Ref: CollectAliases
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
-      Events:
-        ScheduledEvent:
-          Type: Schedule
-          Properties:
-            Schedule:
-              Ref: Schedule
-            Enabled: True
+      # Events:
+        # ScheduledEvent:
+        #   Type: Schedule
+        #   Properties:
+        #     Schedule:
+        #       Ref: Schedule
+        #     Enabled: True
       EventInvokeConfig:
         DestinationConfig:
           OnFailure:
@@ -233,7 +242,7 @@ Resources:
       Layers:
         - Ref: LayerARN
       Handler: index.handler
-      Runtime: nodejs16.x
+      Runtime: nodejs18.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
@@ -253,6 +262,8 @@ Resources:
           AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
           LATEST_VERSIONS_PER_FUNCTION:
             Ref: LatestVersionsPerFunction
+          COLLECT_ALIASES:
+            Ref: CollectAliases
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
           AWS_RETRY_MODE: adaptive
