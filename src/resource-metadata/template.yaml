@@ -208,13 +208,13 @@ Resources:
             Ref: ResourceTtlMinutes
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
-      # Events:
-        # ScheduledEvent:
-        #   Type: Schedule
-        #   Properties:
-        #     Schedule:
-        #       Ref: Schedule
-        #     Enabled: True
+      Events:
+        ScheduledEvent:
+          Type: Schedule
+          Properties:
+            Schedule:
+              Ref: Schedule
+            Enabled: True
       EventInvokeConfig:
         DestinationConfig:
           OnFailure:
