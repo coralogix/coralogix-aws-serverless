@@ -15,7 +15,7 @@ Metadata:
       - s3
       - sns
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.25
+    SemanticVersion: 1.0.26
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -168,15 +168,15 @@ Parameters:
 Mappings:
   CoralogixRegionMap:
     Europe:
-      LogUrl: https://ingress.coralogix.com/api/v1/logs
+      LogUrl: coralogix.com
     Europe2:
-      LogUrl: https://ingress.eu2.coralogix.com/api/v1/logs
+      LogUrl: eu2.coralogix.com
     India:
-      LogUrl: https://ingress.coralogix.in/api/v1/logs
+      LogUrl: coralogix.in
     Singapore:
-      LogUrl: https://ingress.coralogixsg.com/api/v1/logs
+      LogUrl: coralogixsg.com
     US:
-      LogUrl: https://ingress.coralogix.us/api/v1/logs
+      LogUrl: coralogix.us
 Conditions:
   IsNotificationEnabled:
     Fn::Not:
@@ -203,8 +203,12 @@ Resources:
         Variables:
           CORALOGIX_URL: !If
             - IsRegionCustomUrlEmpty
-            - !Ref CustomDomain
-            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
+            - !Sub  'https://ingress.${CustomDomain}/api/v1/logs'
+            - !Sub
+              - '${Prefix}${Domain}${Suffix}'
+              - Prefix: https://ingress.
+                Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, LogUrl]
+                Suffix: /api/v1/logs
           CORALOGIX_BUFFER_SIZE:
             Ref: BufferSize
           private_key:

@@ -13,7 +13,7 @@ Metadata:
       - coralogix
       - metadata
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.1.3
+    SemanticVersion: 1.1.4
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -136,19 +136,19 @@ Parameters:
 Mappings:
   CoralogixRegionMap:
     DevShared:
-      MetadataUrl: ingress.dev-shared.coralogix.net:443
+      MetadataUrl:  dev-shared.coralogix.net
     Staging:
-      MetadataUrl: ingress.staging.coralogix.net:443
+      MetadataUrl: staging.coralogix.net
     Europe:
-      MetadataUrl: ingress.coralogix.com:443
+      MetadataUrl: coralogix.com
     Europe2:
-      MetadataUrl: ingress.eu2.coralogix.com:443
+      MetadataUrl: eu2.coralogix.com
     India:
-      MetadataUrl: ingress.app.coralogix.in:443
+      MetadataUrl: app.coralogix.in
     Singapore:
-      MetadataUrl: ingress.coralogixsg.com:443
+      MetadataUrl: coralogixsg.com
     US:
-      MetadataUrl: ingress.coralogix.us:443
+      MetadataUrl: coralogix.us
 
 Conditions:
   IsNotificationEnabled:
@@ -183,10 +183,14 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
-          CORALOGIX_METADATA_URL: !If 
+          CORALOGIX_METADATA_URL: !If
             - IsRegionCustomUrlEmpty
-            - !Ref CustomDomain
-            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, MetadataUrl ]
+            - !Sub  'ingress.${CustomDomain}:443'
+            - !Sub
+              - '${Prefix}${Domain}${Suffix}'
+              - Prefix: ingress.
+                Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, MetadataUrl]
+                Suffix: :443
           private_key:
             Ref: PrivateKey
           LATEST_VERSIONS_PER_FUNCTION:
@@ -238,10 +242,14 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
-          CORALOGIX_METADATA_URL: !If 
+          CORALOGIX_METADATA_URL: !If
             - IsRegionCustomUrlEmpty
-            - !Ref CustomDomain
-            - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, MetadataUrl ]
+            - !Sub  'ingress.${CustomDomain}:443'
+            - !Sub
+              - '${Prefix}${Domain}${Suffix}'
+              - Prefix: ingress.
+                Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, MetadataUrl]
+                Suffix: :443
           AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
           LATEST_VERSIONS_PER_FUNCTION:
             Ref: LatestVersionsPerFunction
