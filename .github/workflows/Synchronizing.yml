@@ -1,0 +1,100 @@
+name: Synchronizing Cloudformation repo with serverless
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [master, main]
+    paths:
+      - "src/**/template.*"
+      - "src/**/README.md"
+     
+jobs:
+  Get-matrix:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    outputs:
+      packages: ${{ env.packages }}
+    steps:
+    - uses: actions/checkout@v2
+    - name: Read matrix YAML
+      id: read-matrix
+      run: |
+        export PACKAGES=$(jq -r '.[].name' matrix.js | jq -rcnR '[inputs]')
+        echo "packages=$PACKAGES" >> $GITHUB_ENV
+        echo ${{ env.packages }}
+
+  Push-changes:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    needs: Get-matrix
+    strategy:
+      matrix:
+        package: ${{ fromJSON(needs.Get-matrix.outputs.packages) }}
+    steps:
+      - uses: actions/checkout@v2
+      - id: changes
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            '${{ matrix.package }}':
+              - 'src/${{ matrix.package }}/**'
+          
+      - if: steps.changes.outputs[matrix.package] == 'true'          
+        name: Change template and README to CF
+        run: |
+          chmod +x replace_codeuri.sh
+          ./replace_codeuri.sh src/${{ matrix.package }}/template.* ${{ matrix.package }} src/${{ matrix.package }}/README.md
+    
+      - if: steps.changes.outputs[matrix.package] == 'true'    
+        name: Upload template file
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.package }}-template
+          path: src/${{ matrix.package }}/template.*
+      
+      - if: steps.changes.outputs[matrix.package] == 'true'      
+        name: Upload README file
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.package }}-README
+          path: src/${{ matrix.package }}/README.md
+        
+      - if: steps.changes.outputs[matrix.package] == 'true'        
+        name: Checkout destination repository
+        uses: actions/checkout@v2
+        with:
+          repository: coralogix/cloudformation-coralogix-aws
+          token: ${{ secrets.GH_TOKEN }}
+       
+      - if: steps.changes.outputs[matrix.package] == 'true'      
+        name: Download template file
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ matrix.package }}-template
+          
+      - if: steps.changes.outputs[matrix.package] == 'true'          
+        name: Download README file
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ matrix.package }}-README
+        
+      - if: steps.changes.outputs[matrix.package] == 'true'        
+        name: Commit and push changes
+        run: |
+          if test -e "aws-integrations/lambda-integrations/${{ matrix.package }}" || test -e "aws-integrations/${{ matrix.package }}" ; then
+            if test -e "aws-integrations/lambda-integrations/${{ matrix.package }}"; then
+              ls
+              mv template.* aws-integrations/lambda-integrations/${{ matrix.package }}/
+              mv README.md aws-integrations/lambda-integrations/${{ matrix.package }}/
+            else
+              mv template.* aws-integrations/${{ matrix.package }}/
+              mv README.md aws-integrations/${{ matrix.package }}/
+            fi
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            git checkout master
+            git pull
+            git add .
+            git commit -m "Copy file from serverless repository"
+            git push origin HEAD:master -f
+          fi
