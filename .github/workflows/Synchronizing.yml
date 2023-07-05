@@ -7,7 +7,7 @@ on:
     paths:
       - "src/**/template.*"
       - "src/**/README.md"
-     
+
 jobs:
   Get-matrix:
     runs-on: ubuntu-latest
@@ -77,18 +77,18 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: ${{ matrix.package }}-README
+          path: aws-integrations/lambda-integrations/${{ matrix.package }}/
         
       - if: steps.changes.outputs[matrix.package] == 'true'        
         name: Commit and push changes
         run: |
           if test -e "aws-integrations/lambda-integrations/${{ matrix.package }}" || test -e "aws-integrations/${{ matrix.package }}" ; then
             if test -e "aws-integrations/lambda-integrations/${{ matrix.package }}"; then
-              ls
+              rm aws-integrations/lambda-integrations/${{ matrix.package }}/template.*
               mv template.* aws-integrations/lambda-integrations/${{ matrix.package }}/
-              mv README.md aws-integrations/lambda-integrations/${{ matrix.package }}/
             else
+              rm aws-integrations/${{ matrix.package }}/template.*
               mv template.* aws-integrations/${{ matrix.package }}/
-              mv README.md aws-integrations/${{ matrix.package }}/
             fi
             git config --local user.email "github-actions[bot]@users.noreply.github.com"
             git config --local user.name "github-actions[bot]"
