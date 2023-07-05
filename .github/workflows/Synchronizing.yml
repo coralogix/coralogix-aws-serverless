@@ -7,7 +7,7 @@ on:
     paths:
       - "src/**/template.*"
       - "src/**/README.md"
-
+     
 jobs:
   Get-matrix:
     runs-on: ubuntu-latest
@@ -15,21 +15,43 @@ jobs:
     outputs:
       packages: ${{ env.packages }}
     steps:
+
     - uses: actions/checkout@v2
     - name: Read matrix YAML
       id: read-matrix
       run: |
         export PACKAGES=$(jq -r '.[].name' matrix.js | jq -rcnR '[inputs]')
         echo "packages=$PACKAGES" >> $GITHUB_ENV
-        echo ${{ env.packages }}
 
-  Push-changes:
+    # to save a directory as an Artifact it must contain a file
+    - name: Create template-readme-directory
+      run: |
+        mkdir template-readme-directory
+        touch template-readme-directory/file.tmp
+
+    - name: Upload template-readme-directory
+      uses: actions/upload-artifact@v2
+      with:
+        name: template-readme-directory
+        path: ./template-readme-directory/
+
+    - name: Create changes file list
+      run: touch change_file_list.txt
+
+    - name: Upload changes file list
+      uses: actions/upload-artifact@v2
+      with:
+        name: change_file_list
+        path: change_file_list.txt
+
+  Apply-changes:
     runs-on: ubuntu-latest
     if: github.event.pull_request.merged == true
     needs: Get-matrix
     strategy:
       matrix:
         package: ${{ fromJSON(needs.Get-matrix.outputs.packages) }}
+      max-parallel: 1
     steps:
       - uses: actions/checkout@v2
       - id: changes
@@ -44,57 +66,91 @@ jobs:
         run: |
           chmod +x replace_codeuri.sh
           ./replace_codeuri.sh src/${{ matrix.package }}/template.* ${{ matrix.package }} src/${{ matrix.package }}/README.md
-    
-      - if: steps.changes.outputs[matrix.package] == 'true'    
-        name: Upload template file
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.package }}-template
-          path: src/${{ matrix.package }}/template.*
-      
+
       - if: steps.changes.outputs[matrix.package] == 'true'      
-        name: Upload README file
-        uses: actions/upload-artifact@v3
+        name: Create template and readme directory
+        run: mkdir template-readme-directory
+
+      - if: steps.changes.outputs[matrix.package] == 'true'      
+        name: Download template and readme artifact
+        uses: actions/download-artifact@v3
         with:
-          name: ${{ matrix.package }}-README
-          path: src/${{ matrix.package }}/README.md
-        
-      - if: steps.changes.outputs[matrix.package] == 'true'        
-        name: Checkout destination repository
+          name: template-readme-directory
+          path: ./template-readme-directory
+
+      - if: steps.changes.outputs[matrix.package] == 'true' 
+        name: Add integration to matrix file 
+        run: |
+          mv src/${{ matrix.package }}/README.md template-readme-directory/${{ matrix.package }}_README
+          mv src/${{ matrix.package }}/template.* template-readme-directory/${{ matrix.package }}_template.yaml
+      
+      - if: steps.changes.outputs[matrix.package] == 'true' 
+        name: Upload template-readme-directory
+        uses: actions/upload-artifact@v2
+        with:
+          name: template-readme-directory
+          path: ./template-readme-directory/ 
+
+      - if: steps.changes.outputs[matrix.package] == 'true'      
+        name: Download change_file_list
+        uses: actions/download-artifact@v3
+        with:
+          name: change_file_list
+
+      - if: steps.changes.outputs[matrix.package] == 'true' 
+        name: Add integration to change_file_list 
+        run: echo "${{ matrix.package }}" >> change_file_list.txt 
+          
+      - if: steps.changes.outputs[matrix.package] == 'true' 
+        name: Upload change_file_list
+        uses: actions/upload-artifact@v2
+        with:
+          name: change_file_list
+          path: change_file_list.txt   
+
+  Push-changes:
+    needs: Apply-changes
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout destination repository
         uses: actions/checkout@v2
         with:
           repository: coralogix/cloudformation-coralogix-aws
           token: ${{ secrets.GH_TOKEN }}
-       
-      - if: steps.changes.outputs[matrix.package] == 'true'      
-        name: Download template file
+
+      - name: Create template-readme-directory
+        run: mkdir ./template-readme-directory
+
+      - name: Download template-readme-directory
         uses: actions/download-artifact@v3
         with:
-          name: ${{ matrix.package }}-template
-          
-      - if: steps.changes.outputs[matrix.package] == 'true'          
-        name: Download README file
+          name: template-readme-directory
+          path: ./template-readme-directory
+
+      - name: Download change_file_list
         uses: actions/download-artifact@v3
         with:
-          name: ${{ matrix.package }}-README
-          path: aws-integrations/lambda-integrations/${{ matrix.package }}/
-        
-      - if: steps.changes.outputs[matrix.package] == 'true'        
-        name: Commit and push changes
+          name: change_file_list
+
+      - name: Commit and push chage files 
         run: |
-          if test -e "aws-integrations/lambda-integrations/${{ matrix.package }}" || test -e "aws-integrations/${{ matrix.package }}" ; then
-            if test -e "aws-integrations/lambda-integrations/${{ matrix.package }}"; then
-              rm aws-integrations/lambda-integrations/${{ matrix.package }}/template.*
-              mv template.* aws-integrations/lambda-integrations/${{ matrix.package }}/
-            else
-              rm aws-integrations/${{ matrix.package }}/template.*
-              mv template.* aws-integrations/${{ matrix.package }}/
+          while IFS= read -r line; do
+            if [[ -d "aws-integrations/lambda-integrations/$line" ]]; then
+              mv template-readme-directory/${line}_README aws-integrations/lambda-integrations/$line/README.md
+              mv template-readme-directory/${line}_template.yaml aws-integrations/lambda-integrations/$line/template.yaml
+            else 
+              mkdir aws-integrations/lambda-integrations/$line/
+              mv template-readme-directory/${line}_README aws-integrations/lambda-integrations/$line/README.md
+              mv template-readme-directory/${line}_template.yaml aws-integrations/lambda-integrations/$line/template.yaml
             fi
-            git config --local user.email "github-actions[bot]@users.noreply.github.com"
-            git config --local user.name "github-actions[bot]"
-            git checkout master
-            git pull
-            git add .
-            git commit -m "Copy file from serverless repository"
-            git push origin HEAD:master -f
-          fi
+          done < "change_file_list.txt"
+          rm change_file_list.txt
+          rm -rf template-readme-directory
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git checkout master
+          git pull
+          git add .
+          git commit -m "Copy file from serverless repository"
+          git push origin HEAD:master -f 
