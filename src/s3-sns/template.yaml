@@ -15,41 +15,40 @@ Metadata:
       - s3
       - sns
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.26
+    SemanticVersion: 1.0.27
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: Coralogix Configuration
+          default: Coralogix configuration
         Parameters:
-          - CoralogixRegion
-          - PrivateKey
           - ApplicationName
           - SubsystemName
-      - Label:
-          default: Logging Configuration
-        Parameters:
-          - NewlinePattern
-          - SamplingRate
-          - BufferSize
+          - ApiKey
+          - CoralogixRegion
+          - CustomDomain
           - Debug
       - Label:
-          default: Source Configuration
+          default: Integration configuration
         Parameters:
           - SNSTopicArn
           - S3BucketName
+          - NotificationEmail
+          - NewlinePattern
       - Label:
-          default: Lambda Configuration
+          default: Lambda configuration
         Parameters:
           - FunctionArchitecture
           - FunctionMemorySize
           - FunctionTimeout
-          - NotificationEmail
+          - BufferSize
+          - SamplingRate
+          - BlockingPattern
     ParameterLabels:
       CoralogixRegion:
         default: Region
-      PrivateKey:
-        default: Private Key
+      ApiKey:
+        default: Api Key
       CustomDomain:
         default: ""
       ApplicationName:
@@ -91,9 +90,9 @@ Parameters:
     Type: String
     Description: The Coralogix custom domain
     Default: '' 
-  PrivateKey:
+  ApiKey:
     Type: String
-    Description: The Coralogix private key which is used to validate your authenticity
+    Description: The Coralogix api key which is used to validate your authenticity
     NoEcho: true
   ApplicationName:
     Type: String
@@ -212,7 +211,7 @@ Resources:
           CORALOGIX_BUFFER_SIZE:
             Ref: BufferSize
           private_key:
-            Ref: PrivateKey
+            Ref: ApiKey
           app_name:
             Ref: ApplicationName
           sub_name:

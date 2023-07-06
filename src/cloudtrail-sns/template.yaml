@@ -15,8 +15,32 @@ Metadata:
       - cloudtrail
       - sns
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.3
+    SemanticVersion: 1.0.4
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Coralogix configuration
+        Parameters:
+          - ApplicationName
+          - SubsystemName
+          - ApiKey
+          - CoralogixRegion
+          - CustomDomain
+      - Label:
+          default: Integration configuration
+        Parameters:
+          - SNSTopicArn
+          - S3BucketName
+          - S3KeyPrefix
+          - S3KeySuffix
+          - NotificationEmail
+      - Label:
+          default: Lambda configuration
+        Parameters:
+          - FunctionArchitecture
+          - FunctionMemorySize
+          - FunctionTimeout
 Parameters:
   CoralogixRegion:
     Type: String
@@ -32,9 +56,9 @@ Parameters:
     Type: String
     Description: The Coralogix custom domain
     Default: '' 
-  PrivateKey:
+  ApiKey:
     Type: String
-    Description: The Coralogix private key which is used to validate your authenticity
+    Description: The Coralogix api key which is used to validate your authenticity
     NoEcho: true
   ApplicationName:
     Type: String
@@ -136,7 +160,7 @@ Resources:
                 Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, LogUrl]
                 Suffix: /api/v1/logs
           private_key:
-            Ref: PrivateKey
+            Ref: ApiKey
           app_name:
             Ref: ApplicationName
           sub_name:

@@ -15,47 +15,46 @@ Metadata:
       - s3
       - vpc
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.6
+    SemanticVersion: 1.0.7
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
-  
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: Coralogix Configuration
+          default: Coralogix configuration
         Parameters:
-          - CoralogixRegion
-          - CustomDomain
-          - PrivateKey
           - ApplicationName
           - SubsystemName
-      - Label:
-          default: Logging Configuration
-        Parameters:
-          - NewlinePattern
-          - SamplingRate
-          - BufferSize
+          - ApiKey
+          - CoralogixRegion
+          - CustomDomain
           - Debug
       - Label:
-          default: S3 Configuration
+          default: Integration configuration
         Parameters:
           - S3BucketName
           - S3KeyPrefix
           - S3KeySuffix
+          - NotificationEmail
+          - NewlinePattern
       - Label:
-          default: Lambda Configuration
+          default: Lambda configuration
         Parameters:
           - FunctionArchitecture
           - FunctionMemorySize
           - FunctionTimeout
-          - NotificationEmail
+          - BufferSize
+          - BlockingPattern
+          - SamplingRate
+      - Label:
+          default: Security configuration
+        Parameters:
           - SsmEnabled
           - LayerARN
-
     ParameterLabels:
       CoralogixRegion:
         default: Region
-      PrivateKey:
-        default: Private Key
+      ApiKey:
+        default: Api Key
       SsmEnabled:
         default: SsmEnabled
       LayerARN:
@@ -104,9 +103,9 @@ Parameters:
     Type: String
     Description: The Coralogix custom domain
     Default: ''
-  PrivateKey:
+  ApiKey:
     Type: String
-    Description: The Coralogix private key which is used to validate your authenticity
+    Description: The Coralogix api key which is used to validate your authenticity
     NoEcho: true
   LayerARN:
     Type: String
@@ -246,7 +245,7 @@ Resources:
                 Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, LogUrl]
                 Suffix: /api/v1/logs
           CORALOGIX_BUFFER_SIZE: !Ref BufferSize
-          private_key: !Ref PrivateKey
+          private_key: !Ref ApiKey
           app_name: !Ref ApplicationName
           sub_name: !Ref SubsystemName
           newline_pattern: !Ref NewlinePattern
@@ -397,7 +396,7 @@ Resources:
       Name: !Sub
         - 'lambda/coralogix/${AWS::Region}/${function}'
         - function: !Ref LambdaFunctionSSM
-      SecretString: !Ref PrivateKey
+      SecretString: !Ref ApiKey
 
   # define a custom resource to create the trigger
   CustomResourceLambdaTriggerFunction:
