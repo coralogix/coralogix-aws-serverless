@@ -19,7 +19,7 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: Coralogix setting
+          default: Coralogix configuration
         Parameters:
           - ApplicationName
           - SubsystemName
@@ -27,7 +27,7 @@ Metadata:
           - CoralogixRegion
           - CustomDomain
       - Label:
-          default: Integration setting
+          default: Integration configuration
         Parameters:
           - S3BucketName
           - S3KeyPrefix
@@ -35,7 +35,7 @@ Metadata:
           - NotificationEmail
           - NewlinePattern
       - Label:
-          default: Lambda setting
+          default: Lambda configuration
         Parameters:
           - FunctionArchitecture
           - FunctionMemorySize
@@ -45,7 +45,7 @@ Metadata:
           - SamplingRate
           - Debug
       - Label:
-          default: Security setting
+          default: Security configuration
         Parameters:
           - SsmEnabled
           - LayerARN
