@@ -15,7 +15,11 @@ if grep -q "LambdaFunctionSSM" "$template_file"; then
     yq eval '.Resources.LambdaFunctionSSM.Properties.CodeUri = {"Bucket": "'"$bucket_string"'", "Key": "'"$package_name"'.zip"}' -i $template_file
     sed -i "s/'!Sub coralogix-serverless-repo-\${AWS::Region}/!Sub 'coralogix-serverless-repo-\${AWS::Region}/g" $template_file
 fi
-if grep -q "CustomResourceLambdaTriggerFunction" "$template_file"; then
+if grep -q "LambdaFunctionSsm" "$template_file"; then
+    yq eval '.Resources.LambdaFunctionSsm.Properties.CodeUri = {"Bucket": "'"$bucket_string"'", "Key": "'"$package_name"'.zip"}' -i $template_file
+    sed -i "s/'!Sub coralogix-serverless-repo-\${AWS::Region}/!Sub 'coralogix-serverless-repo-\${AWS::Region}/g" $template_file
+fi
+if grep -q "CustomResourceLambdaTriggerFunction" "$template_file" && [[ $package_name != "vpc-flow-logs" ]]; then
     yq eval '.Resources.CustomResourceLambdaTriggerFunction.Properties.CodeUri = {"Bucket": "'"$bucket_string"'", "Key": "helper.zip"}' -i $template_file
     sed -i "s/'!Sub coralogix-serverless-repo-\${AWS::Region}/!Sub 'coralogix-serverless-repo-\${AWS::Region}/g" $template_file
 fi
