@@ -308,7 +308,7 @@ Resources:
           - IsSsmEnabled
           - !Ref LambdaFunctionSSM.DestinationTopic
           - !Ref LambdaFunction.DestinationTopic
-  
+
   LambdaFunctionSSM:
     Condition: IsSsmEnabled
     Type: AWS::Serverless::Function
@@ -398,7 +398,7 @@ Resources:
         - function: !Ref LambdaFunctionSSM
       SecretString: !Ref ApiKey
 
-  # define a custom resource to create the trigger
+  # define a custom resource to create the trigger.
   CustomResourceLambdaTriggerFunction:
     Type: AWS::Serverless::Function
     Properties:
