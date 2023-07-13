@@ -87,7 +87,7 @@ Metadata:
         default: Timeout
       NotificationEmail:
         default: Notification Email
- 
+
 Parameters:
   CoralogixRegion:
     Type: String
@@ -308,7 +308,7 @@ Resources:
           - IsSsmEnabled
           - !Ref LambdaFunctionSSM.DestinationTopic
           - !Ref LambdaFunction.DestinationTopic
-  
+
   LambdaFunctionSSM:
     Condition: IsSsmEnabled
     Type: AWS::Serverless::Function
@@ -397,7 +397,7 @@ Resources:
         - 'lambda/coralogix/${AWS::Region}/${function}'
         - function: !Ref LambdaFunctionSSM
       SecretString: !Ref ApiKey
- 
+
   # define a custom resource to create the trigger.
   CustomResourceLambdaTriggerFunction:
     Type: AWS::Serverless::Function
