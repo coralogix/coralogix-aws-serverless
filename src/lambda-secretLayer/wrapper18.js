@@ -18,6 +18,7 @@ async function getSecret() {
     }
     //console.log("The file was saved!");
   });
+
 }
 
 getSecret();
