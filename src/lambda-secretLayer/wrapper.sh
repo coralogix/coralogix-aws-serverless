@@ -1,8 +1,17 @@
 #!/bin/bash
 
-node /opt/wrapper.js
-#cat /tmp/envVars
+node_version=$(node -e "console.log(process.version)")
 
-source /tmp/envVars
+if [[ $node_version == v18.* ]]; then
+    node /opt/wrapper18.js
+    #cat /tmp/envVars
+    
+    source /tmp/envVars
+else
+    node /opt/wrapper16.js
+    #cat /tmp/envVars
+    
+    source /tmp/envVars
+fi
 
 exec "$@"
