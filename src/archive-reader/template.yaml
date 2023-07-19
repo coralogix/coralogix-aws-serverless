@@ -17,8 +17,25 @@ Metadata:
       - import
       - restore
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.10
+    SemanticVersion: 1.0.11
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Coralogix configuration
+        Parameters:
+          - CoralogixRegion
+          - ApiKey
+      - Label:
+          default: Integration configuration
+        Parameters:
+          - NotificationEmail
+      - Label:
+          default: Lambda configuration
+        Parameters:
+          - FunctionArchitecture
+          - FunctionMemorySize
+          - FunctionTimeout
 Parameters:
   CoralogixRegion:
     Type: String
@@ -30,9 +47,9 @@ Parameters:
       - Singapore
       - US
     Default: Europe
-  PrivateKey:
+  ApiKey:
     Type: String
-    Description: The Coralogix private key which is used to validate your authenticity
+    Description: The Coralogix Api key which is used to validate your authenticity
     NoEcho: true
   FunctionArchitecture:
     Type: String
@@ -99,7 +116,7 @@ Resources:
               - Ref: CoralogixRegion
               - LogUrl
           private_key:
-            Ref: PrivateKey
+            Ref: ApiKey
       Policies:
         - S3ReadPolicy:
             BucketName:

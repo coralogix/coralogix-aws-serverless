@@ -13,33 +13,33 @@ Metadata:
       - coralogix
       - metadata
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.2.0
+    SemanticVersion: 1.2.1
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: Coralogix Configuration
+          default: Coralogix configuration
         Parameters:
           - CoralogixRegion
-          - PrivateKey
+          - ApiKey
           - CustomDomain
       - Label:
-          default: Metadata Collection Configuration
+          default: Integration configuration
         Parameters:
           - Schedule
           - ResourceTtlMinutes
-      - Label:
-          default: AWS Lambda Metadata Collection Configuration
-        Parameters:
           - LatestVersionsPerFunction
           - CollectAliases
+          - NotificationEmail
       - Label:
           default: Lambda Configuration
         Parameters:
           - FunctionArchitecture
           - FunctionMemorySize
           - FunctionTimeout
-          - NotificationEmail
+      - Label:
+          default: Security configuration
+        Parameters:
           - LayerARN
           - SsmEnabled
     ParameterLabels:
@@ -51,8 +51,8 @@ Metadata:
         default: coralogix ssm layer
       SsmEnabled:
         default: false
-      PrivateKey:
-        default: Private Key
+      ApiKey:
+        default: Api Key
       Schedule:
         default: Schedule
       LatestVersionsPerFunction:
@@ -86,9 +86,9 @@ Parameters:
     Type: String
     Description: The Coralogix custom domain
     Default: ''
-  PrivateKey:
+  ApiKey:
     Type: String
-    Description: The Coralogix private key which is used to validate your authenticity
+    Description: The Coralogix Api key which is used to validate your authenticity
     NoEcho: true
   LayerARN:
     Type: String
@@ -199,7 +199,7 @@ Resources:
                 Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, MetadataUrl]
                 Suffix: :443
           private_key:
-            Ref: PrivateKey
+            Ref: ApiKey
           LATEST_VERSIONS_PER_FUNCTION:
             Ref: LatestVersionsPerFunction
           COLLECT_ALIASES:
@@ -304,7 +304,7 @@ Resources:
       Name: !Sub
         - 'lambda/coralogix/${AWS::Region}/${function}'
         - function: !Ref LambdaFunctionSSM
-      SecretString: !Ref PrivateKey
+      SecretString: !Ref ApiKey
 
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription

@@ -15,8 +15,28 @@ Metadata:
       - sns
       - notifications
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.7
+    SemanticVersion: 1.0.8
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Coralogix configuration
+        Parameters:
+          - ApplicationName
+          - SubsystemName
+          - ApiKey
+          - CoralogixRegion
+      - Label:
+          default: Integration configuration
+        Parameters:
+          - SNSTopicArn
+          - NotificationEmail
+      - Label:
+          default: Lambda configuration
+        Parameters:
+          - FunctionArchitecture
+          - FunctionMemorySize
+          - FunctionTimeout
 Parameters:
   CoralogixRegion:
     Type: String
@@ -28,9 +48,9 @@ Parameters:
       - Singapore
       - US
     Default: Europe
-  PrivateKey:
+  ApiKey:
     Type: String
-    Description: The Coralogix private key which is used to validate your authenticity
+    Description: The Coralogix api key which is used to validate your authenticity
     NoEcho: true
   ApplicationName:
     Type: String
@@ -111,7 +131,7 @@ Resources:
               - Ref: CoralogixRegion
               - LogUrl
           private_key:
-            Ref: PrivateKey
+            Ref: ApiKey
           app_name:
             Ref: ApplicationName
           sub_name:
