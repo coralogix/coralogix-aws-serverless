@@ -23,6 +23,10 @@ if grep -q "CustomResourceLambdaTriggerFunction" "$template_file" && [[ $package
     yq eval '.Resources.CustomResourceLambdaTriggerFunction.Properties.CodeUri = {"Bucket": "'"$bucket_string"'", "Key": "helper.zip"}' -i $template_file
     sed -i "s/'!Sub coralogix-serverless-repo-\${AWS::Region}/!Sub 'coralogix-serverless-repo-\${AWS::Region}/g" $template_file
 fi
+if grep -q "LambdaLayer" "$template_file" && [[ $package_name == "lambda-secretLayer" ]]; then
+    yq eval '.Resources.LambdaLayer.Properties.ContentUri = {"Bucket": "'"$bucket_string"'", "Key": "'"$package_name"'.zip"}' -i $template_file
+    sed -i "s/'!Sub coralogix-serverless-repo-\${AWS::Region}/!Sub 'coralogix-serverless-repo-\${AWS::Region}/g" $template_file
+fi
 
 sed -i "1s/^/#Created automatically from coralogix\/coralogix-aws-serverless\n#Link to the repo: https:\/\/github.com\/coralogix\/coralogix-aws-serverless\/tree\/master\/src\/$package_name\n/" $template_file
 
