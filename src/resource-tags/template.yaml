@@ -14,31 +14,31 @@ Metadata:
       - logs
       - tags
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.1
+    SemanticVersion: 1.0.2
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: Coralogix Configuration
+          default: Coralogix configuration
         Parameters:
           - CoralogixRegion
-          - PrivateKey
+          - ApiKey
       - Label:
-          default: Tag Collection Configuration
+          default: Integration configuration
         Parameters:
           - Schedule
+          - NotificationEmail
       - Label:
-          default: Lambda Configuration
+          default: Lambda configuration
         Parameters:
           - FunctionArchitecture
           - FunctionMemorySize
           - FunctionTimeout
-          - NotificationEmail
     ParameterLabels:
       CoralogixRegion:
         default: Region
-      PrivateKey:
-        default: Private Key
+      ApiKey:
+        default: Api Key
       Schedule:
         default: Schedule
       FunctionArchitecture:
@@ -61,9 +61,9 @@ Parameters:
       - Singapore
       - US
     Default: Europe
-  PrivateKey:
+  ApiKey:
     Type: String
-    Description: The Coralogix private key which is used to validate your authenticity
+    Description: The Coralogix Api key which is used to validate your authenticity
     NoEcho: true
   Schedule:
     Type: String
@@ -138,7 +138,7 @@ Resources:
               - Ref: CoralogixRegion
               - MetadataUrl
           private_key:
-            Ref: PrivateKey
+            Ref: ApiKey
       Events:
         ScheduledEvent:
           Type: Schedule

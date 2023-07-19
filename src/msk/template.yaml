@@ -17,8 +17,35 @@ Metadata:
       - msk
       - stream
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.10
+    SemanticVersion: 1.0.11
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Coralogix configuration
+        Parameters:
+          - CoralogixRegion
+          - CustomDomain
+          - ApiKey
+          - ApplicationName
+          - SubsystemName
+      - Label:
+          default: Integration configuration
+        Parameters:
+          - MSKClusterArn
+          - Topic
+          - NotificationEmail
+      - Label:
+          default: Lambda configuration
+        Parameters:
+          - FunctionArchitecture
+          - FunctionMemorySize
+          - FunctionTimeout
+      - Label:
+          default: Security configuration
+        Parameters:
+          - SsmEnabled
+          - LayerARN
 Parameters:
   CoralogixRegion:
     Type: String
@@ -34,9 +61,9 @@ Parameters:
     Type: String
     Description: The Coralogix custom domain
     Default: ''
-  PrivateKey:
+  ApiKey:
     Type: String
-    Description: The Coralogix private key which is used to validate your authenticity
+    Description: The Coralogix Api key which is used to validate your authenticity
     NoEcho: true
   LayerARN:
     Type: String
@@ -144,7 +171,7 @@ Resources:
               - Prefix: ingress.
                 Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, LogUrl]
           private_key:
-            Ref: PrivateKey
+            Ref: ApiKey
           app_name:
             Ref: ApplicationName
           sub_name:
@@ -221,7 +248,7 @@ Resources:
       Name: !Sub
         - 'lambda/coralogix/${AWS::Region}/${function}'
         - function: !Ref LambdaFunctionSsm
-      SecretString: !Ref PrivateKey
+      SecretString: !Ref ApiKey
 
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription

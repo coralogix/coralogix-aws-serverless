@@ -16,8 +16,27 @@ Metadata:
       - cloudwatch
       - lambda
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.1
+    SemanticVersion: 1.0.2
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Coralogix configuration
+        Parameters:
+          - CoralogixRegion
+          - ApiKey
+      - Label:
+          default: Integration configuration
+        Parameters:
+          - LogsFilter
+          - RegexPattern
+          - NotificationEmail
+      - Label:
+          default: Lambda configuration
+        Parameters:
+          - FunctionArchitecture
+          - FunctionMemorySize
+          - FunctionTimeout
 Parameters:
   LogsFilter:
     Type: String
@@ -27,9 +46,9 @@ Parameters:
     Type: String
     Description: Loggroup name regex pattern
     Default: \/aws\/lambda\/.*
-  PrivateKey:
+  ApiKey:
     Type: String
-    Description: The Coralogix private key which is used to validate your authenticity
+    Description: The Coralogix Api key which is used to validate your authenticity
     NoEcho: true
   CoralogixRegion:
     Type: String
@@ -143,7 +162,7 @@ Resources:
         EndpointConfiguration:
           Name: "Coralogix"
           AccessKey:
-            Ref: PrivateKey
+            Ref: ApiKey
           Url: !FindInMap
                - CoralogixRegionMap
                - Ref: CoralogixRegion

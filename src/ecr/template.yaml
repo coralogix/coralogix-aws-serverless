@@ -17,19 +17,20 @@ Metadata:
       - image
       - vulnerabilities
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.0
+    SemanticVersion: 1.0.1
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: Coralogix Account
+          default: Coralogix configuration
         Parameters:
+          - CoralogixRegion
+          - CustomDomain
+          - ApiKey
           - ApplicationName
           - SubsystemName
-          - PrivateKey
-          - CoralogixRegion
       - Label:
-          default: Lambda Function
+          default: Lambda configuration
         Parameters:
           - FunctionArchitecture
           - FunctionMemorySize
@@ -39,8 +40,8 @@ Metadata:
         default: Application Name
       SubsystemName:
         default: Subsystem Name
-      PrivateKey:
-        default: Private Key
+      ApiKey:
+        default: Api Key
       CoralogixRegion:
         default: Coralogix Domain
       FunctionTimeout:
@@ -62,9 +63,9 @@ Mappings:
     US:
       LogUrl: https://ingress.coralogix.us/api/v1/logs
 Parameters:
-  PrivateKey:
+  ApiKey:
     Type: String
-    Description: The Coralogix private key which is used to validate your authenticity
+    Description: The Coralogix api key which is used to validate your authenticity
     NoEcho: true
   ApplicationName:
     Type: String
@@ -105,25 +106,46 @@ Parameters:
     MinValue: 30
     MaxValue: 900
     Default: 300
+  CustomDomain:
+    Type: String
+    Description: The Coralogix custom domain
+    Default: ''
+  NotificationEmail:
+    Type: String
+    Description: Failure notification email address
+    MaxLength: 320
+    Default: ''
+Conditions:
+  IsNotificationEnabled: !Not [!Equals [!Ref NotificationEmail, '']]
+  IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
 Resources:
   LambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Join [ '-', [ 'ECR-Findings-to-Coralogix', !Select [ 4, !Split [ '-', !Select [ 2, !Split [ '/', !Ref AWS::StackId ] ] ] ] ] ]
       Description: Sends ECR image scan findings to Coralogix
       CodeUri: .
-      Handler: index.lambda_handler
-      Runtime: python3.8
+      Handler: index.handler
+      Runtime: nodejs16.x
       Architectures:
         - !Ref FunctionArchitecture
       MemorySize: !Ref FunctionMemorySize
       Timeout: !Ref FunctionTimeout
       Environment:
         Variables:
-          APPLICATION_NAME: !Ref ApplicationName
-          SUBSYSTEM_NAME: !Ref SubsystemName
-          PRIVATE_KEY: !Ref PrivateKey
-          CORALOGIX_LOG_URL: !FindInMap [ CoralogixDomainMap, !Ref CoralogixRegion, LogUrl ]
+          app_name: !Ref ApplicationName
+          sub_name: !Ref SubsystemName
+          private_key: !Ref ApiKey
+          CORALOGIX_LOG_URL: !If
+            - IsRegionCustomUrlEmpty
+            - !Ref CustomDomain
+            - !FindInMap [ CoralogixDomainMap, !Ref CoralogixRegion, LogUrl ]
+      Policies:
+        - Statement:
+          - Sid: EcrDescribeImageScanFindings
+            Effect: Allow
+            Action:
+              - ecr:DescribeImageScanFindings
+            Resource: "*"
   LambdaFunctionInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
