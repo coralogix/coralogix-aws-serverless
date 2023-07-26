@@ -146,6 +146,10 @@ Resources:
             Action:
               - ecr:DescribeImageScanFindings
             Resource: "*"
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: SNS
   LambdaFunctionInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -170,3 +174,10 @@ Resources:
       Targets:
         - Arn: !GetAtt LambdaFunction.Arn
           Id: !Ref LambdaFunction
+  LambdaFunctionNotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: IsNotificationEnabled
+    Properties:
+      Protocol: email
+      Endpoint: !Ref NotificationEmail
+      TopicArn: !Ref LambdaFunction.DestinationTopic
