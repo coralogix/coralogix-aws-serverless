@@ -116,8 +116,8 @@ Parameters:
     MaxLength: 320
     Default: ''
 Conditions:
-  IsNotificationEnabled: !Not [!Equals [!Ref NotificationEmail, '']]
-  IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
+  IsNotificationEnabled: !Not [!Equals [!Ref NotificationEmail, ""]]
+  IsRegionCustomUrlNotEmpty: !Not [ !Equals [ !Ref CustomDomain, ""]]
 Resources:
   LambdaFunction:
     Type: AWS::Serverless::Function
@@ -136,9 +136,11 @@ Resources:
           sub_name: !Ref SubsystemName
           private_key: !Ref ApiKey
           CORALOGIX_LOG_URL: !If
-            - IsRegionCustomUrlEmpty
-            - !Ref CustomDomain
-            - !FindInMap [ CoralogixDomainMap, !Ref CoralogixRegion, LogUrl ]
+            - IsRegionCustomUrlNotEmpty
+            - Fn::Sub:
+              - "https://ingress.${CustomDomain}/api/v1/logs"
+              - CustomDomain: !Ref CustomDomain
+            - !FindInMap [CoralogixDomainMap, !Ref CoralogixRegion, LogUrl]
       Policies:
         - Statement:
           - Sid: EcrDescribeImageScanFindings
