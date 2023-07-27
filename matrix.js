@@ -80,6 +80,10 @@
       "path": "src/sns/**"
     },
     {
+      "name": "ecr",
+      "path": "src/ecr/**"
+    },
+    {
       "name": "vpc-flow-logs",
       "path": "src/vpc-flow-logs/**"
     }
