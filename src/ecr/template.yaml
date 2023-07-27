@@ -135,12 +135,7 @@ Resources:
           app_name: !Ref ApplicationName
           sub_name: !Ref SubsystemName
           private_key: !Ref ApiKey
-          CORALOGIX_LOG_URL: !If
-            - IsRegionCustomUrlNotEmpty
-            - Fn::Sub:
-              - "https://ingress.${CustomDomain}/api/v1/logs"
-              - CustomDomain: !Ref CustomDomain
-            - !FindInMap [CoralogixDomainMap, !Ref CoralogixRegion, LogUrl]
+          CORALOGIX_LOG_URL: !If [IsRegionCustomUrlNotEmpty, !Sub "https://ingress.${CustomDomain}/api/v1/logs", !FindInMap [CoralogixDomainMap, !Ref CoralogixRegion, LogUrl]]
       Policies:
         - Statement:
           - Sid: EcrDescribeImageScanFindings
