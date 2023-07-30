@@ -28,3 +28,4 @@ This application retrieves **Kinesis** stream data and sends them to your **Cora
 ## License
 
 This project is licensed under the Apache-2.0 License.
+
