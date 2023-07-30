@@ -47,3 +47,4 @@ The S3 via SNS integration can be deployed by clicking the link below and signin
 ## License
 
 This project is licensed under the Apache-2.0 License.
+

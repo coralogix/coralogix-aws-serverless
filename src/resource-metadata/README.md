@@ -33,3 +33,4 @@ This application collect AWS resource metadata and sends them to your **Coralogi
 
 This project is licensed under the Apache-2.0 License.
 
+
