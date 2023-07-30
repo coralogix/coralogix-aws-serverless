@@ -25,7 +25,7 @@ In the Application Settings, fill in the appropriate values:
 
 * **ApplicationName** - The name of the Coralogix application you wish to assign to this lambda.
 
-* **CoralogixRegion** - The Coralogix location region, possible options are ``Europe``, ``Europe2``, ``India``, ``Singapore``, ``US``.
+* **CoralogixRegion** - The Coralogix location region, possible options are ``Europe``, ``Europe2``, ``India``, ``Singapore``, ``US``, ``US2``.
 
 * **Enabled** - MongoDB Atlas API pulling state
 

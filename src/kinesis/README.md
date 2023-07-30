@@ -7,7 +7,7 @@ This application retrieves **Kinesis** stream data and sends them to your **Cora
 | Parameter | Description | Default Value | Required |
 |---|---|---|---|
 | Application name | The stack name of this application created via AWS CloudFormation.|  | :heavy_check_mark: |
-| CoralogixRegion | The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US].In case that you want to use Custom Url, leave this as default and write the `Custom Url` in the CustomUrl filed.| Europe | :heavy_check_mark: |
+| CoralogixRegion | The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US, US2].In case that you want to use Custom Url, leave this as default and write the `Custom Url` in the CustomUrl filed.| Europe | :heavy_check_mark: |
 | CustomDomain | The Coralogix custom url,leave empty if you don't use Custom domain.| | |
 | ApiKey| Your Coralogix secret key. |  | :heavy_check_mark: |
 | ApplicationName | A mandatory metadata field that is sent with each log and helps to classify it.|  | :heavy_check_mark: |

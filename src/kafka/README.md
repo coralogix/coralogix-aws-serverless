@@ -6,7 +6,7 @@ This application retrieves logs from self-hosted Apache Kafka cluster and sends 
 
 | Parameter | Description | Default Value | Required |
 |---|---|---|---|
-| CoralogixRegion | Possible values are `Europe`, `Europe2`, `US`, `Singapore` or `India`. Choose `Europe` if your Coralogix account URL ends with `.com`, `US` if it ends with `.us` and `India` if it ends with `.in`. This is a **Coralogix** parameter and does not relate to your to your AWS region.| Europe | :heavy_check_mark: |
+| CoralogixRegion | Possible values are `Europe`, `Europe2`, `US`, `US2`, `Singapore` or `India`. Choose `Europe` if your Coralogix account URL ends with `.com`, `US` if it ends with `.us` and `India` if it ends with `.in`. This is a **Coralogix** parameter and does not relate to your to your AWS region.| Europe | :heavy_check_mark: |
 | ApiKey | Your Coralogix secret key. |  | :heavy_check_mark: |
 | ApplicationName | A mandatory metadata field that is sent with each log and helps to classify it.|  | :heavy_check_mark: |
 | SubsystemName | A mandatory metadata field that is sent with each log and helps to classify it.|  | :heavy_check_mark: |

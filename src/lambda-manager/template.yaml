@@ -16,7 +16,7 @@ Metadata:
       - cloudwatch
       - lambda
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.2
+    SemanticVersion: 1.0.3
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -52,13 +52,14 @@ Parameters:
     NoEcho: true
   CoralogixRegion:
     Type: String
-    Description: The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US]
+    Description: The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US, US2]
     AllowedValues:
       - Europe
       - Europe2
       - India
       - Singapore
       - US
+      - US2
     Default: Europe
   FunctionArchitecture:
     Type: String
@@ -96,6 +97,8 @@ Mappings:
       LogUrl: https://firehose-ingress.coralogixsg.com/firehose
     US:
       LogUrl: https://firehose-ingress.coralogix.us/firehose
+    US2:
+      LogUrl: https://firehose-ingress.cx498.coralogix.com/firehose
 Conditions:
   IsNotificationEnabled:
     Fn::Not:

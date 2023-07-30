@@ -17,7 +17,7 @@ Metadata:
       - image
       - vulnerabilities
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.2
+    SemanticVersion: 1.0.3
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -62,6 +62,8 @@ Mappings:
       LogUrl: https://ingress.coralogixsg.com/api/v1/logs
     US:
       LogUrl: https://ingress.coralogix.us/api/v1/logs
+    US2:
+      LogUrl: https://ingress.cx498.coralogix.com/api/v1/logs
 Parameters:
   ApiKey:
     Type: String
@@ -87,6 +89,7 @@ Parameters:
       - India
       - Singapore
       - US
+      - US2
   FunctionArchitecture:
     Type: String
     Description: Lambda function architecture, possible options are [x86_64, arm64]

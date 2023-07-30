@@ -14,7 +14,7 @@ Metadata:
       - logs
       - tags
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.2
+    SemanticVersion: 1.0.3
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -52,7 +52,7 @@ Metadata:
 Parameters:
   CoralogixRegion:
     Type: String
-    Description: The Coralogix location region [Europe, Europe2, India, Singapore, US]
+    Description: The Coralogix location region [Europe, Europe2, India, Singapore, US, US2]
     AllowedValues:
       - DevShared
       - Europe
@@ -60,6 +60,7 @@ Parameters:
       - India
       - Singapore
       - US
+      - US2
     Default: Europe
   ApiKey:
     Type: String
@@ -110,6 +111,8 @@ Mappings:
       MetadataUrl: ingress.coralogixsg.com:443
     US:
       MetadataUrl: ingress.coralogix.us:443
+    US2:
+      MetadataUrl: ingress.cx498.coralogix.com:443
 Conditions:
   IsNotificationEnabled:
     Fn::Not:

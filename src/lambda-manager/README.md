@@ -6,7 +6,7 @@ Environment variables:
 
 | Parameter | Description | Default Value | Required |
 |---|---|---|---|
-| CoralogixRegion | The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US] | Europe | :heavy_check_mark: |
+| CoralogixRegion | The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US, US2] | Europe | :heavy_check_mark: |
 | ApiKey | The Coralogix private key which is used to validate your authenticity | | :heavy_check_mark: |
 | RegexPattern | Set up this regex to match the Log Groups names that you want to automatically subscribe to Coralogix Firehose.| | :heavy_check_mark: |
 | LogsFilter | Subscription filter to select which logs needs to be sent to Coralogix. Default is for Lambda Errors that are not sendable by Coralogix Lambda Layer. | | :heavy_check_mark: |

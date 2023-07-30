@@ -17,7 +17,7 @@ Metadata:
       - msk
       - stream
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.11
+    SemanticVersion: 1.0.12
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -49,13 +49,14 @@ Metadata:
 Parameters:
   CoralogixRegion:
     Type: String
-    Description: The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US]
+    Description: The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US, US2]
     AllowedValues:
       - Europe
       - Europe2
       - India
       - Singapore
       - US
+      - US2
     Default: Europe
   CustomDomain:
     Type: String
@@ -131,6 +132,8 @@ Mappings:
       LogUrl: coralogixsg.com
     US:
       LogUrl: coralogix.us
+    US2:
+      LogUrl: cx498.coralogix.com
 Conditions:
   IsNotificationEnabled:
     Fn::Not:

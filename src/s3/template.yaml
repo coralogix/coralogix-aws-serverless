@@ -4,7 +4,7 @@ Description: Send logs from S3 bucket to Coralogix.
 Metadata:
   AWS::ServerlessRepo::Application:
     Name: Coralogix-S3
-    Description: Send logs from S3 bucket  to  Coralogix.
+    Description: Send logs from S3 bucket to  Coralogix.
     Author: Coralogix
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
@@ -14,7 +14,7 @@ Metadata:
       - logs
       - s3
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.27
+    SemanticVersion: 1.0.28
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -91,13 +91,14 @@ Parameters:
     Default: 'False'
   CoralogixRegion:
     Type: String
-    Description: The Coralogix location region [Europe, Europe2, India, Singapore, US]
+    Description: The Coralogix location region [Europe, Europe2, India, Singapore, US, US2]
     AllowedValues:
       - Europe
       - Europe2
       - India
       - Singapore
       - US
+      - US2
     Default: Europe
   ApiKey:
     Type: String
@@ -194,6 +195,8 @@ Mappings:
       LogUrl: coralogixsg.com
     US:
       LogUrl: coralogix.us
+    US2:
+      LogUrl: cx498.coralogix.com
 Conditions:
   IsNotificationEnabled:
     Fn::Not:

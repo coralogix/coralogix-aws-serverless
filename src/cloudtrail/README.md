@@ -3,7 +3,7 @@
 Coralogix provides a predefined Lambda function to easily forward your CloudTrail logs straight to the Coralogix platform.
 
 ## Prerequisites
-* Active CloudTrail 
+* Active CloudTrail
 * Permissions to create lambda functions
 * An AWS account.
 * A coralogix account.
@@ -21,7 +21,7 @@ The application should be installed in the same AWS region as the CloudWatch log
 | Parameter | Description | Default Value | Required |
 |---|---|---|---|
 | Application name | The stack name of this application created via AWS CloudFormation. |   | :heavy_check_mark: |
-| CoralogixRegion | The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US].In case that you want to use Custom domain, leave this as default and write the Custom doamin in the ``CustomDomain`` filed. |  Europe | :heavy_check_mark: | 
+| CoralogixRegion | The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US, US2].In case that you want to use Custom domain, leave this as default and write the Custom doamin in the ``CustomDomain`` filed. |  Europe | :heavy_check_mark: | 
 | CustomDomain | The Coralogix custom domain,leave empty if you don't use Custom domain. |   |  | 
 | ApiKey | Your Coralogix secret key. |   | :heavy_check_mark: | 
 | ApplicationName | Application Name as it will be seen in Coralogix UI. |   | :heavy_check_mark: | 

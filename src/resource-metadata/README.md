@@ -11,7 +11,7 @@ This application collect AWS resource metadata and sends them to your **Coralogi
 
 | Parameter | Description | Default Value | Required |
 |---|---|---|---|
-| CoralogixRegion | The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US].In case that you want to use Custom domain, leave this as default and write the Custom doamin in the ``CustomDomain`` filed. | Europe | :heavy_check_mark: |
+| CoralogixRegion | The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US, US2].In case that you want to use Custom domain, leave this as default and write the Custom doamin in the ``CustomDomain`` filed. | Europe | :heavy_check_mark: |
 | CustomDomain | The Coralogix custom domain, leave empty if you don't use Custom domain. | | |
 | aplication name | The stack name of this application created via AWS CloudFormation. | | :heavy_check_mark: |
 | ApiKey | Your Coralogix secret key. | | :heavy_check_mark: |

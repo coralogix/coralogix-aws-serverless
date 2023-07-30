@@ -6,7 +6,7 @@ This application fetches image scan findings from Elastic Container Registry and
 
 | Parameter | Description | Default Value | Required |
 |---|---|---|---|
-| CoralogixRegion | Possible values are `Europe`, `Europe2`, `US`, `Singapore` or `India`. This is a **Coralogix** parameter and does not relate to your to your AWS region.| Europe | :heavy_check_mark: |
+| CoralogixRegion | Possible values are `Europe`, `Europe2`, `US`, `US2`, `Singapore` or `India`. This is a **Coralogix** parameter and does not relate to your to your AWS region.| Europe | :heavy_check_mark: |
 | CustomDomain | The Coralogix custom domain,leave empty if you don't use Custom domain. | |  | 
 | ApiKey | Your Coralogix secret key.|  | :heavy_check_mark: |
 | ApplicationName | A mandatory metadata field that is sent with each log and helps to classify it.|  | :heavy_check_mark: |

@@ -18,18 +18,19 @@ Metadata:
       - events
       - alerts
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.11
+    SemanticVersion: 1.0.12
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
     Type: String
-    Description: The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US]
+    Description: The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US, US2]
     AllowedValues:
       - Europe
       - Europe2
       - India
       - Singapore
       - US
+      - US2
     Default: Europe
   PrivateKey:
     Type: String
@@ -124,6 +125,8 @@ Mappings:
       LogUrl: https://ingress.coralogixsg.com/api/v1/logs
     US:
       LogUrl: https://ingress.coralogix.us/api/v1/logs
+    US2:
+      LogUrl: https://ingress.cx498.coralogix.com/api/v1/logs
 Conditions:
   IsNotificationEnabled:
     Fn::Not:

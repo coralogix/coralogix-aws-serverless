@@ -6,7 +6,7 @@ This application imports archived logs from an S3 bucket to Coralogix.
 
 | Parameter | Description | Default Value | Required |
 |---|---|---|---|
-| CoralogixRegion | Possible values are `Europe`, `Europe2`, `US`, `Singapore` or `India`. This is a **Coralogix** parameter and does not relate to your to your AWS region.| Europe | :heavy_check_mark: |
+| CoralogixRegion | Possible values are `Europe`, `Europe2`, `US`, `US2`,  `Singapore` or `India`. This is a **Coralogix** parameter and does not relate to your to your AWS region.| Europe | :heavy_check_mark: |
 | ApiKey | Your Coralogix secret key. |  | :heavy_check_mark: |
 | NotificationEmail | If the lambda fails a notification email will be sent to this address via SNS (requires you have a working SNS, with a validated domain).| | |
 | FunctionArchitecture | Lambda function architecture, possible options are [x86_64, arm64]| x86_64 | |
