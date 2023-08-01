@@ -10,4 +10,5 @@
 
 # Checklist:
 - [ ] I have updated the versions in the changed module in the template index.js and package.json files.
+- [ ] I have updated the relevant component changelog(s)
 - [ ] This change does not affect module (e.g. it's readme file change)
