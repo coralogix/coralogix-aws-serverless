@@ -14,7 +14,7 @@ Metadata:
       - logs
       - cloudwatch
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.23
+    SemanticVersion: 1.0.24
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -96,11 +96,8 @@ Parameters:
     MinValue: 1
     Default: 1
   CloudWatchLogGroupName:
-    Type: String
-    Description: The name of the CloudWatch log group to watch
-    AllowedPattern: '[\.\-_/#A-Za-z0-9]+'
-    MinLength: 1
-    MaxLength: 512
+    Type: CommaDelimitedList
+    Description: The name of the CloudWatch log groups to watch
   FunctionArchitecture:
     Type: String
     Description: Lambda function architecture, possible options are [x86_64, arm64]
@@ -128,7 +125,7 @@ Parameters:
   CustomDomain:
     Type: String
     Description: The Coralogix custom domain
-    Default: '' 
+    Default: ''
 Mappings:
   CoralogixRegionMap:
     Europe:
@@ -158,7 +155,7 @@ Conditions:
       - Ref: SsmEnabled
       - 'False'
   IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
-Resources:    
+Resources:
   LambdaFunction:
     Condition: IsNotSsmEnabled
     Type: AWS::Serverless::Function
@@ -177,7 +174,7 @@ Resources:
         Variables:
           CORALOGIX_URL: !If
             - IsRegionCustomUrlEmpty
-            - !Sub  'ingress.${CustomDomain}'
+            - !Sub 'ingress.${CustomDomain}'
             - !Sub
               - '${Prefix}${Domain}'
               - Prefix: ingress.
@@ -198,13 +195,6 @@ Resources:
         DestinationConfig:
           OnFailure:
             Type: SNS
-      Events:
-        CloudWatchLogsEvent:
-          Type: CloudWatchLogs
-          Properties:
-            LogGroupName:
-              Ref: CloudWatchLogGroupName
-            FilterPattern: ''
   LambdaFunctionSsm:
     Condition: IsSsmEnabled
     Type: AWS::Serverless::Function
@@ -227,7 +217,7 @@ Resources:
         Variables:
           CORALOGIX_URL: !If
             - IsRegionCustomUrlEmpty
-            - !Sub  'ingress.${CustomDomain}'
+            - !Sub 'ingress.${CustomDomain}'
             - !Sub
               - '${Prefix}${Domain}'
               - Prefix: ingress.
@@ -247,22 +237,58 @@ Resources:
         DestinationConfig:
           OnFailure:
             Type: SNS
-      Events:
-        CloudWatchLogsEvent:
-          Type: CloudWatchLogs
-          Properties:
-            LogGroupName:
-              Ref: CloudWatchLogGroupName
-            FilterPattern: ''  
+  LambdaFunctionInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !If
+          - IsNotSsmEnabled
+          - !GetAtt LambdaFunction.Arn
+          - !GetAtt LambdaFunctionSsm.Arn
+        Action: lambda:InvokeFunction
+        Principal: logs.amazonaws.com
+        SourceAccount:
+          Ref: AWS::AccountId
+        SourceArn: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:*"
+
+  CustomResourceLambdaTriggerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../helper
+      Handler: cloudwatch.lambda_handler
+      Runtime: python3.9
+      Timeout: 50
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - "logs:PutSubscriptionFilter"
+              Resource: !Sub  "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:*"
+
+  LambdaTrigger:
+    Type: Custom::LambdaTrigger
+    DependsOn: LambdaFunctionInvokePermission
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomResourceLambdaTriggerFunction
+          - Arn
+      LambdaArn: !If
+          - IsNotSsmEnabled
+          - !GetAtt LambdaFunction.Arn
+          - !GetAtt LambdaFunctionSsm.Arn
+      CloudwatchGroup:
+        Ref: CloudWatchLogGroupName
+
   PrivateKeySecret:
     Condition: IsSsmEnabled
     Type: AWS::SecretsManager::Secret
-    Properties: 
+    Properties:
       Description: Coralogix Send Your Data key Secret
       Name: !Sub
         - 'lambda/coralogix/${AWS::Region}/${function}'
         - function: !Ref LambdaFunctionSsm
       SecretString: !Ref ApiKey
+
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
     Condition: IsNotificationEnabled
@@ -270,8 +296,7 @@ Resources:
       Protocol: email
       Endpoint:
         Ref: NotificationEmail
-      TopicArn:
-        !If
-          - IsSsmEnabled
-          - !Ref LambdaFunctionSsm.DestinationTopic
-          - !Ref LambdaFunction.DestinationTopic
+      TopicArn: !If
+        - IsSsmEnabled
+        - !Ref LambdaFunctionSsm.DestinationTopic
+        - !Ref LambdaFunction.DestinationTopic
