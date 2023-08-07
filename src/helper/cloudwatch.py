@@ -11,7 +11,8 @@ def lambda_handler(event, context):
         lambda_client = boto3.client('lambda')
 
         if event['RequestType'] in ['Create', 'Update']:
-            logGroupName = event['ResourceProperties']['CloudwatchGroup']
+            StringlogGroupName = event['ResourceProperties']['CloudwatchGroup']
+            logGroupName = StringlogGroupName.split(',')
             cloudwatch_logs = boto3.client('logs')
             for log_group in logGroupName:
                 cloudwatch_logs.put_subscription_filter(

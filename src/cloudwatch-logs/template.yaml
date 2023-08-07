@@ -96,7 +96,7 @@ Parameters:
     MinValue: 1
     Default: 1
   CloudWatchLogGroupName:
-    Type: CommaDelimitedList
+    Type: String
     Description: The name of the CloudWatch log groups to watch
   FunctionArchitecture:
     Type: String
