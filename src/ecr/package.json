@@ -1,7 +1,7 @@
 {
   "name": "coralogix-ecr-image-scan-findings",
   "title": "AWS ECR Findings to Coralogix",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "AWS Lambda function to send ECR image scan findings to Coralogix",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",
