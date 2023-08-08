@@ -53,7 +53,7 @@ function handler(event, context, callback) {
 
     ecr.describeImageScanFindings({ repositoryName, imageId, maxResults }, (err, data) => {
       if (err) {
-        callback(err);;
+        callback(err);
       } else {
         const findings = data['imageScanFindings']['findings'];
         let summary_log = {"ecr_scan_summary": event['detail']};
