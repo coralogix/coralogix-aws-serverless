@@ -56,6 +56,9 @@ function handler(event, context, callback) {
         callback(err);;
       } else {
         const findings = data['imageScanFindings']['findings'];
+        let summary_log = {"ecr_scan_summery": event['detail']};
+        sendLogs(summary_log);
+
         for (let i = 0; i < findings.length; i++) {
             const log = {
                 "metadata": {
