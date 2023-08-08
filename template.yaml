@@ -1,3 +1,5 @@
+#Created automatically from coralogix/coralogix-aws-serverless
+#Link to the repo: https://github.com/coralogix/coralogix-aws-serverless/tree/master/src/cloudwatch-logs,test
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Send CloudWatch logs to Coralogix.
@@ -5,7 +7,7 @@ Metadata:
   AWS::ServerlessRepo::Application:
     Name: Coralogix-CloudWatch
     Description: Send CloudWatch logs to Coralogix.
-    Author: Coralogix
+    Author: guyrenny
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
     ReadmeUrl: README.md
@@ -26,6 +28,7 @@ Metadata:
           - ApiKey
           - CoralogixRegion
           - CustomDomain
+          - IntegrationId
       - Label:
           default: Integration configuration
         Parameters:
@@ -126,6 +129,9 @@ Parameters:
     Type: String
     Description: The Coralogix custom domain
     Default: ''
+  IntegrationId:
+    Type: String
+    Description: The integration ID to register.
 Mappings:
   CoralogixRegionMap:
     Europe:
@@ -161,7 +167,9 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Description: Send CloudWatch logs to Coralogix.
-      CodeUri: .
+      CodeUri:
+        Bucket: !Sub 'coralogix-serverless-repo-${AWS::Region}'
+        Key: cloudwatch-logs.zip
       Handler: index.handler
       Runtime: nodejs16.x
       Architectures:
@@ -200,7 +208,9 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Description: Send CloudWatch logs to Coralogix.
-      CodeUri: .
+      CodeUri:
+        Bucket: !Sub 'coralogix-serverless-repo-${AWS::Region}'
+        Key: cloudwatch-logs.zip
       Policies:
         - SecretsManagerReadWrite
       Handler: index.handler
@@ -238,22 +248,23 @@ Resources:
           OnFailure:
             Type: SNS
   LambdaFunctionInvokePermission:
-      Type: AWS::Lambda::Permission
-      Properties:
-        FunctionName: !If
-          - IsNotSsmEnabled
-          - !GetAtt LambdaFunction.Arn
-          - !GetAtt LambdaFunctionSsm.Arn
-        Action: lambda:InvokeFunction
-        Principal: logs.amazonaws.com
-        SourceAccount:
-          Ref: AWS::AccountId
-        SourceArn: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:*"
-
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !If
+        - IsNotSsmEnabled
+        - !GetAtt LambdaFunction.Arn
+        - !GetAtt LambdaFunctionSsm.Arn
+      Action: lambda:InvokeFunction
+      Principal: logs.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:*"
   CustomResourceLambdaTriggerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../helper
+      CodeUri:
+        Bucket: 'gr-integrations-aws-testing'
+        Key: helper.zip
       Handler: cloudwatch.lambda_handler
       Runtime: python3.10
       Timeout: 50
@@ -262,8 +273,7 @@ Resources:
             - Effect: Allow
               Action:
                 - "logs:PutSubscriptionFilter"
-              Resource: !Sub  "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:*"
-
+              Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:*"
   LambdaTrigger:
     Type: Custom::LambdaTrigger
     DependsOn: LambdaFunctionInvokePermission
@@ -273,12 +283,11 @@ Resources:
           - CustomResourceLambdaTriggerFunction
           - Arn
       LambdaArn: !If
-          - IsNotSsmEnabled
-          - !GetAtt LambdaFunction.Arn
-          - !GetAtt LambdaFunctionSsm.Arn
+        - IsNotSsmEnabled
+        - !GetAtt LambdaFunction.Arn
+        - !GetAtt LambdaFunctionSsm.Arn
       CloudwatchGroup:
         Ref: CloudWatchLogGroupName
-
   PrivateKeySecret:
     Condition: IsSsmEnabled
     Type: AWS::SecretsManager::Secret
@@ -288,7 +297,6 @@ Resources:
         - 'lambda/coralogix/${AWS::Region}/${function}'
         - function: !Ref LambdaFunctionSsm
       SecretString: !Ref ApiKey
-
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
     Condition: IsNotificationEnabled
@@ -300,3 +308,45 @@ Resources:
         - IsSsmEnabled
         - !Ref LambdaFunctionSsm.DestinationTopic
         - !Ref LambdaFunction.DestinationTopic
+  # Used as a bridge because CF doesn't allow for conditional depends on clauses.
+  NonNotifierResourcesAreReady:
+    Type: AWS::CloudFormation::WaitConditionHandle
+    Metadata:
+      LambdaFunctionReady: !If [ IsNotSsmEnabled, !Ref LambdaFunction, "" ]
+      LambdaFunctionSsmReady: !If [ IsSsmEnabled, !Ref LambdaFunctionSsm, "" ]
+      PrivateKeySecretReady: !If [ IsSsmEnabled, !Ref PrivateKeySecret, "" ]
+      LambdaFunctionNotificationSubscriptionReady: !If [ IsNotificationEnabled, !Ref LambdaFunctionNotificationSubscription, "" ]
+  IntegrationStatusNotifier:
+    Type: Custom::IntegrationsServiceNotifier
+    DependsOn:
+      - LambdaFunctionInvokePermission
+      - CustomResourceLambdaTriggerFunction
+      - LambdaTrigger
+      - NonNotifierResourcesAreReady
+
+    Properties:
+      #      {{AWS_ACCOUNT_ID}} is replaced during the template synchronisation
+      ServiceToken: !Sub "arn:aws:lambda:us-east-1:233273809180:function:integrations-custom-resource-notifier"
+      IntegrationId: !Ref IntegrationId
+      CoralogixDomain: !If
+        - IsRegionCustomUrlEmpty
+        - !Ref CustomDomain
+        - !FindInMap [ CoralogixRegionMap, !Ref CoralogixRegion, LogUrl ]
+      CoralogixApiKey: !Ref ApiKey
+
+      # Parameters to track
+      IntegrationNameField: !Ref "AWS::StackName"
+      SubsystemField: !Ref SubsystemName
+      ApplicationNameField: !Ref ApplicationName
+      LayerARNField: !Ref LayerARN
+      SsmEnabledField: !Ref SsmEnabled
+      CoralogixRegionField: !Ref CoralogixRegion
+      NewlinePatternField: !Ref NewlinePattern
+      BufferCharsetField: !Ref BufferCharset
+      SamplingRateField: !Ref SamplingRate
+      CloudWatchLogGroupNameField: !Ref CloudWatchLogGroupName
+      FunctionArchitectureField: !Ref FunctionArchitecture
+      FunctionMemorySizeField: !Ref FunctionMemorySize
+      FunctionTimeoutField: !Ref FunctionTimeout
+      NotificationEmailField: !Ref NotificationEmail
+      CustomDomainField: !Ref CustomDomain
