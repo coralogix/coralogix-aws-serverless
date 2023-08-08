@@ -51,7 +51,8 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
-      - name: Validate
+      - if: ${{ matrix.package }} != 'helper'
+        name: Validate
         working-directory: src/${{ matrix.package }}
         run: sam validate
 
@@ -64,6 +65,7 @@ jobs:
     strategy:
       matrix:
         package: ${{ fromJSON(needs.check.outputs.packages) }}
+    if: ${{ matrix.package != 'helper' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -116,7 +118,8 @@ jobs:
         with:
           use-installer: true
 
-      - name: Download
+      - if: ${{ matrix.package }} != 'helper'
+        name: Download
         uses: actions/download-artifact@v3
         with:
           name: ${{ matrix.package }}-packaged.yaml
@@ -127,10 +130,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
-      - name: Publish
+      - if: ${{ matrix.package }} != 'helper'
+        name: Publish
         run: sam publish --template packaged.yaml
-
-      - name: Store
+        
+      - if: ${{ matrix.package }} != 'helper'
+        name: Store
         run: |
           aws s3 cp \
             $(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "LambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml) \
