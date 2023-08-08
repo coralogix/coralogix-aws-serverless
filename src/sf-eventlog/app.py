@@ -202,7 +202,7 @@ def lambda_handler(event, context):
         }
 
 def get_records_list(access_token, domain, last_update):
-    endpoint = 'https://' + domain + "/services/data/v55.0/query?q=SELECT+Id+,+EventType+,+LogFile+,+LogDate+,+LogFileLength+,Interval+FROM+EventLogFile+WHERE+LogDate+>=+%s" % last_update
+    endpoint = 'https://' + domain + "/services/data/v55.0/query?q=SELECT+Id+,+EventType+,+LogFile+,+LogDate+,+LogFileLength+FROM+EventLogFile+WHERE+LogDate+>=+%s" % last_update
     if EVENT_TYPE != '':
         endpoint += "+AND+EventType+=+'%s'" % EVENT_TYPE
     endpoint += "+ORDER+BY+LogDate+ASC"
@@ -216,12 +216,13 @@ def get_records_list(access_token, domain, last_update):
         internal_logger.error('Event-log puller lambda Failure could not retrieve records - Endpoint: %s , error: %s' % (HOST, e))
         return None
     except urlerror.URLError as e:
-        internal_logger.error('Event-log puller lambda Failure could not retrieve records - Endpoint: %s , error: %s' % (HOST, e))
+        internal_logger.error('Event-log puller lambda Failure URL could not retrieve records - Endpoint: %s , error: %s' % (HOST, e))
         return None
     except TimeoutError as e:
         internal_logger.error('Event-log puller lambda Failure could not retrieve records - Timeout error - Endpoint: %s , error: %s' % (HOST, e))
         return None
     res_body = response.read()
+    
     try:
         JSON_object = json.loads(res_body.decode('utf-8'))
         records = JSON_object['records']
