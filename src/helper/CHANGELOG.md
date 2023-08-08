@@ -1,10 +1,10 @@
 # Changelog
 
-## cloudwatch-logs
+## helper
 
 ### 0.0.1 / 7.8.23
 
-* [Update] Add option to use more then one log group.
+* [Update] Add cloudwatch.py file to support the cloudwatch custom lambda.
 
 <!-- To add a new entry write: -->
 <!-- ### version / full date -->

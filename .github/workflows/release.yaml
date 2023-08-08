@@ -45,13 +45,15 @@ jobs:
         with:
           use-installer: true
 
-      - uses: aws-actions/configure-aws-credentials@v2
+      - if: ${{ matrix.package != 'helper' }}
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
-      - name: Validate
+      - if: ${{ matrix.package != 'helper' }}
+        name: Validate
         working-directory: src/${{ matrix.package }}
         run: sam validate
 
@@ -72,18 +74,20 @@ jobs:
         with:
           use-installer: true
 
-      - uses: aws-actions/configure-aws-credentials@v2
+      - if: ${{ matrix.package != 'helper' }}
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
-  
-      - name: Build
+
+      - if: ${{ matrix.package != 'helper' }}
+        name: Build
         working-directory: ./src/${{ matrix.package }}
         run: sam build --use-container
 
       - name: Package
-        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true }}
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true && matrix.package != 'helper'}}
         working-directory: ./src/${{ matrix.package }}
         run: |
           sam package \
@@ -92,7 +96,7 @@ jobs:
             --output-template-file packaged.yaml
 
       - name: Store
-        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true }}
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true && matrix.package != 'helper' }}
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.package }}-packaged.yaml
@@ -116,21 +120,25 @@ jobs:
         with:
           use-installer: true
 
-      - name: Download
+      - if: ${{ matrix.package != 'helper' }}
+        name: Download
         uses: actions/download-artifact@v3
         with:
           name: ${{ matrix.package }}-packaged.yaml
-  
-      - uses: aws-actions/configure-aws-credentials@v2
+
+      - if: ${{ matrix.package != 'helper' }}
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
-      - name: Publish
+      - if: ${{ matrix.package != 'helper' }}
+        name: Publish
         run: sam publish --template packaged.yaml
 
-      - name: Store
+      - if: ${{ matrix.package != 'helper' }}
+        name: Store
         run: |
           aws s3 cp \
             $(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "LambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml) \
