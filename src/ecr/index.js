@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.3
+ * @version     1.0.4
  * @since       1.0.0
  */
 
@@ -49,12 +49,16 @@ function sendLogs(content) {
 function handler(event, context, callback) {
     const repositoryName = event['detail']['repository-name'];
     const imageId = { imageDigest: event['detail']['image-digest'] };
+    const maxResults = 1000;
 
-    ecr.describeImageScanFindings({ repositoryName, imageId }, (err, data) => {
+    ecr.describeImageScanFindings({ repositoryName, imageId, maxResults }, (err, data) => {
       if (err) {
-        callback(err);;
+        callback(err);
       } else {
         const findings = data['imageScanFindings']['findings'];
+        let summary_log = {"ecr_scan_summary": event['detail']};
+        sendLogs(summary_log);
+
         for (let i = 0; i < findings.length; i++) {
             const log = {
                 "metadata": {
