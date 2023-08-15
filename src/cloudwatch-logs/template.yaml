@@ -45,7 +45,7 @@ Metadata:
         Parameters:
           - SsmEnabled
           - LayerARN
-          - CustomSecret
+          - CreateSecret
 Parameters:
   LayerARN:
     Type: String
@@ -127,10 +127,10 @@ Parameters:
     Type: String
     Description: The Coralogix custom domain
     Default: ''
-  CustomSecret:
+  CreateSecret:
     Type: String
-    Description: name of the secret to use with the SSM layer
-    Default: ''
+    Description: In case you want to use SSM without creating a secret, set the value to False and write the name of the secret instead of your ApiKey in the ApkiKey parameter.
+    Default: 'True'
 Mappings:
   CoralogixRegionMap:
     Europe:
@@ -166,8 +166,8 @@ Conditions:
           - Ref: SsmEnabled
           - 'True'
       - Fn::Equals:
-          - Ref: CustomSecret
-          - ''
+          - Ref: CreateSecret
+          - 'True'
 Resources:
   LambdaFunction:
     Condition: IsNotSsmEnabled
@@ -246,8 +246,10 @@ Resources:
             Ref: BufferCharset
           sampling:
             Ref: SamplingRate
-          CUSTOME_SECRET_NAME:
-            Ref: CustomSecret
+          CUSTOME_SECRET_NAME: !If
+              - CustomeSecret
+              - ""
+              - Ref: ApiKey
       EventInvokeConfig:
         DestinationConfig:
           OnFailure:

@@ -42,7 +42,7 @@ Metadata:
         Parameters:
           - LayerARN
           - SsmEnabled
-          - CustomSecret
+          - CreateSecret
     ParameterLabels:
       CoralogixRegion:
         default: Region
@@ -142,10 +142,10 @@ Parameters:
     Description: Failure notification email address
     MaxLength: 320
     Default: ""
-  CustomSecret:
+  CreateSecret:
     Type: String
-    Description: name of the secret to use with the SSM layer
-    Default: ''
+    Description: In case you want to use SSM without creating a secret, set the value to False and write the name of the secret instead of your ApiKey in the ApkiKey parameter.
+    Default: 'True'
 Mappings:
   CoralogixRegionMap:
     DevShared:
@@ -186,8 +186,8 @@ Conditions:
           - Ref: SsmEnabled
           - 'True'
       - Fn::Equals:
-          - Ref: CustomSecret
-          - ''
+          - Ref: CreateSecret
+          - 'True'
 Resources:
   LambdaFunction:
     Condition: IsNotSsmEnabled
@@ -283,8 +283,10 @@ Resources:
             Ref: ResourceTtlMinutes
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
-          CUSTOME_SECRET_NAME:
-            Ref: CustomSecret
+          CUSTOME_SECRET_NAME: !If
+              - CustomeSecret
+              - ""
+              - Ref: ApiKey
       Events:
         ScheduledEvent:
           Type: Schedule
