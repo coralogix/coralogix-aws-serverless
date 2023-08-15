@@ -7,9 +7,8 @@ async function getSecret() {
   
   AWS.config.update({region:process.env.AWS_REGION});
   const secretsManager = new AWS.SecretsManager();
-  //const secretName = process.env.SECRET_NAME;
-  const secretName = "lambda/coralogix/" + process.env.AWS_REGION + "/" + process.env.AWS_LAMBDA_FUNCTION_NAME;
-  console.log(secretName);
+  // const secretName = process.env.SECRET_NAME;
+  const secretName = process.env.CUSTOME_SECRET_NAME || "lambda/coralogix/" + process.env.AWS_REGION + "/" + process.env.AWS_LAMBDA_FUNCTION_NAME;  console.log(secretName);
   const params = {
     SecretId: secretName
   };

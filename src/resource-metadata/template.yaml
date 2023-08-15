@@ -13,7 +13,7 @@ Metadata:
       - coralogix
       - metadata
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.2.2
+    SemanticVersion: 1.2.3
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -42,6 +42,7 @@ Metadata:
         Parameters:
           - LayerARN
           - SsmEnabled
+          - CustomSecret
     ParameterLabels:
       CoralogixRegion:
         default: Region
@@ -141,6 +142,10 @@ Parameters:
     Description: Failure notification email address
     MaxLength: 320
     Default: ""
+  CustomSecret:
+    Type: String
+    Description: name of the secret to use with the SSM layer
+    Default: ''
 Mappings:
   CoralogixRegionMap:
     DevShared:
@@ -175,7 +180,14 @@ Conditions:
       - Ref: SsmEnabled
       - 'False'
   IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
-
+  CustomeSecret:
+    Fn::And:
+      - Fn::Equals:
+          - Ref: SsmEnabled
+          - 'True'
+      - Fn::Equals:
+          - Ref: CustomSecret
+          - ''
 Resources:
   LambdaFunction:
     Condition: IsNotSsmEnabled
@@ -271,6 +283,8 @@ Resources:
             Ref: ResourceTtlMinutes
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
+          CUSTOME_SECRET_NAME:
+            Ref: CustomSecret
       Events:
         ScheduledEvent:
           Type: Schedule
@@ -300,7 +314,7 @@ Resources:
 
 
   PrivateKeySecret:
-    Condition: IsSsmEnabled
+    Condition: CustomeSecret
     Type: AWS::SecretsManager::Secret
     Properties: 
       Description: Coralogix Send Your Data key Secret

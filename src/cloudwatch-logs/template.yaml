@@ -14,7 +14,7 @@ Metadata:
       - logs
       - cloudwatch
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.24
+    SemanticVersion: 1.0.25
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -45,6 +45,7 @@ Metadata:
         Parameters:
           - SsmEnabled
           - LayerARN
+          - CustomSecret
 Parameters:
   LayerARN:
     Type: String
@@ -126,6 +127,10 @@ Parameters:
     Type: String
     Description: The Coralogix custom domain
     Default: ''
+  CustomSecret:
+    Type: String
+    Description: name of the secret to use with the SSM layer
+    Default: ''
 Mappings:
   CoralogixRegionMap:
     Europe:
@@ -155,6 +160,14 @@ Conditions:
       - Ref: SsmEnabled
       - 'False'
   IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
+  CustomeSecret:
+    Fn::And:
+      - Fn::Equals:
+          - Ref: SsmEnabled
+          - 'True'
+      - Fn::Equals:
+          - Ref: CustomSecret
+          - ''
 Resources:
   LambdaFunction:
     Condition: IsNotSsmEnabled
@@ -233,6 +246,8 @@ Resources:
             Ref: BufferCharset
           sampling:
             Ref: SamplingRate
+          CUSTOME_SECRET_NAME:
+            Ref: CustomSecret
       EventInvokeConfig:
         DestinationConfig:
           OnFailure:
@@ -280,7 +295,7 @@ Resources:
         Ref: CloudWatchLogGroupName
 
   PrivateKeySecret:
-    Condition: IsSsmEnabled
+    Condition: CustomeSecret
     Type: AWS::SecretsManager::Secret
     Properties:
       Description: Coralogix Send Your Data key Secret

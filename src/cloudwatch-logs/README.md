@@ -25,7 +25,8 @@ The CloudWatch-logs integration deployment link and sign in to your AWS account:
 |---|---|---|---|
 | Application name | The stack name of this application created via AWS CloudFormation. |   | :heavy_check_mark: |
 | CoralogixRegion | The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US, US2].In case that you want to use Custom domain, leave this as default and write the Custom doamin in the ``CustomDomain`` filed. |  Europe | :heavy_check_mark: | 
-| CustomDomain | The Coralogix custom domain,leave empty if you don't use Custom domain.| |  | 
+| CustomDomain | The Coralogix custom domain,leave empty if you don't use Custom domain.| |  |
+| CustomSecret | In case you want to use SSM with your own secret that contains coralogx ApiKey instead of creating a new secret, specify the name of the secret. |   |  | 
 | ApiKey | Your Coralogix secret key.|   | :heavy_check_mark: | 
 | ApplicationName | Application Name as it will be seen in Coralogix UI.|   | :heavy_check_mark: | 
 | SubsystemName | Sybsystem Name as it will be seen in Coralogix UI.|   | :heavy_check_mark: | 
