@@ -14,13 +14,12 @@ This application collect AWS resource metadata and sends them to your **Coralogi
 | CoralogixRegion | The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US, US2].In case that you want to use Custom domain, leave this as default and write the Custom doamin in the ``CustomDomain`` filed. | Europe | :heavy_check_mark: |
 | CustomDomain | The Coralogix custom domain, leave empty if you don't use Custom domain. | | |
 | aplication name | The stack name of this application created via AWS CloudFormation. | | :heavy_check_mark: |
-| CreateSecret | In case you want to use SSM with your secret that contains coralogix ApiKey instead that the template will create a new secret for you, set the value to False. If you set the value to False specify the name of the secret in the ApiKey parameter instead of writing your coralogix ApkiKey. | True |  | 
-| ApiKey | Your Coralogix secret key. Only in case you set ``CreateSecret`` as False write the name of your secret that contains the ApkiKey, Otherwise input your coralogix ApiKey |  | :heavy_check_mark: | 
+| CreateSecret | Set to False In case you want to use SSM with your secret that contains coralogix ApiKey. | True |  | 
+| ApiKey | Your Coralogix secret key or incase you use your own created secret put here the name of your secret that contains the coralogix Api Key |  | :heavy_check_mark: | 
 | ResourceTtlMinutes | Once a resource is collected, how long should it remain valid. | 60 | |
 | Schedule | Collect metadata on a specific schedule. | rate(10 minutes) | |
 | LatestVersionsPerFunction | How many latest published versions of each Lambda function should be collected. | 0 | |
-| SsmEnabled | Use SSM for the private key True/False'. | False | |
-| LayerARN | This is the ARN of the Coralogix SecurityLayer. Copy from the ``SSM`` serverless application the ARN that was installed on the AWS account. | | |
+| LayerARN | In case you are using SSM This is the ARN of the Coralogix Security Layer. Copy from the ``SSM`` serverless application the ARN that was installed on the AWS account. | | |
 | NotificationEmail | If the lambda fails a notification email will be sent to this address via SNS (requires you have a working SNS, with a validated domain). | | |
 | FunctionArchitecture | Lambda function architecture, possible options are [x86_64, arm64]. | x86_64 | |
 | FunctionMemorySize | The maximum allocated memory this lambda may consume. Default value is the minimum recommended setting please consult coralogix support before changing. | 256 |  |

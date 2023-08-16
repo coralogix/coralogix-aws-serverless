@@ -41,7 +41,6 @@ Metadata:
           default: Security configuration
         Parameters:
           - LayerARN
-          - SsmEnabled
           - CreateSecret
     ParameterLabels:
       CoralogixRegion:
@@ -49,9 +48,7 @@ Metadata:
       CustomDomain:
         default: CustomDomain
       LayerARN:
-        default: coralogix ssm layer
-      SsmEnabled:
-        default: false
+        default: In case you are using SSM This is the ARN of the Coralogix Security Layer. Copy from the ``SSM`` serverless application the ARN that was installed on the AWS account
       ApiKey:
         default: Api Key
       Schedule:
@@ -90,16 +87,12 @@ Parameters:
     Default: ''
   ApiKey:
     Type: String
-    Description: The Coralogix Api key which is used to validate your authenticity
+    Description: Your Coralogix secret key or incase you use your own created secret put here the name of your secret that contains the coralogix Api Key
     NoEcho: true
   LayerARN:
     Type: String
-    Description: Coralogix SSM Layer ARN
+    Description: In case you are using SSM This is the ARN of the Coralogix Security Layer. Copy from the ``SSM`` serverless application the ARN that was installed on the AWS account
     Default: ''
-  SsmEnabled:
-    Type: String
-    Description: store coralogix private_key as a secret. True/False
-    Default: 'False'
   Schedule:
     Type: String
     Description: Collect metadata on a specific schedule
@@ -172,19 +165,21 @@ Conditions:
           - Ref: NotificationEmail
           - ""
   IsSsmEnabled:
-    Fn::Equals:
-      - Ref: SsmEnabled
-      - 'True'
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: LayerARN
+          - ""
   IsNotSsmEnabled:
     Fn::Equals:
-      - Ref: SsmEnabled
-      - 'False'
+      - Ref: LayerARN
+      - ''
   IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
-  CustomeSecret:
+  CreateSecret:
     Fn::And:
-      - Fn::Equals:
-          - Ref: SsmEnabled
-          - 'True'
+      - Fn::Not:
+        - Fn::Equals:
+          - Ref: LayerARN
+          - ""
       - Fn::Equals:
           - Ref: CreateSecret
           - 'True'
@@ -283,8 +278,8 @@ Resources:
             Ref: ResourceTtlMinutes
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
-          CUSTOME_SECRET_NAME: !If
-              - CustomeSecret
+          SECRET_NAME: !If
+              - CreateSecret
               - ""
               - Ref: ApiKey
       Events:
@@ -316,7 +311,7 @@ Resources:
 
 
   PrivateKeySecret:
-    Condition: CustomeSecret
+    Condition: CreateSecret
     Type: AWS::SecretsManager::Secret
     Properties: 
       Description: Coralogix Send Your Data key Secret

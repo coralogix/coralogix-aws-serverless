@@ -43,18 +43,13 @@ Metadata:
       - Label:
           default: Security configuration
         Parameters:
-          - SsmEnabled
           - LayerARN
           - CreateSecret
 Parameters:
   LayerARN:
     Type: String
-    Description: Coralogix SSM Layer ARN
+    Description: In case you are using SSM This is the ARN of the Coralogix Security Layer. Copy from the ``SSM`` serverless application the ARN that was installed on the AWS account
     Default: ''
-  SsmEnabled:
-    Type: String
-    Description: store coralogix private_key as a secret. True/False
-    Default: 'False'
   CoralogixRegion:
     Type: String
     Description: The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US, US2]
@@ -68,7 +63,7 @@ Parameters:
     Default: Europe
   ApiKey:
     Type: String
-    Description: The Coralogix Api key which is used to validate your authenticity
+    Description: Your Coralogix secret key or incase you use your own created secret put here the name of your secret that contains the coralogix Api Key
     NoEcho: true
   ApplicationName:
     Type: String
@@ -152,19 +147,21 @@ Conditions:
           - Ref: NotificationEmail
           - ''
   IsSsmEnabled:
-    Fn::Equals:
-      - Ref: SsmEnabled
-      - 'True'
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: LayerARN
+          - ""
   IsNotSsmEnabled:
     Fn::Equals:
-      - Ref: SsmEnabled
-      - 'False'
+      - Ref: LayerARN
+      - ''
   IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
-  CustomeSecret:
+  CreateSecret:
     Fn::And:
-      - Fn::Equals:
-          - Ref: SsmEnabled
-          - 'True'
+      - Fn::Not:
+        - Fn::Equals:
+          - Ref: LayerARN
+          - ""
       - Fn::Equals:
           - Ref: CreateSecret
           - 'True'
@@ -246,8 +243,8 @@ Resources:
             Ref: BufferCharset
           sampling:
             Ref: SamplingRate
-          CUSTOME_SECRET_NAME: !If
-              - CustomeSecret
+          SECRET_NAME: !If
+              - CreateSecret
               - ""
               - Ref: ApiKey
       EventInvokeConfig:
@@ -297,7 +294,7 @@ Resources:
         Ref: CloudWatchLogGroupName
 
   PrivateKeySecret:
-    Condition: CustomeSecret
+    Condition: CreateSecret
     Type: AWS::SecretsManager::Secret
     Properties:
       Description: Coralogix Send Your Data key Secret

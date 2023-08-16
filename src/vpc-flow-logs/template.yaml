@@ -48,7 +48,6 @@ Metadata:
       - Label:
           default: Security configuration
         Parameters:
-          - SsmEnabled
           - LayerARN
           - CreateSecret
     ParameterLabels:
@@ -56,8 +55,6 @@ Metadata:
         default: Region
       ApiKey:
         default: Api Key
-      SsmEnabled:
-        default: SsmEnabled
       LayerARN:
         default: Layer ARN
       CustomDomain:
@@ -107,16 +104,12 @@ Parameters:
     Default: ''
   ApiKey:
     Type: String
-    Description: The Coralogix api key which is used to validate your authenticity
+    Description: Your Coralogix secret key or incase you use your own created secret put here the name of your secret that contains the coralogix Api Key
     NoEcho: true
   LayerARN:
     Type: String
-    Description: Coralogix SSM Layer ARN
+    Description: In case you are using SSM This is the ARN of the Coralogix Security Layer. Copy from the ``SSM`` serverless application the ARN that was installed on the AWS account
     Default: ''
-  SsmEnabled:
-    Type: String
-    Description: store coralogix private_key as a secret. True/False
-    Default: 'False'
   ApplicationName:
     Type: String
     Description: The name of your application
@@ -218,19 +211,21 @@ Conditions:
           - Ref: NotificationEmail
           - ''
   IsSsmEnabled:
-    Fn::Equals:
-      - Ref: SsmEnabled
-      - 'True'
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: LayerARN
+          - ""
   IsNotSsmEnabled:
     Fn::Equals:
-      - Ref: SsmEnabled
-      - 'False'
+      - Ref: LayerARN
+      - ''
   IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
-  CustomeSecret:
+  CreateSecret:
     Fn::And:
-      - Fn::Equals:
-          - Ref: SsmEnabled
-          - 'True'
+      - Fn::Not:
+        - Fn::Equals:
+          - Ref: LayerARN
+          - ""
       - Fn::Equals:
           - Ref: CreateSecret
           - 'True'
@@ -358,8 +353,8 @@ Resources:
           blocking_pattern: !Ref BlockingPattern
           sampling: !Ref SamplingRate
           debug: !Ref Debug
-          CUSTOME_SECRET_NAME: !If
-              - CustomeSecret
+          SECRET_NAME: !If
+              - CreateSecret
               - ""
               - Ref: ApiKey
       EventInvokeConfig:
@@ -408,7 +403,7 @@ Resources:
         Ref: S3KeySuffix
 
   PrivateKeySecret:
-    Condition: CustomeSecret
+    Condition: CreateSecret
     Type: AWS::SecretsManager::Secret
     Properties: 
       Description: Coralogix Send Your Data key Secret

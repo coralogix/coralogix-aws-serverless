@@ -3,7 +3,7 @@
 ## cloudwatch-logs
 
 ### 0.0.2 / 15.8.2023
-* [update] Add an option to use an existing secret instead of creating a new one with SSM 
+* [update] Add an option to use an existing secret instead of creating a new one with SSM, and remove the SsmEnabled parameter.
 
 ### 0.0.1 / 7.8.23
 
