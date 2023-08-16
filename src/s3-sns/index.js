@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.28
+ * @version     1.0.29
  * @since       1.0.0
  */
 
@@ -107,9 +107,20 @@ function getSeverityLevel(message) {
  */
 function handler(event, context, callback) {
     const s3_event = JSON.parse(event.Records[0].Sns.Message);
-    const bucket = s3_event.Records[0].s3.bucket.name;
-    const key = decodeURIComponent(s3_event.Records[0].s3.object.key.replace(/\+/g, " "));
-
+    let bucket
+    let key
+    if ("s3" in s3_event.Records[0]){
+        bucket = s3_event.Records[0].s3.bucket.name;
+        key = decodeURIComponent(s3_event.Records[0].s3.object.key.replace(/\+/g, " "));
+    } else if ("Sns" in s3_event.Records[0]){
+        const sns_event = JSON.parse(s3_event.Records[0].Sns.Message);
+        console.log(sns_event.Records[0].s3);
+        bucket = sns_event.Records[0].s3.bucket.name;
+        key = decodeURIComponent(sns_event.Records[0].s3.object.key.replace(/\+/g, " "));  
+    } else {
+        throw new Error ('Wrong Object found in SNS')        
+    }
+    console.log(bucket+" "+key);
     s3.getObject({
         Bucket: bucket,
         Key: key
