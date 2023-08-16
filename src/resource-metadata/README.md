@@ -6,6 +6,7 @@ This application collect AWS resource metadata and sends them to your **Coralogi
 * Permissions to create lambda functions
 * An AWS account.
 * A coralogix account.
+* In case you use SSM you should first deploy the [SSM lambda layer](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/create/app?applicationId=arn:aws:serverlessrepo:eu-central-1:597078901540:applications/Coralogix-Lambda-SSMLayer)
 
 ## Fields 
 

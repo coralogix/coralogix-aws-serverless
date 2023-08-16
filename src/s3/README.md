@@ -7,6 +7,7 @@ Coralogix provides a predefined Lambda function to easily forward your S3 logs s
 * AWS account (Your AWS user should have permissions to create lambdas and IAM roles).
 * Coralogix account.
 * AWS S3 bucket.
+* In case you use SSM you should first deploy the [SSM lambda layer](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/create/app?applicationId=arn:aws:serverlessrepo:eu-central-1:597078901540:applications/Coralogix-Lambda-SSMLayer)
 
 ## AWS Resource Manager Template Deployment
 

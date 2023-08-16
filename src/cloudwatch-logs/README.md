@@ -10,7 +10,7 @@ Take in consideration that both layers and lambda need to be in the same AWS Reg
 * AWS user with permissions to create lambdas and IAM roles.
 * AWS Cloudwatch log group & log stream
 * A Coralogix account.
-* Optional - use ``SSM`` to add the Coralogix private key as a ``AWS secrets``. Deploy from ``AWS Serverless application repository`` the [Coralogix-Lambda-SSMLayer](https://serverlessrepo.aws.amazon.com/applications/eu-central-1/597078901540/Coralogix-Lambda-SSMLayer)
+* in case you use SSM you should first deploy the [SSM lambda layer](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/create/app?applicationId=arn:aws:serverlessrepo:eu-central-1:597078901540:applications/Coralogix-Lambda-SSMLayer)
 
 ## AWS Resource Manager Template Deployment
 
