@@ -63,13 +63,12 @@ function handler(event, context, callback) {
             let package_name = "NO_PACKAGE";
             let package_version = "NO_VERSION";
 
-            // Extracting Package name and version from each finding
-            for ( let j = 0 ; findings[i].hasOwnProperty("attributes") && i < findings[i].attributes.length ; i++ ) {
+            for ( let j = 0 ; findings[i].hasOwnProperty("attributes") && j < findings[i].attributes.length ; j++ ) {
                 if (package_name === "NO_PACKAGE") {
-                   package_name = findings[i].attributes[j].key == "package_name" ? findings[i].attributes[j].value : "NO_PACKAGE" ;
+                    package_name = findings[i].attributes[j].key == "package_name" ? findings[i].attributes[j].value : "NO_PACKAGE" ;
                 }
                 if (package_version === "NO_VERSION") {
-                   package_version = findings[i].attributes[j].key == "package_version" ? findings[i].attributes[j].value : "NO_VERSION" ;
+                    package_version = findings[i].attributes[j].key == "package_version" ? findings[i].attributes[j].value : "NO_VERSION" ;
                 }
                 if (package_version !== "NO_VERSION" && package_name !== "NO_PACKAGE") {
                    break
