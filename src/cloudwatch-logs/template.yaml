@@ -173,7 +173,7 @@ Resources:
       Description: Send CloudWatch logs to Coralogix.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs16.x
+      Runtime: nodejs18.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
@@ -214,7 +214,7 @@ Resources:
       Policies:
         - SecretsManagerReadWrite
       Handler: index.handler
-      Runtime: nodejs16.x
+      Runtime: nodejs18.x
       Layers:
         - Ref: LayerARN
       Architectures:
