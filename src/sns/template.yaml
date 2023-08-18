@@ -119,7 +119,7 @@ Resources:
       Description: Send SNS messages to Coralogix.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs16.x
+      Runtime: nodejs18.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
