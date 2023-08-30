@@ -6,13 +6,12 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.28
+ * @version     1.0.30
  * @since       1.0.0
  */
 
 "use strict";
 
-// Import required libraries
 const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const client = new S3Client({});
 const zlib = require("zlib");
@@ -24,7 +23,6 @@ const gzip = util.promisify(zlib.gzip);
 const stream = require('stream');
 const { promisify } = require('util');
 
-// Check Lambda function parameters
 assert(process.env.private_key, "No private key!");
 const newlinePattern = process.env.newline_pattern ? RegExp(process.env.newline_pattern) : /(?:\r\n|\r|\n)/g;
 const blockingPattern = process.env.blocking_pattern ? RegExp(process.env.blocking_pattern) : null;
@@ -32,6 +30,7 @@ const sampling = process.env.sampling ? parseInt(process.env.sampling) : 1;
 const coralogixUrl = process.env.CORALOGIX_URL || "ingress.coralogix.com";
 const debug = JSON.parse(process.env.debug || false);
 const sampledEvents = [];
+
 /**
  * @description Send logs records to Coralogix
  * @param {Buffer} content - Logs records data
@@ -60,7 +59,6 @@ function postToCoralogix(logs, retryNumber = 0, retryLimit = 3) {
                 hostname: coralogixUrl,
                 port: 443,
                 path: "/logs/rest/singles",
-                //path: "/fastly",
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -170,7 +168,6 @@ async function handler(event, context, callback) {
     const key_name = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, " "));
     const file_size = event.Records[0].s3.object.size;
 
-  // Skip processing for empty files
     if (file_size === 0) {
         console.log("Skipping empty file:", key_name);
         return callback(null, "Skip empty file");

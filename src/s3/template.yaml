@@ -14,7 +14,7 @@ Metadata:
       - logs
       - s3
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.29
+    SemanticVersion: 1.0.30
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -293,12 +293,11 @@ Resources:
           Variables:
             CORALOGIX_URL: !If
               - IsRegionCustomUrlEmpty
-              - !Sub  'https://ingress.${CustomDomain}/api/v1/logs'
+              - !Sub 'ingress.${CustomDomain}'
               - !Sub
-                - '${Prefix}${Domain}${Suffix}'
-                - Prefix: https://ingress.
+                - '${Prefix}${Domain}'
+                - Prefix: ingress.
                   Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, LogUrl]
-                  Suffix: /api/v1/logs
             CORALOGIX_BUFFER_SIZE:
               Ref: BufferSize
             AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
