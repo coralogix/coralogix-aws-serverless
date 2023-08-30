@@ -168,6 +168,13 @@ const streamToString = (stream) => new Promise((resolve, reject) => {
 async function handler(event, context, callback) { 
     const bucket_name = event.Records[0].s3.bucket.name;
     const key_name = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, " "));
+    const file_size = event.Records[0].s3.object.size;
+
+  // Skip processing for empty files
+    if (file_size === 0) {
+        console.log("Skipping empty file:", key_name);
+        return callback(null, "Skip empty file");
+    }
 
     const content = await readFile(bucket_name, key_name);
 
