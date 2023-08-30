@@ -13,56 +13,92 @@
 "use strict";
 
 // Import required libraries
-const aws = require("aws-sdk");
+const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+const client = new S3Client({});
 const zlib = require("zlib");
 const assert = require("assert");
-const coralogix = require("coralogix-logger");
-const s3 = new aws.S3();
+const https = require("https");
+var microtime = require("microtime")
+const util = require('util');
+const gzip = util.promisify(zlib.gzip);
+const stream = require('stream');
+const { promisify } = require('util');
 
 // Check Lambda function parameters
 assert(process.env.private_key, "No private key!");
 const newlinePattern = process.env.newline_pattern ? RegExp(process.env.newline_pattern) : /(?:\r\n|\r|\n)/g;
 const blockingPattern = process.env.blocking_pattern ? RegExp(process.env.blocking_pattern) : null;
 const sampling = process.env.sampling ? parseInt(process.env.sampling) : 1;
+const coralogixUrl = process.env.CORALOGIX_URL || "ingress.coralogix.com";
 const debug = JSON.parse(process.env.debug || false);
-
-// Initialize new Coralogix logger
-coralogix.CoralogixCentralLogger.configure(new coralogix.LoggerConfig({
-    privateKey: process.env.private_key,
-    debug: debug
-}));
-const logger = new coralogix.CoralogixCentralLogger();
-
+const sampledEvents = [];
 /**
  * @description Send logs records to Coralogix
  * @param {Buffer} content - Logs records data
  * @param {string} filename - Logs filename S3 path
  */
-function sendLogs(content, filename) {
-    const logs = content.toString("utf8").split(newlinePattern);
+const pipeline = promisify(stream.pipeline);
 
-    for (let i = 0; i < logs.length; i += sampling) {
-        if (!logs[i]) continue;
-        if (blockingPattern && logs[i].match(blockingPattern)) continue;
-        let appName = process.env.app_name || "NO_APPLICATION";
-        let subName = process.env.sub_name || "NO_SUBSYSTEM";
-
-        try {
-            appName = appName.startsWith("$.") ? dig(appName, JSON.parse(logs[i])) : appName;
-            subName = subName.startsWith("$.") ? dig(subName, JSON.parse(logs[i])) : subName;
-        } catch {}
-
-        logger.addLog(
-            appName,
-            subName,
-            new coralogix.Log({
-                severity: getSeverityLevel(logs[i]),
-                text: logs[i],
-                threadId: filename
-            })
-        );
+async function gunzipStream(inputStream) {
+  const gunzip = zlib.createGunzip();
+  const chunks = [];
+  const outputStream = new stream.Writable({
+    write(chunk, _, callback) {
+      chunks.push(chunk);
+      callback();
     }
+  });
+  await pipeline(inputStream, gunzip, outputStream);
+  return Buffer.concat(chunks).toString('utf-8');
 }
+
+function postToCoralogix(logs, retryNumber = 0, retryLimit = 3) {
+    return new Promise((resolve, reject) => {
+        let responseBody = "";
+        try {
+            const request = https.request({
+                hostname: coralogixUrl,
+                port: 443,
+                path: "/logs/rest/singles",
+                //path: "/fastly",
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Content-Encoding": "gzip",
+                    "Content-Length": logs.length,
+                    "private_key": process.env.private_key
+                },
+                timeout: 10000
+            });
+            request.on("response", (response) => {
+                response.setEncoding("utf8");
+                response.on("data", (chunk) => responseBody += chunk);
+                response.on("end", () => {
+                    if (response.statusCode != 200) reject(new Error(responseBody));
+                    resolve(responseBody);
+                });
+            });
+
+            request.on("timeout", () => {
+                request.destroy();
+                if (++retryNumber < retryLimit) {
+                    postToCoralogix(logs, retryNumber, retryLimit)
+                        .then(resolve)
+                        .catch(reject);
+                } else {
+                    reject(new Error("Failed all retries"));
+                }
+            });
+
+            request.on("error", reject);
+            request.write(logs);
+            request.end();
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
 
 /**
  * @description Extract nested field from object
@@ -105,35 +141,71 @@ function getSeverityLevel(message) {
  * @param {object} context - Function context
  * @param {function} callback - Function callback
  */
-function handler(event, context, callback) {
-    const bucket = event.Records[0].s3.bucket.name;
-    const key = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, " "));
-
-    s3.getObject({
+const readFile = async (bucket, key) => {
+    const params = {
         Bucket: bucket,
-        Key: key
-    }, (error, data) => {
-        if (error) {
-            callback(error);
-        } else {
-            if (data.ContentType == "application/x-gzip" ||
-                data.ContentEncoding == "gzip" ||
-                data.ContentEncoding == "compress" ||
-                key.endsWith(".gz")
-            ) {
-                zlib.gunzip(data.Body, (error, result) => {
-                    if (error) {
-                        callback(error);
-                    } else {
-                        sendLogs(Buffer.from(result));
-                        callback(null, data.ContentType);
-                    }
-                });
-            } else {
-                sendLogs(Buffer.from(data.Body), `s3://${bucket}/${key}`);
-            }
-        }
+        Key: key,
+        };
+
+    const command = new GetObjectCommand(params);
+    const response = await client.send(command);
+
+    const { Body } = response; 
+    if (key.endsWith('.gz')) {
+    return await gunzipStream(Body);
+    } else {
+    return streamToString(Body);
+  }
+};;
+    
+const streamToString = (stream) => new Promise((resolve, reject) => {
+    const chunks = [];
+    stream.on('data', (chunk) => chunks.push(chunk));
+    stream.on('error', reject);
+    stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+});
+
+async function handler(event, context, callback) { 
+    const bucket_name = event.Records[0].s3.bucket.name;
+    const key_name = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, " "));
+
+    const content = await readFile(bucket_name, key_name);
+
+    const parsedEvents = content.split(newlinePattern);
+    let appName = process.env.app_name || "NO_APPLICATION";
+    let subName = process.env.sub_name || "NO_SUBSYSTEM";
+
+    try {
+        appName = appName.startsWith("$.") ? dig(appName, JSON.parse(parsedEvents)) : appName;
+        subName = subName.startsWith("$.") ? dig(subName, JSON.parse(parsedEvents)) : subName;
+    } catch {}
+    
+    for (let i = 0; i < parsedEvents.length; i += sampling) {
+        if (!parsedEvents[i]) continue;
+        if (blockingPattern && parsedEvents[i].match(blockingPattern)) continue;
+        let appName = process.env.app_name || "NO_APPLICATION";
+        let subName = process.env.sub_name || "NO_SUBSYSTEM";
+
+        try {
+            appName = appName.startsWith("$.") ? dig(appName, JSON.parse(parsedEvents[i])) : appName;
+            subName = subName.startsWith("$.") ? dig(subName, JSON.parse(parsedEvents[i])) : subName;
+        } catch {}
+        sampledEvents.push(parsedEvents[i]);
+        
+    }
+    const lala = sampledEvents.map((eventRecord) => {
+            return {
+            "applicationName": appName,
+            "subsystemName": subName,
+            "timestamp": microtime.now(),
+            "severity": getSeverityLevel(eventRecord.toLowerCase()),
+            "text": eventRecord,
+            "threadId": ""};
     });
+    const compressedBody = await gzip(JSON.stringify(lala));
+    return await postToCoralogix(compressedBody, callback);
+    
+
 }
 
 exports.handler = handler;

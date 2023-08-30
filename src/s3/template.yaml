@@ -231,7 +231,7 @@ Resources:
       Description: Send logs from S3 bucket to Coralogix.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs16.x
+      Runtime: nodejs18.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
@@ -282,7 +282,7 @@ Resources:
         Layers:
           - Ref: LayerARN
         Handler: index.handler
-        Runtime: nodejs16.x
+        Runtime: nodejs18.x
         Architectures:
           - Ref: FunctionArchitecture
         MemorySize:
