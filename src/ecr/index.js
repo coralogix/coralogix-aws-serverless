@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.4
+ * @version     1.0.5
  * @since       1.0.0
  */
 
@@ -59,14 +59,35 @@ function handler(event, context, callback) {
         let summary_log = {"ecr_scan_summary": event['detail']};
         sendLogs(summary_log);
 
-        for (let i = 0; i < findings.length; i++) {
+        for ( let i = 0 ; i < findings.length ; i++ ) {
+            let package_name = "NO_PACKAGE";
+            let package_version = "NO_VERSION";
+
+            for ( let j = 0 ; findings[i].hasOwnProperty("attributes") && j < findings[i].attributes.length ; j++ ) {
+                if (package_name === "NO_PACKAGE") {
+                    package_name = findings[i].attributes[j].key == "package_name" ? findings[i].attributes[j].value : "NO_PACKAGE" ;
+                }
+                if (package_version === "NO_VERSION") {
+                    package_version = findings[i].attributes[j].key == "package_version" ? findings[i].attributes[j].value : "NO_VERSION" ;
+                }
+                if (package_version !== "NO_VERSION" && package_name !== "NO_PACKAGE") {
+                   break
+                }
+            }
             const log = {
                 "metadata": {
                     "repository": repositoryName,
                     "image_id": imageId,
                     "image_tags": event['detail']['image-tags']
                 },
-                "findings": findings[i]
+                "findings": {
+                    "package": {
+                        "package": package_name + ":" + package_version,
+                        "name": package_name,
+                        "version": package_version
+                    },
+                    "details": findings[i]
+                }
             }
             sendLogs(log);
         }
