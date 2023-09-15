@@ -39,28 +39,33 @@ const logger = new coralogix.CoralogixCentralLogger();
  * @param {string} filename - Logs filename S3 path
  */
 function sendLogs(content, filename) {
-    const logs = content.toString("utf8").split(newlinePattern);
-
-    for (let i = 0; i < logs.length; i += sampling) {
-        if (!logs[i]) continue;
-        if (blockingPattern && logs[i].match(blockingPattern)) continue;
-        let appName = process.env.app_name || "NO_APPLICATION";
-        let subName = process.env.sub_name || "NO_SUBSYSTEM";
-
-        try {
-            appName = appName.startsWith("$.") ? dig(appName, JSON.parse(logs[i])) : appName;
-            subName = subName.startsWith("$.") ? dig(subName, JSON.parse(logs[i])) : subName;
-        } catch {}
-
-        logger.addLog(
-            appName,
-            subName,
-            new coralogix.Log({
-                severity: getSeverityLevel(logs[i]),
-                text: logs[i],
-                threadId: filename
-            })
-        );
+    const chunkSize = 100000; 
+    for (let i = 0; i < content.length; i += chunkSize) {
+        const chunk = content.slice(i, i + chunkSize);
+        const logs = chunk.toString('utf8').split(newlinePattern);
+    
+    
+        for (let i = 0; i < logs.length; i += sampling) {
+            if (!logs[i]) continue;
+            if (blockingPattern && logs[i].match(blockingPattern)) continue;
+            let appName = process.env.app_name || "NO_APPLICATION";
+            let subName = process.env.sub_name || "NO_SUBSYSTEM";
+    
+            try {
+                appName = appName.startsWith("$.") ? dig(appName, JSON.parse(logs[i])) : appName;
+                subName = subName.startsWith("$.") ? dig(subName, JSON.parse(logs[i])) : subName;
+            } catch {}
+    
+            logger.addLog(
+                appName,
+                subName,
+                new coralogix.Log({
+                    severity: getSeverityLevel(logs[i]),
+                    text: logs[i],
+                    threadId: filename
+                })
+            );
+        }
     }
 }
 
