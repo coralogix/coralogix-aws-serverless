@@ -37,8 +37,8 @@
     "email": "info@coralogix.com",
     "url": "https://github.com/coralogix/coralogix-aws-serverless/issues"
   },
-
   "dependencies": {
+    "event-stream": "^4.0.1",
     "microtime": "3.1.1"
   },
   "files": [
