@@ -43,24 +43,37 @@ async function gunzipStream(inputStream) {
   const gunzip = zlib.createGunzip();
   const chunks = [];
   let lineCount = 0;
+
   const outputStream = new stream.Writable({
     write(chunk, _, callback) {
       chunks.push(chunk);
       callback();
     }
   });
-  await pipeline(inputStream, gunzip, outputStream);
-  const decompressedData = Buffer.concat(chunks).toString('utf-8');
 
-  // Counting lines
-  for (const char of decompressedData) {
-    if (char === '\n') {
-      lineCount++;
-    }
+  await pipeline(inputStream, gunzip, outputStream);
+
+  const decompressedData = Buffer.concat(chunks);
+  let start = 0;
+  let end = 0;
+  const result = [];
+  const delimiter = Buffer.from('\n'); // Newline as the delimiter
+
+  while ((end = decompressedData.indexOf(delimiter, start)) !== -1) {
+    const slice = decompressedData.slice(start, end).toString('utf-8');
+    result.push(slice);
+    lineCount++; // Increment line count
+    start = end + delimiter.length;
+  }
+
+  const lastSlice = decompressedData.slice(start).toString('utf-8');
+  if (lastSlice.length > 0) {
+    result.push(lastSlice);
+    lineCount++; // Increment line count for the last slice
   }
 
   console.log(`Total lines in decompressed data: ${lineCount}`);
-  return decompressedData;
+  return result;
 }
 
 
@@ -172,10 +185,34 @@ async function readFile(bucket, key) {
 }
     
 const streamToString = (stream) => new Promise((resolve, reject) => {
-    const chunks = [];
-    stream.on('data', (chunk) => chunks.push(chunk));
-    stream.on('error', reject);
-    stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+  const chunks = [];
+  let lineCount = 0;
+
+  stream.on('data', (chunk) => chunks.push(chunk));
+  stream.on('error', reject);
+  stream.on('end', () => {
+    const decompressedData = Buffer.concat(chunks);
+    let start = 0;
+    let end = 0;
+    const result = [];
+    const delimiter = Buffer.from('\n'); // Newline as the delimiter
+
+    while ((end = decompressedData.indexOf(delimiter, start)) !== -1) {
+      const slice = decompressedData.slice(start, end).toString('utf-8');
+      result.push(slice);
+      lineCount++; // Increment line count
+      start = end + delimiter.length;
+    }
+
+    const lastSlice = decompressedData.slice(start).toString('utf-8');
+    if (lastSlice.length > 0) {
+      result.push(lastSlice);
+      lineCount++; // Increment line count for the last slice
+    }
+
+    console.log(`Total lines in decompressed data: ${lineCount}`);
+    resolve(result);
+  });
 });
 
 async function handler(event, context, callback) {
@@ -188,8 +225,9 @@ async function handler(event, context, callback) {
         return callback(null, "Skip empty file");
     }
 
-    const content = await readFile(bucket_name, key_name);
-    const parsedEvents = content.split(newlinePattern);
+    //const content = await readFile(bucket_name, key_name);
+    //const parsedEvents = content.split(newlinePattern);
+    const parsedEvents = await readFile(bucket_name, key_name);
     const batchSize = 1000;
     let batchedSampledEvents = [];
 
@@ -235,7 +273,6 @@ async function handler(event, context, callback) {
 
     return callback(null, "Batch processing complete");
 }
-
 
 
 exports.handler = handler;
