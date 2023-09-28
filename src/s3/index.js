@@ -1,24 +1,70 @@
+/**
+ * AWS S3 Lambda function for Coralogix
+ *
+ * @file        This file is lambda function source code
+ * @author      Coralogix Ltd. <info@coralogix.com>
+ * @link        https://coralogix.com/
+ * @copyright   Coralogix Ltd.
+ * @licence     Apache-2.0
+ * @version     1.0.28
+ * @since       1.0.0
+ */
+
 "use strict";
 
+// Import required libraries
 const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const client = new S3Client({});
 const zlib = require("zlib");
 const assert = require("assert");
 const https = require("https");
-const microtime = require("microtime");
+var microtime = require("microtime")
 const util = require('util');
-const eventStream = require('event-stream');
-const { PassThrough } = require('stream');
 const gzip = util.promisify(zlib.gzip);
+const stream = require('stream');
+const { promisify } = require('util');
 
+// Check Lambda function parameters
 assert(process.env.private_key, "No private key!");
-
 const newlinePattern = process.env.newline_pattern ? RegExp(process.env.newline_pattern) : /(?:\r\n|\r|\n)/g;
 const blockingPattern = process.env.blocking_pattern ? RegExp(process.env.blocking_pattern) : null;
 const sampling = process.env.sampling ? parseInt(process.env.sampling) : 1;
 const coralogixUrl = process.env.CORALOGIX_URL || "ingress.coralogix.com";
+const debug = JSON.parse(process.env.debug || false);
+const sampledEvents = [];
+/**
+ * @description Send logs records to Coralogix
+ * @param {Buffer} content - Logs records data
+ * @param {string} filename - Logs filename S3 path
+ */
+const pipeline = promisify(stream.pipeline);
 
-async function postToCoralogix(logs, retryNumber = 0, retryLimit = 3) {
+async function gunzipStream(inputStream) {
+  const gunzip = zlib.createGunzip();
+  const chunks = [];
+  let lineCount = 0;
+  const outputStream = new stream.Writable({
+    write(chunk, _, callback) {
+      chunks.push(chunk);
+      callback();
+    }
+  });
+  await pipeline(inputStream, gunzip, outputStream);
+  const decompressedData = Buffer.concat(chunks).toString('utf-8');
+
+  // Counting lines
+  for (const char of decompressedData) {
+    if (char === '\n') {
+      lineCount++;
+    }
+  }
+
+  console.log(`Total lines in decompressed data: ${lineCount}`);
+  return decompressedData;
+}
+
+
+function postToCoralogix(logs, retryNumber = 0, retryLimit = 3) {
     return new Promise((resolve, reject) => {
         let responseBody = "";
         try {
@@ -26,6 +72,7 @@ async function postToCoralogix(logs, retryNumber = 0, retryLimit = 3) {
                 hostname: coralogixUrl,
                 port: 443,
                 path: "/logs/rest/singles",
+                //path: "/fastly",
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -64,6 +111,13 @@ async function postToCoralogix(logs, retryNumber = 0, retryLimit = 3) {
     });
 }
 
+
+/**
+ * @description Extract nested field from object
+ * @param {string} path - Path to field
+ * @param {*} object - JavaScript object
+ * @returns {*} Field value
+ */
 function dig(path, object) {
     if (path.startsWith("$.")) {
         return path.split(".").slice(1).reduce((xs, x) => (xs && xs[x]) ? xs[x] : path, object);
@@ -71,6 +125,11 @@ function dig(path, object) {
     return path;
 }
 
+/**
+ * @description Extract serverity from log record
+ * @param {string} message - Log message
+ * @returns {number} Severity level
+ */
 function getSeverityLevel(message) {
     let severity = 3;
     if (message.includes("debug"))
@@ -88,6 +147,37 @@ function getSeverityLevel(message) {
     return severity;
 }
 
+/**
+ * @description Lambda function handler
+ * @param {object} event - Event data
+ * @param {object} context - Function context
+ * @param {function} callback - Function callback
+ */
+async function readFile(bucket, key) {
+    const params = {
+        Bucket: bucket,
+        Key: key,
+    };
+
+    const command = new GetObjectCommand(params);
+    const response = await client.send(command);
+
+    const { Body } = response;
+
+    if (key.endsWith('.gz')) {
+        return await gunzipStream(Body);
+    } else {
+        return await streamToString(Body);
+    }
+}
+    
+const streamToString = (stream) => new Promise((resolve, reject) => {
+    const chunks = [];
+    stream.on('data', (chunk) => chunks.push(chunk));
+    stream.on('error', reject);
+    stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+});
+
 async function handler(event, context, callback) {
     const bucket_name = event.Records[0].s3.bucket.name;
     const key_name = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, " "));
@@ -98,58 +188,54 @@ async function handler(event, context, callback) {
         return callback(null, "Skip empty file");
     }
 
-    const params = {
-        Bucket: bucket_name,
-        Key: key_name,
-    };
+    const content = await readFile(bucket_name, key_name);
+    const parsedEvents = content.split(newlinePattern);
+    const batchSize = 1000;
+    let batchedSampledEvents = [];
 
-    const command = new GetObjectCommand(params);
-    const response = await client.send(command);
-    const s3Stream = response.Body;
+    for (let i = 0; i < parsedEvents.length; i += batchSize) {
+        batchedSampledEvents.push(parsedEvents.slice(i, i + batchSize));
+    }
 
-    let appName = process.env.app_name || "NO_APPLICATION";
-    let subName = process.env.sub_name || "NO_SUBSYSTEM";
-    let sampledEvents = [];
+    const postPromises = []; // Array to hold promises for parallel execution
 
-    const gunzip = zlib.createGunzip();
-    const outStream = new PassThrough();
+    for (const batch of batchedSampledEvents) {
+        let sampledEvents = [];
+        let appName = process.env.app_name || "NO_APPLICATION";
+        let subName = process.env.sub_name || "NO_SUBSYSTEM";
 
-    s3Stream
-        .pipe(gunzip)
-        .pipe(outStream)
-        .pipe(eventStream.split())
-        .pipe(eventStream.mapSync(async (line) => {
-            if (blockingPattern && line.match(blockingPattern)) return;
+        for (let i = 0; i < batch.length; i++) {
+            if (!batch[i]) continue;
+            if (blockingPattern && batch[i].match(blockingPattern)) continue;
 
             try {
-                appName = appName.startsWith("$.") ? dig(appName, JSON.parse(line)) : appName;
-                subName = subName.startsWith("$.") ? dig(subName, JSON.parse(line)) : subName;
+                appName = appName.startsWith("$.") ? dig(appName, JSON.parse(batch[i])) : appName;
+                subName = subName.startsWith("$.") ? dig(subName, JSON.parse(batch[i])) : subName;
             } catch {}
 
-            sampledEvents.push({
+            sampledEvents.push(batch[i]);
+        }
+
+        const lala = sampledEvents.map((eventRecord) => {
+            return {
                 "applicationName": appName,
                 "subsystemName": subName,
                 "timestamp": microtime.now(),
-                "severity": getSeverityLevel(line.toLowerCase()),
-                "text": line,
+                "severity": getSeverityLevel(eventRecord.toLowerCase()),
+                "text": eventRecord,
                 "threadId": ""
-            });
-            console.log(sampledEvents);
-            if (sampledEvents.length >= 100) {
-                const compressedBody = await gzip(JSON.stringify(sampledEvents));
-                await postToCoralogix(compressedBody);
-                sampledEvents = [];
-            }
-        }))
-        .on('end', async () => {
-            if (sampledEvents.length > 0) {
-                const compressedBody = await gzip(JSON.stringify(sampledEvents));
-                await postToCoralogix(compressedBody);
-            }
-        })
-        .on('error', (err) => {
-            console.error('Error while processing the stream: ', err);
+            };
         });
+
+        const compressedBody = await gzip(JSON.stringify(lala));
+        postPromises.push(postToCoralogix(compressedBody, callback)); // Add promise to array
+    }
+
+    await Promise.all(postPromises); // Execute all promises in parallel
+
+    return callback(null, "Batch processing complete");
 }
+
+
 
 exports.handler = handler;
