@@ -13,7 +13,7 @@ Metadata:
       - coralogix
       - metadata
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.2.3
+    SemanticVersion: 1.2.4
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -48,7 +48,7 @@ Metadata:
       CustomDomain:
         default: CustomDomain
       LayerARN:
-        default: In case you are using SSM This is the ARN of the Coralogix Security Layer. Copy from the ``SSM`` serverless application the ARN that was installed on the AWS account
+        default: In case you are using Secret Manager This is the ARN of the Coralogix Security lambda Layer.
       ApiKey:
         default: Api Key
       Schedule:
@@ -87,11 +87,11 @@ Parameters:
     Default: ''
   ApiKey:
     Type: String
-    Description: Your Coralogix secret key or incase you use your own created secret put here the name of your secret that contains the coralogix Api Key
+    Description: Your Coralogix Send Your Data - API Key or incase you use pre created secret (created in AWS secret manager) put here the name of the secret that contains the Coralogix send your data key
     NoEcho: true
   LayerARN:
     Type: String
-    Description: In case you are using SSM This is the ARN of the Coralogix Security Layer. Copy from the ``SSM`` serverless application the ARN that was installed on the AWS account
+    Description: In case you are using Secret Manager This is the ARN of the Coralogix Security lambda Layer.
     Default: ''
   Schedule:
     Type: String
@@ -137,7 +137,7 @@ Parameters:
     Default: ""
   CreateSecret:
     Type: String
-    Description: In case you want to use SSM without creating a secret, set the value to False and write the name of the secret instead of your ApiKey in the ApkiKey parameter.
+    Description: Set to False In case you want to use secrets manager with a predefine secret that was already created and contains Coralogix Send Your Data API key.
     Default: 'True'
 Mappings:
   CoralogixRegionMap:
@@ -164,12 +164,12 @@ Conditions:
       - Fn::Equals:
           - Ref: NotificationEmail
           - ""
-  IsSsmEnabled:
+  IsSMEnabled:
     Fn::Not:
       - Fn::Equals:
           - Ref: LayerARN
           - ""
-  IsNotSsmEnabled:
+  IsNotSMEnabled:
     Fn::Equals:
       - Ref: LayerARN
       - ''
@@ -185,7 +185,7 @@ Conditions:
           - 'True'
 Resources:
   LambdaFunction:
-    Condition: IsNotSsmEnabled
+    Condition: IsNotSMEnabled
     Type: AWS::Serverless::Function
     Properties:
       Description: Send resource metadata to Coralogix.
@@ -243,8 +243,8 @@ Resources:
                 - lambda:ListEventSourceMappings
                 - lambda:GetPolicy
               Resource: "*"
-  LambdaFunctionSSM:
-    Condition: IsSsmEnabled
+  LambdaFunctionSM:
+    Condition: IsSMEnabled
     Type: AWS::Serverless::Function
     Properties:
       Description: Send resource metadata to Coralogix.
@@ -317,7 +317,7 @@ Resources:
       Description: Coralogix Send Your Data key Secret
       Name: !Sub
         - 'lambda/coralogix/${AWS::Region}/${function}'
-        - function: !Ref LambdaFunctionSSM
+        - function: !Ref LambdaFunctionSM
       SecretString: !Ref ApiKey
 
   LambdaFunctionNotificationSubscription:
@@ -329,6 +329,6 @@ Resources:
         Ref: NotificationEmail
       TopicArn:
         !If
-          - IsSsmEnabled
-          - !Ref LambdaFunctionSSM.DestinationTopic
+          - IsSMEnabled
+          - !Ref LambdaFunctionSM.DestinationTopic
           - !Ref LambdaFunction.DestinationTopic

@@ -15,7 +15,7 @@ Metadata:
       - stream
       - kinesis
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.15
+    SemanticVersion: 1.0.16
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -43,7 +43,6 @@ Metadata:
       - Label:
           default: Security configuration
         Parameters:
-          - SsmEnabled
           - LayerARN
 Parameters:
   CoralogixRegion:
@@ -119,12 +118,8 @@ Parameters:
     Default: '' 
   LayerARN:
     Type: String
-    Description: Coralogix SSM Layer ARN
+    Description: In case you are using Secret Manager This is the ARN of the Coralogix Security lambda Layer.
     Default: ''
-  SsmEnabled:
-    Type: String
-    Description: store coralogix private_key as a secret. True/False
-    Default: 'False'
 Mappings:
   CoralogixRegionMap:
     Europe:
@@ -145,18 +140,19 @@ Conditions:
       - Fn::Equals:
           - Ref: NotificationEmail
           - ''
-  IsSsmEnabled:
+  IsSMEnabled:
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: LayerARN
+          - ""
+  IsNotSMEnabled:
     Fn::Equals:
-      - Ref: SsmEnabled
-      - 'True'
-  IsNotSsmEnabled:
-    Fn::Equals:
-      - Ref: SsmEnabled
-      - 'False'
+      - Ref: LayerARN
+      - ''
   IsRegionCustomDomainEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
 Resources:
   LambdaFunction:
-    Condition: IsNotSsmEnabled
+    Condition: IsNotSMEnabled
     Type: AWS::Serverless::Function
     Properties:
       Description: Send Kinesis stream data to Coralogix.
@@ -201,8 +197,8 @@ Resources:
             BatchSize: 10
             StartingPosition: LATEST
 
-  LambdaFunctionSsm:
-    Condition: IsSsmEnabled
+  LambdaFunctionSM:
+    Condition: IsSMEnabled
     Type: AWS::Serverless::Function
     Properties:
       Description: Send Kinesis stream data to Coralogix.
@@ -251,13 +247,13 @@ Resources:
             StartingPosition: LATEST
 
   PrivateKeySecret:
-    Condition: IsSsmEnabled
+    Condition: IsSMEnabled
     Type: AWS::SecretsManager::Secret
     Properties: 
       Description: Coralogix Send Your Data key Secret
       Name: !Sub
         - 'lambda/coralogix/${AWS::Region}/${function}'
-        - function: !Ref LambdaFunctionSsm
+        - function: !Ref LambdaFunctionSM
       SecretString: !Ref ApiKey
 
   LambdaFunctionNotificationSubscription:
@@ -269,6 +265,6 @@ Resources:
         Ref: NotificationEmail
       TopicArn:
         !If
-          - IsSsmEnabled
-          - !Ref LambdaFunctionSsm.DestinationTopic
+          - IsSMEnabled
+          - !Ref LambdaFunctionSM.DestinationTopic
           - !Ref LambdaFunction.DestinationTopic

@@ -7,6 +7,7 @@ This application retrieves logs from Amazon MSK Kafka cluster and sends them to 
 * Coralogix account.
 * MSK cluster.
 * Kafka cluster.
+* in case you use Secret Manager you should first deploy the [SM lambda layer](https://serverlessrepo.aws.amazon.com/applications/eu-central-1/597078901540/Coralogix-Lambda-SSMLayer), you should only deploy one layer per region.
 
 ## AWS Resource Manager Template Deployment
 
@@ -23,14 +24,13 @@ The application should be installed in the same AWS region as the MSK cluster. M
 | Application name | The stack name of this application created via AWS CloudFormation.|  | :heavy_check_mark: |
 | CoralogixRegion | The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US, US2]. In case that you want to use Custom domain, leave this as default and write the Custom doamin in the ``CustomDomain`` filed.| Europe | :heavy_check_mark: |
 | CustomDomain | The Coralogix custom domain,leave empty if you don't use Custom domain. | | |
-| ApiKey | Your Coralogix secret key. | | :heavy_check_mark: |
+| ApiKey | Your Coralogix Data API Key. | | :heavy_check_mark: |
 | ApplicationName | Application Name as it will be seen in Coralogix UI  (A mandatory metadata field that is sent with each log and helps to classify it). | | :heavy_check_mark: |
 | SubsystemName | Sybsystem Name as it will be seen in Coralogix UI. | | :heavy_check_mark: |
 | MSKClusterArn | The ARN of the Amazon MSK Kafka cluster | | :heavy_check_mark: |
 | Topic | The name of the Kafka topic used to store records in your Kafka cluster. | | :heavy_check_mark: |
 | NotificationEmail | If the lambda fails a notification email will be sent to this address via SNS (requires you have a working SNS, with a validated domain). | | |
-| SsmEnabled | Set this to True to use AWS Secrets. This field receives only 'True' or 'False'. When enabling this field, a secret is created with the following pattern "lambda/coralogix/<AWS_REGION>/<Cloudwatch_lambda_name>".  | False |  |
-| LayerARN | This is the ARN of the Coralogix SecurityLayer. Copy from the ``SSM`` serverless application the ARN that was installed on the AWS account.   |  |  |
+| LayerARN |  In case you want to use Secret Manager This is the ARN of the Coralogix [lambda layer ](https://serverlessrepo.aws.amazon.com/applications/eu-central-1/597078901540/Coralogix-Lambda-SSMLayer). |  |  |
 | FunctionArchitecture | Lambda function architecture, possible options are [x86_64, arm64]| x86_64 |  |
 | FunctionMemorySize | The maximum allocated memory this lambda may consume. Default value is the minimum recommended setting please consult coralogix support before changing. | 1024 |  |
 | FunctionTimeout | The maximum time in seconds the function may be allowed to run. Default value is the minimum recommended setting please consult coralogix support before changing. | 300 |  |

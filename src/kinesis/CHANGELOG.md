@@ -1,6 +1,6 @@
 # Changelog
 
 ## kinesis
-<!-- To add a new entry write: -->
-<!-- ### version / full date -->
-<!-- * [Update/Bug fix] message that describes the changes that you apply -->
+
+### 0.0.1 / 1.10.2023
+* [Change] Change SSM option in the integration to SM - Secret Manager.
