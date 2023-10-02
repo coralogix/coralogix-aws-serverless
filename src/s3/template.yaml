@@ -14,7 +14,7 @@ Metadata:
       - logs
       - s3
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.29
+    SemanticVersion: 1.0.30
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -83,7 +83,7 @@ Metadata:
 Parameters:
   LayerARN:
     Type: String
-    Description: In case you are using SSM This is the ARN of the Coralogix Security Layer. Copy from the ``SSM`` serverless application the ARN that was installed on the AWS account
+    Description: In case you are using Secret Manager This is the ARN of the Coralogix Security lambda Layer.
     Default: ''
   CoralogixRegion:
     Type: String
@@ -98,7 +98,7 @@ Parameters:
     Default: Europe
   ApiKey:
     Type: String
-    Description: Your Coralogix secret key or incase you use your own created secret put here the name of your secret that contains the coralogix Api Key
+    Description: Your Coralogix Send Your Data - API Key or incase you use pre created secret (created in AWS secret manager) put here the name of the secret that contains the Coralogix send your data key.
     NoEcho: true
   ApplicationName:
     Type: String
@@ -181,7 +181,7 @@ Parameters:
     Default: ''
   CreateSecret:
     Type: String
-    Description: In case you want to use SSM without creating a secret, set the value to False and write the name of the secret instead of your ApiKey in the ApkiKey parameter.
+    Description: Set to False In case you want to use secrets manager with a predefine secret that was already created and contains Coralogix Send Your Data API key.
     Default: 'True'
 Mappings:
   CoralogixRegionMap:
@@ -203,12 +203,12 @@ Conditions:
       - Fn::Equals:
           - Ref: NotificationEmail
           - ''
-  IsSsmEnabled:
+  IsSMEnabled:
     Fn::Not:
       - Fn::Equals:
           - Ref: LayerARN
           - ""
-  IsNotSsmEnabled:
+  IsNotSMEnabled:
     Fn::Equals:
       - Ref: LayerARN
       - ''
@@ -225,7 +225,7 @@ Conditions:
   IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
 Resources:
   LambdaFunction:
-    Condition: IsNotSsmEnabled
+    Condition: IsNotSMEnabled
     Type: AWS::Serverless::Function
     Properties:
       Description: Send logs from S3 bucket to Coralogix.
@@ -273,8 +273,8 @@ Resources:
             BucketName:
               Ref: S3BucketName
 
-  LambdaFunctionSSM:
-      Condition: IsSsmEnabled 
+  LambdaFunctionSM:
+      Condition: IsSMEnabled 
       Type: AWS::Serverless::Function
       Properties:
         Description: Send logs from S3 bucket to Coralogix.
@@ -346,7 +346,7 @@ Resources:
                 Fn::Sub: "arn:aws:s3:::${S3BucketName}"
 
   LambdaFunctionInvokePermission:
-    Condition: IsNotSsmEnabled
+    Condition: IsNotSMEnabled
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName:
@@ -360,13 +360,13 @@ Resources:
       SourceArn:
         Fn::Sub: "arn:aws:s3:::${S3BucketName}"
 
-  LambdaFunctionSSMInvokePermission: 
-    Condition: IsSsmEnabled
+  LambdaFunctionSMInvokePermission: 
+    Condition: IsSMEnabled
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName:
         Fn::GetAtt:
-          - LambdaFunctionSSM
+          - LambdaFunctionSM
           - Arn
       Action: lambda:InvokeFunction
       Principal: s3.amazonaws.com
@@ -376,7 +376,7 @@ Resources:
         Fn::Sub: "arn:aws:s3:::${S3BucketName}"
 
   LambdaTrigger:
-    Condition: IsNotSsmEnabled
+    Condition: IsNotSMEnabled
     Type: Custom::LambdaTrigger
     DependsOn: LambdaFunctionInvokePermission
     Properties:
@@ -395,10 +395,10 @@ Resources:
       Suffix:
         Ref: S3KeySuffix
 
-  LambdaTriggerSSM: 
-      Condition: IsSsmEnabled
+  LambdaTriggerSM: 
+      Condition: IsSMEnabled
       Type: Custom::LambdaTrigger
-      DependsOn: LambdaFunctionSSMInvokePermission
+      DependsOn: LambdaFunctionSMInvokePermission
       Properties:
         ServiceToken:
           Fn::GetAtt:
@@ -406,7 +406,7 @@ Resources:
             - Arn
         LambdaArn:
           Fn::GetAtt:
-            - LambdaFunctionSSM
+            - LambdaFunctionSM
             - Arn
         Bucket:
           Ref: S3BucketName
@@ -422,7 +422,7 @@ Resources:
       Description: Coralogix Send Your Data key Secret
       Name: !Sub
         - 'lambda/coralogix/${AWS::Region}/${function}'
-        - function: !Ref LambdaFunctionSSM
+        - function: !Ref LambdaFunctionSM
       SecretString: !Ref ApiKey
 
   LambdaFunctionNotificationSubscription:
