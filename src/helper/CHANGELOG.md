@@ -1,6 +1,8 @@
 # Changelog
 
 ## helper
+### 0.0.2 
+* [BugFix] libUrl upgrade due to CVE-2023-43804
 
 ### 0.0.1 / 7.8.23
 
