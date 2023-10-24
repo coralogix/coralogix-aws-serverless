@@ -47,3 +47,4 @@ The application should be installed in the same AWS region as the CloudWatch log
 ## License
 
 This project is licensed under the Apache-2.0 License.
+
