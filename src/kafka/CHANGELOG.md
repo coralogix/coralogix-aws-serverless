@@ -1,5 +1,7 @@
 # Changelog
 
+### 1.0.11
+* [Hotfix] Update UrlLib
 ## kafka
 <!-- To add a new entry write: -->
 <!-- ### version / full date -->

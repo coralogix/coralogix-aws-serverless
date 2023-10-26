@@ -1,7 +1,8 @@
 # Changelog
 
 ## s3
-
+### 1.0.31 / 26.10.2023
+* [Hotfix] Update UrlLib
 ### 0.0.2 / 1.10.2023
 * [Change] Change SSM option in the integration to SM - Secret Manager.
 
