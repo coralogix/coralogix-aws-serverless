@@ -4,7 +4,7 @@ Description: Import archived logs from S3 bucket to Coralogix.
 Metadata:
   AWS::ServerlessRepo::Application:
     Name: Coralogix-Archive-Reader
-    Description: Import archived logs from S3 bucket to Coralogix.
+    Description: (Deprecated) Import archived logs from S3 bucket to Coralogix.
     Author: Coralogix
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
@@ -17,7 +17,7 @@ Metadata:
       - import
       - restore
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.13
+    SemanticVersion: 1.0.14
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
