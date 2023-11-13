@@ -1,4 +1,5 @@
-# Coralogix-Archive-Reader
+# DEPRECATED
+## Coralogix-Archive-Reader
 
 This application imports archived logs from an S3 bucket to Coralogix.
 
