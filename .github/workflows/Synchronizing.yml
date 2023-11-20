@@ -161,5 +161,14 @@ jobs:
           git checkout master
           git pull
           git add .
-          git commit -m "${{ github.event.pull_request.title }}#${{ github.event.pull_request.head.ref }}"
-          git push origin HEAD:master -f 
+          # git commit -m "${{ github.event.pull_request.title }}#${{ github.event.pull_request.head.ref }}"
+          # git push origin HEAD:master -f 
+          
+      - uses: planetscale/ghcommit-action@v0.1.19
+        with:
+          commit_message: "${{ github.event.pull_request.title }}#${{ github.event.pull_request.head.ref }}"
+          repo: coralogix/cloudformation-coralogix-aws
+          branch: master
+          file_pattern: '*.yaml *.md'
+        env:
+          GITHUB_TOKEN: ${{secrets.GH_TOKEN}}
