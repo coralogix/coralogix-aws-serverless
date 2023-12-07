@@ -2,6 +2,9 @@
 
 ## resource-metadata
 
+### 1.2.5 / 7.12.2023
+* [Update] Add filtering of Lambda functions.
+
 ### 0.0.2 / 1.10.2023
 * [Change] Change SSM option in the integration to SM - Secret Manager.
 
