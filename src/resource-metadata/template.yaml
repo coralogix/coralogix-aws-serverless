@@ -13,7 +13,7 @@ Metadata:
       - coralogix
       - metadata
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.2.4
+    SemanticVersion: 1.2.5
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -30,6 +30,9 @@ Metadata:
           - ResourceTtlMinutes
           - LatestVersionsPerFunction
           - CollectAliases
+          - LambdaFunctionIncludeRegexFilter
+          - LambdaFunctionExcludeRegexFilter
+          - LambdaFunctionTagFilters
           - NotificationEmail
       - Label:
           default: Lambda Configuration
@@ -57,6 +60,12 @@ Metadata:
         default: Latest Versions Per Function
       CollectAliases:
         default: Collect Aliases
+      LambdaFunctionIncludeRegexFilter:
+        default: Lambda Function Include Regex
+      LambdaFunctionExcludeRegexFilter:
+        default: Lambda Function Exclude Regex
+      LambdaFunctionTagFilters:
+        default: Lambda Function Tag Filters
       ResourceTtlMinutes:
         default: Resource Time-to-live (TTL) in Minutes
       FunctionArchitecture:
@@ -107,6 +116,18 @@ Parameters:
     Type: String
     Description: '[True/False]'
     Default: 'False'
+  LambdaFunctionIncludeRegexFilter:
+    Type: String
+    Description: 'If specified, only lambda functions with ARNs matching the regex will be included in the collected metadata'
+    Default: ""
+  LambdaFunctionExcludeRegexFilter:
+    Type: String
+    Description: 'If specified, only lambda functions with ARNs NOT matching the regex will be included in the collected metadata'
+    Default: ""
+  LambdaFunctionTagFilters:
+    Type: String
+    Description: 'If specified, only lambda functions with tags matching the filters will be included in the collected metadata. Values should follow the JSON syntax for --tag-filters as documented here: https://docs.aws.amazon.com/cli/latest/reference/resourcegroupstaggingapi/get-resources.html#options'
+    Default: ""
   ResourceTtlMinutes:
     Type: Number
     Description: Once a resource is collected, how long should it remain valid?
@@ -142,7 +163,7 @@ Parameters:
 Mappings:
   CoralogixRegionMap:
     DevShared:
-      MetadataUrl:  dev-shared.coralogix.net
+      MetadataUrl: dev-shared.coralogix.net
     Staging:
       MetadataUrl: staging.coralogix.net
     Europe:
@@ -216,6 +237,12 @@ Resources:
             Ref: CollectAliases
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
+          LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER:
+            Ref: LambdaFunctionIncludeRegexFilter
+          LAMBDA_FUNCTION_EXCLUDE_REGEX_FILTER:
+            Ref: LambdaFunctionExcludeRegexFilter
+          LAMBDA_FUNCTION_TAG_FILTERS:
+            Ref: LambdaFunctionTagFilters
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
       Events:
@@ -232,16 +259,29 @@ Resources:
       Policies:
         - Version: "2012-10-17"
           Statement:
-            - Sid: GetLambdaMetadata
+            - Sid: GetEc2Metadata
               Effect: Allow
               Action:
                 - ec2:DescribeInstances
+              Resource: "*"
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: GetLambdaMetadata
+              Effect: Allow
+              Action:
                 - lambda:ListFunctions
                 - lambda:ListVersionsByFunction
                 - lambda:GetFunction
                 - lambda:ListAliases
                 - lambda:ListEventSourceMappings
                 - lambda:GetPolicy
+              Resource: "*"
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: GetResourcesByTags
+              Effect: Allow
+              Action:
+                - tag:GetResources
               Resource: "*"
   LambdaFunctionSM:
     Condition: IsSMEnabled
@@ -276,6 +316,12 @@ Resources:
             Ref: CollectAliases
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
+          LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER:
+            Ref: LambdaFunctionIncludeRegexFilter
+          LAMBDA_FUNCTION_EXCLUDE_REGEX_FILTER:
+            Ref: LambdaFunctionExcludeRegexFilter
+          LAMBDA_FUNCTION_TAG_FILTERS:
+            Ref: LambdaFunctionTagFilters
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
           SECRET_NAME: !If
@@ -296,16 +342,29 @@ Resources:
       Policies:
         - Version: "2012-10-17"
           Statement:
-            - Sid: GetLambdaMetadata
+            - Sid: GetEc2Metadata
               Effect: Allow
               Action:
                 - ec2:DescribeInstances
+              Resource: "*"
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: GetLambdaMetadata
+              Effect: Allow
+              Action:
                 - lambda:ListFunctions
                 - lambda:ListVersionsByFunction
                 - lambda:GetFunction
                 - lambda:ListAliases
                 - lambda:ListEventSourceMappings
                 - lambda:GetPolicy
+              Resource: "*"
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: GetResourcesByTags
+              Effect: Allow
+              Action:
+                - tag:GetResources
               Resource: "*"
         - SecretsManagerReadWrite
 
