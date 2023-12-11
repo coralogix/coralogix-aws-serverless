@@ -1,5 +1,6 @@
 import assert from 'assert'
-import { paginateListFunctions, LambdaClient, GetFunctionCommand, ListAliasesCommand, GetPolicyCommand, ListVersionsByFunctionCommand, ListEventSourceMappingsCommand, ListFunctionsCommand } from '@aws-sdk/client-lambda'
+import { paginateListFunctions, LambdaClient, GetFunctionCommand, ListAliasesCommand, GetPolicyCommand, ListVersionsByFunctionCommand, ListEventSourceMappingsCommand } from '@aws-sdk/client-lambda'
+import { ResourceGroupsTaggingAPIClient, paginateGetResources } from '@aws-sdk/client-resource-groups-tagging-api';
 import { schemaUrl, extractArchitecture, intAttr, stringAttr, traverse } from './common.js'
 
 const validateAndExtractConfiguration = () => {
@@ -9,16 +10,30 @@ const validateAndExtractConfiguration = () => {
     const resourceTtlMinutes = parseInt(process.env.RESOURCE_TTL_MINUTES, 10)
     assert(process.env.COLLECT_ALIASES, "COLLECT_ALIASES env var missing!")
     const collectAliases = String(process.env.COLLECT_ALIASES).toLowerCase() === "true"
-    return { latestVersionsPerFunction, resourceTtlMinutes, collectAliases };
-};
-const { latestVersionsPerFunction, resourceTtlMinutes, collectAliases } = validateAndExtractConfiguration();
+    const includeRegex = process.env.LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER ? new RegExp(process.env.LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER) : null
+    const excludeRegex = process.env.LAMBDA_FUNCTION_EXCLUDE_REGEX_FILTER ? new RegExp(process.env.LAMBDA_FUNCTION_EXCLUDE_REGEX_FILTER) : null
+    const tagFilters = process.env.LAMBDA_FUNCTION_TAG_FILTERS ? JSON.parse(process.env.LAMBDA_FUNCTION_TAG_FILTERS) : null
+    return { latestVersionsPerFunction, resourceTtlMinutes, collectAliases, includeRegex, excludeRegex, tagFilters };
+}
+const { latestVersionsPerFunction, resourceTtlMinutes, collectAliases, includeRegex, excludeRegex, tagFilters } = validateAndExtractConfiguration();
 
 const lambdaClient = new LambdaClient();
+const resourceGroupsTaggingAPIClient = tagFilters ? new ResourceGroupsTaggingAPIClient() : null;
 
 export const collectLambdaResources = async () => {
 
     console.info("Collecting list of functions")
-    const listOfFunctions = await collectListOfFunctions()
+    let listOfFunctions = await collectListOfFunctions()
+    if (includeRegex) {
+        listOfFunctions = listOfFunctions.filter(f => includeRegex.test(f.FunctionArn))
+    }
+    if (excludeRegex) {
+        listOfFunctions = listOfFunctions.filter(f => !excludeRegex.test(f.FunctionArn))
+    }
+    if (tagFilters) {
+        const arns = new Set(await collectFunctionsArnsMatchingTagFilters());
+        listOfFunctions = listOfFunctions.filter(f => arns.has(f.FunctionArn))
+    }
 
     console.info("Collecting function details")
     const { functionResources, aliasResources, versionsToCollect } = await collectFunctionAndAliasResources(listOfFunctions)
@@ -34,12 +49,23 @@ export const collectLambdaResources = async () => {
 }
 
 const collectListOfFunctions = async () => {
-    ListFunctionsCommand
     const listOfFunctions = [];
     for await (const page of paginateListFunctions({ client: lambdaClient }, {})) { // this uses the maximum page size of 50
         listOfFunctions.push(...page.Functions);
     }
     return listOfFunctions
+}
+
+const collectFunctionsArnsMatchingTagFilters = async () => {
+    const input = {
+        ResourceTypeFilters: ['lambda:function'],
+        TagFilters: tagFilters,
+    };
+    const arns = [];
+    for await (const page of paginateGetResources({ client: resourceGroupsTaggingAPIClient }, input)) { // this uses the maximum page size of 100
+        arns.push(...page.ResourceTagMappingList.map(r => r.ResourceARN));
+    }
+    return arns
 }
 
 const collectFunctionAndAliasResources = async (listOfFunctions) => {
@@ -57,13 +83,13 @@ const collectFunctionAndAliasResources = async (listOfFunctions) => {
         const versions = latestVersionsPerFunction > 0
             ? (await lambdaClient.send(new ListVersionsByFunctionCommand({ FunctionName: functionName }))).Versions
             : [lambdaFunctionVersionLatest]
- 
+
         const versionsToCollect = versions.filter((version, index) => {
             return (index <= latestVersionsPerFunction) // Is either $LATEST or one of the latestVersionsPerFunction latest released versions // This relies on the fact that AWS returns the functions in latest -> oldest order
                 || (aliases.some(alias => version.Version === alias.FunctionVersion)) // has an alias
         })
 
-        console.debug(`Function (${index+1}/${listOfFunctions.length}): ${JSON.stringify(functionResource)}`)
+        console.debug(`Function (${index + 1}/${listOfFunctions.length}): ${JSON.stringify(functionResource)}`)
         aliasResources.forEach(a => console.debug(`Alias: ${JSON.stringify(a)}`))
 
         return { functionResource, aliasResources, versionsToCollect }
@@ -92,7 +118,7 @@ const collectFunctionVersionResources = async (versionsToCollect) =>
         }
         const functionVersionResource = makeLambdaFunctionVersionResource(lambdaFunctionVersion, eventSourceMappings, maybePolicy)
 
-        console.debug(`FunctionVersion (${index+1}/${versionsToCollect.length}): ${JSON.stringify(functionVersionResource)}`)
+        console.debug(`FunctionVersion (${index + 1}/${versionsToCollect.length}): ${JSON.stringify(functionVersionResource)}`)
 
         return functionVersionResource
     })
