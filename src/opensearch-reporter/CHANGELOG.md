@@ -1,6 +1,7 @@
 # Changelog
 
 ## opensearch-reporter
-<!-- To add a new entry write: -->
-<!-- ### version / full date -->
-<!-- * [Update/Bug fix] message that describes the changes that you apply -->
+
+### 1.0.13 / 12.12.2023
+* [Update] moved from elasticsearch to opensearch,
+* [Update] upgrade nodejs from 16.x to 18.x
