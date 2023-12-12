@@ -13,7 +13,7 @@
 "use strict";
 
 // Import required libraries
-const aws = require("aws-sdk");
+const sesClientModule = require("@aws-sdk/client-ses");
 const assert = require("assert");
 const opensearch = require("@opensearch-project/opensearch");
 const jmespath = require("jmespath-plus");
@@ -57,7 +57,10 @@ function handler(event, context, callback) {
                 if (error) {
                     callback(error);
                 } else {
-                    nodemailer.createTransport({SES: new aws.SES()}).sendMail({
+                    const ses = new sesClientModule.SESClient({});
+                    nodemailer.createTransport({
+                        SES: { ses, aws: sesClientModule },
+                     }).sendMail({
                         from: process.env.sender,
                         to: process.env.recipient,
                         subject: subject,
