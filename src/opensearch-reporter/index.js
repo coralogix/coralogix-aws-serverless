@@ -1,5 +1,5 @@
 /**
- * AWS Lambda function for Coralogix Elasticsearch reports generation
+ * AWS Lambda function for Coralogix OpenSearch reports generation
  *
  * @file        This file is lambda function source code
  * @author      Coralogix Ltd. <info@coralogix.com>

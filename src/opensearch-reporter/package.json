@@ -1,8 +1,8 @@
 {
-  "name": "coralogix-elasticsearch-reporter",
-  "title": "AWS Lambda function for Coralogix Elasticsearch reporting",
+  "name": "coralogix-opensearch-reporter",
+  "title": "AWS Lambda function for Coralogix OpenSearch reporting",
   "version": "1.0.12",
-  "description": "AWS Lambda function for reports generated from Coralogix Elasticsearch API sending",
+  "description": "AWS Lambda function for reports generated from Coralogix OpenSearch API sending",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",
   "main": "index.js",
@@ -24,12 +24,17 @@
       "name": "Tal Knopf",
       "email": "talk@coralogix.com",
       "url": "https://github.com/talknopf"
+    },
+    {
+      "name": "Ryan Tan",
+      "email": "ryan.tan@coralogix.com",
+      "url": "https://github.com/ryantanjunming"
     }
   ],
   "keywords": [
     "coralogix",
     "logs",
-    "elasticsearch",
+    "opensearch",
     "report",
     "aws",
     "javascript",

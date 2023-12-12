@@ -24,8 +24,8 @@
       "path": "src/cloudwatch-metrics/**"
     },
     {
-      "name": "elasticsearch-reporter",
-      "path": "src/elasticsearch-reporter/**"
+      "name": "opensearch-reporter",
+      "path": "src/opensearch-reporter/**"
     },
     {
       "name": "kafka",

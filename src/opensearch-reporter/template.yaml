@@ -1,10 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Generate report from Coralogix Elasticsearch API and send it by email.
+Description: Generate report from Coralogix OpenSearch API and send it by email.
 Metadata:
   AWS::ServerlessRepo::Application:
-    Name: Coralogix-Elasticsearch-Reporter
-    Description: Generate report from Coralogix Elasticsearch API and send it by email.
+    Name: Coralogix-Opensearch-Reporter
+    Description: Generate report from Coralogix OpenSearch API and send it by email.
     Author: Coralogix
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
@@ -12,6 +12,7 @@ Metadata:
     Labels:
       - coralogix
       - logs
+      - opensearch
       - elasticsearch
       - report
       - ses
@@ -84,10 +85,10 @@ Parameters:
     Description: Report email subject
     MinLength: 1
     MaxLength: 78
-    Default: Coralogix Elasticsearch Report
+    Default: Coralogix OpenSearch Report
   Query:
     Type: String
-    Description: Elasticsearch query
+    Description: OpenSearch query
     MinLength: 1
   Template:
     Type: String
@@ -95,7 +96,7 @@ Parameters:
     MinLength: 1
   RequestTimeout:
     Type: Number
-    Description: Elasticsearch request timeout
+    Description: OpenSearch request timeout
     MinValue: 10000
     Default: 30000
   NotificationEmail:
@@ -127,7 +128,7 @@ Resources:
   LambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Description: Generate report from Coralogix Elasticsearch API and send it by email.
+      Description: Generate report from Coralogix OpenSearch API and send it by email.
       CodeUri: .
       Handler: index.handler
       Runtime: nodejs18.x
