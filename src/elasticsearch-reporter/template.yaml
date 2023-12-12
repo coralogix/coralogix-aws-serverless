@@ -31,9 +31,9 @@ Parameters:
       - US
       - US2
     Default: Europe
-  PrivateKey:
+  LogsQueryKey:
     Type: String
-    Description: The Coralogix private key which is used to validate your authenticity
+    Description: The Coralogix Logs Query Key found under Data Flow > API Keys > Logs Query Key.
     NoEcho: true
   FunctionArchitecture:
     Type: String
@@ -130,7 +130,7 @@ Resources:
       Description: Generate report from Coralogix Elasticsearch API and send it by email.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs16.x
+      Runtime: nodejs18.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
@@ -144,8 +144,8 @@ Resources:
               - CoralogixRegionMap
               - Ref: CoralogixRegion
               - LogUrl
-          private_key:
-            Ref: PrivateKey
+          logs_query_key:
+            Ref: LogsQueryKey
           query:
             Ref: Query
           template:
