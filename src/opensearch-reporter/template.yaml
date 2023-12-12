@@ -61,13 +61,13 @@ Parameters:
     MinLength: 3
     MaxLength: 320
     Default: 'cron(0 0 * * ? *)'
-  Enabled:
+  ScheduleEnable:
     Type: String
     Description: Report sending state
     AllowedValues:
-      - True
-      - False
-    Default: True
+      - 'true'
+      - 'false'
+    Default: 'true'
   Sender:
     Type: String
     Description: Report sender email
@@ -117,13 +117,11 @@ Mappings:
     US:
       LogUrl: https://esapi.coralogix.us:9443
     US2:
-      LogUrl: https://esapi.cx498.coralogix.com:9443
+      LogUrl: https://es-api.cx498.coralogix.com:9443
 Conditions:
-  IsNotificationEnabled:
-    Fn::Not:
-      - Fn::Equals:
-          - Ref: NotificationEmail
-          - ''
+  IsScheduleEnabled: !Not [!Equals [!Ref ScheduleEnable, 'false']] 
+  IsNotificationEnabled: !Not [!Equals [!Ref NotificationEmail, '']]
+    
 Resources:
   LambdaFunction:
     Type: AWS::Serverless::Function
@@ -174,7 +172,7 @@ Resources:
             Schedule:
               Ref: Schedule
             Enabled:
-              Ref: Enabled
+              Ref: IsScheduleEnabled
 
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription

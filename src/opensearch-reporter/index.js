@@ -30,14 +30,6 @@ const query = JSON.parse(process.env.query);
 const coralogixUrl = process.env.CORALOGIX_URL || "https://coralogix-esapi.coralogix.com:9443";
 const requestTimeout = process.env.request_timeout ? parseInt(process.env.request_timeout) : 30000;
 const subject = process.env.subject || "Coralogix OpenSearch Report";
-const reportTime = new Date().toISOString();
-
-// Initialize OpenSearch API client
-const searchClient = new opensearch.Client({
-    node: coralogixUrl,
-    maxRetries: 3,
-    requestTimeout: requestTimeout
-});
 
 /**
  * @description Lambda function handler
@@ -46,6 +38,15 @@ const searchClient = new opensearch.Client({
  * @param {object} callback - Function callback
  */
 function handler(event, context, callback) {
+    const reportTime = new Date().toISOString();
+
+    // Initialize OpenSearch API client
+    const searchClient = new opensearch.Client({
+        node: coralogixUrl,
+        maxRetries: 3,
+        requestTimeout: requestTimeout
+    });
+
     searchClient.search({
         index: "*",
         body: query
