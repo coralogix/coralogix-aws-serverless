@@ -24,8 +24,8 @@
       "path": "src/cloudwatch-metrics/**"
     },
     {
-      "name": "opensearch-reporter",
-      "path": "src/opensearch-reporter/**"
+      "name": "coralogix-reporter",
+      "path": "src/coralogix-reporter/**"
     },
     {
       "name": "kafka",

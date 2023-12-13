@@ -12,19 +12,9 @@
     "url": "https://coralogix.com"
   },
   "engines": {
-    "node": "18.x"
+    "node": "20.x"
   },
   "contributors": [
-    {
-      "name": "Eldar Aliiev",
-      "email": "eldar@coralogix.com",
-      "url": "https://github.com/EldarAliiev"
-    },
-    {
-      "name": "Tal Knopf",
-      "email": "talk@coralogix.com",
-      "url": "https://github.com/talknopf"
-    },
     {
       "name": "Ryan Tan",
       "email": "ryan.tan@coralogix.com",
