@@ -1,43 +1,35 @@
 /**
- * AWS Lambda function for Coralogix Elasticsearch reports generation
+ * AWS Lambda function for Coralogix OpenSearch reports generation
  *
  * @file        This file is lambda function source code
  * @author      Coralogix Ltd. <info@coralogix.com>
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.11
+ * @version     2.0.0
  * @since       1.0.0
  */
 
 "use strict";
 
 // Import required libraries
-const aws = require("aws-sdk");
+const sesClientModule = require("@aws-sdk/client-ses");
 const assert = require("assert");
-const elasticsearch = require("@elastic/elasticsearch");
+const opensearch = require("@opensearch-project/opensearch");
 const jmespath = require("jmespath-plus");
 const jsonexport = require("jsonexport");
 const nodemailer = require("nodemailer");
 
 // Check Lambda function parameters
-assert(process.env.private_key, "No private key!");
-assert(process.env.query, "No Elasticsearch query!");
+assert(process.env.logs_query_key, "No Logs Query key!");
+assert(process.env.query, "No OpenSearch query!");
 assert(process.env.template, "No report template!");
 assert(process.env.sender, "No report sender!");
 assert(process.env.recipient, "No recipient sender!");
 const query = JSON.parse(process.env.query);
 const coralogixUrl = process.env.CORALOGIX_URL || "https://coralogix-esapi.coralogix.com:9443";
 const requestTimeout = process.env.request_timeout ? parseInt(process.env.request_timeout) : 30000;
-const subject = process.env.subject || "Coralogix Elasticsearch Report";
-const reportTime = new Date().toISOString();
-
-// Initialize Elasticsearch API client
-const es = new elasticsearch.Client({
-    node: coralogixUrl,
-    maxRetries: 3,
-    requestTimeout: requestTimeout
-});
+const subject = process.env.subject || "Coralogix OpenSearch Report";
 
 /**
  * @description Lambda function handler
@@ -46,10 +38,19 @@ const es = new elasticsearch.Client({
  * @param {object} callback - Function callback
  */
 function handler(event, context, callback) {
-    es.search({
+    const reportTime = new Date().toISOString();
+
+    // Initialize OpenSearch API client
+    const searchClient = new opensearch.Client({
+        node: coralogixUrl,
+        maxRetries: 3,
+        requestTimeout: requestTimeout
+    });
+
+    searchClient.search({
         index: "*",
         body: query
-    }, {headers: { "token": process.env.private_key} }, (error, result) => {
+    }, {headers: { "token": process.env.logs_query_key} }, (error, result) => {
         if (error) {
             callback(error);
         } else {
@@ -57,7 +58,10 @@ function handler(event, context, callback) {
                 if (error) {
                     callback(error);
                 } else {
-                    nodemailer.createTransport({SES: new aws.SES()}).sendMail({
+                    const ses = new sesClientModule.SESClient({});
+                    nodemailer.createTransport({
+                        SES: { ses, aws: sesClientModule },
+                     }).sendMail({
                         from: process.env.sender,
                         to: process.env.recipient,
                         subject: subject,

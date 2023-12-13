@@ -1,10 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Generate report from Coralogix Elasticsearch API and send it by email.
+Description: Generate report from Coralogix OpenSearch API and send it by email.
 Metadata:
   AWS::ServerlessRepo::Application:
-    Name: Coralogix-Elasticsearch-Reporter
-    Description: Generate report from Coralogix Elasticsearch API and send it by email.
+    Name: Coralogix-Reporter
+    Description: Generate report from Coralogix OpenSearch API and send it by email.
     Author: Coralogix
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
@@ -12,12 +12,13 @@ Metadata:
     Labels:
       - coralogix
       - logs
+      - opensearch
       - elasticsearch
       - report
       - ses
       - email
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.12
+    SemanticVersion: 2.0.0
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -31,9 +32,9 @@ Parameters:
       - US
       - US2
     Default: Europe
-  PrivateKey:
+  LogsQueryKey:
     Type: String
-    Description: The Coralogix private key which is used to validate your authenticity
+    Description: The Coralogix Logs Query Key found under Data Flow > API Keys > Logs Query Key.
     NoEcho: true
   FunctionArchitecture:
     Type: String
@@ -60,13 +61,13 @@ Parameters:
     MinLength: 3
     MaxLength: 320
     Default: 'cron(0 0 * * ? *)'
-  Enabled:
+  ScheduleEnable:
     Type: String
     Description: Report sending state
     AllowedValues:
-      - True
-      - False
-    Default: True
+      - 'true'
+      - 'false'
+    Default: 'true'
   Sender:
     Type: String
     Description: Report sender email
@@ -84,10 +85,10 @@ Parameters:
     Description: Report email subject
     MinLength: 1
     MaxLength: 78
-    Default: Coralogix Elasticsearch Report
+    Default: Coralogix Report
   Query:
     Type: String
-    Description: Elasticsearch query
+    Description: OpenSearch query
     MinLength: 1
   Template:
     Type: String
@@ -95,7 +96,7 @@ Parameters:
     MinLength: 1
   RequestTimeout:
     Type: Number
-    Description: Elasticsearch request timeout
+    Description: OpenSearch request timeout
     MinValue: 10000
     Default: 30000
   NotificationEmail:
@@ -116,21 +117,19 @@ Mappings:
     US:
       LogUrl: https://esapi.coralogix.us:9443
     US2:
-      LogUrl: https://esapi.cx498.coralogix.com:9443
+      LogUrl: https://es-api.cx498.coralogix.com:9443
 Conditions:
-  IsNotificationEnabled:
-    Fn::Not:
-      - Fn::Equals:
-          - Ref: NotificationEmail
-          - ''
+  IsNotificationEnabled: !Not [!Equals [!Ref NotificationEmail, '']]
+  IsScheduleEnabled: !Not [!Equals [!Ref ScheduleEnable, 'false']] 
+    
 Resources:
   LambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Description: Generate report from Coralogix Elasticsearch API and send it by email.
+      Description: Generate report from Coralogix OpenSearch API and send it by email.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs16.x
+      Runtime: nodejs20.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
@@ -144,8 +143,8 @@ Resources:
               - CoralogixRegionMap
               - Ref: CoralogixRegion
               - LogUrl
-          private_key:
-            Ref: PrivateKey
+          logs_query_key:
+            Ref: LogsQueryKey
           query:
             Ref: Query
           template:
@@ -173,7 +172,7 @@ Resources:
             Schedule:
               Ref: Schedule
             Enabled:
-              Ref: Enabled
+              Ref: IScheduleEnabled
 
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
