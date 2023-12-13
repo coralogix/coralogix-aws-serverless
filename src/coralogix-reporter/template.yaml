@@ -3,7 +3,7 @@ Transform: AWS::Serverless-2016-10-31
 Description: Generate report from Coralogix OpenSearch API and send it by email.
 Metadata:
   AWS::ServerlessRepo::Application:
-    Name: Coralogix-Opensearch-Reporter
+    Name: Coralogix-Reporter
     Description: Generate report from Coralogix OpenSearch API and send it by email.
     Author: Coralogix
     SpdxLicenseId: Apache-2.0
@@ -18,7 +18,7 @@ Metadata:
       - ses
       - email
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.13
+    SemanticVersion: 2.0.0
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -85,7 +85,7 @@ Parameters:
     Description: Report email subject
     MinLength: 1
     MaxLength: 78
-    Default: Coralogix OpenSearch Report
+    Default: Coralogix Report
   Query:
     Type: String
     Description: OpenSearch query
@@ -119,8 +119,8 @@ Mappings:
     US2:
       LogUrl: https://es-api.cx498.coralogix.com:9443
 Conditions:
-  IsScheduleEnabled: !Not [!Equals [!Ref ScheduleEnable, 'false']] 
   IsNotificationEnabled: !Not [!Equals [!Ref NotificationEmail, '']]
+  IsScheduleEnabled: !Not [!Equals [!Ref ScheduleEnable, 'false']] 
     
 Resources:
   LambdaFunction:
@@ -172,7 +172,7 @@ Resources:
             Schedule:
               Ref: Schedule
             Enabled:
-              Ref: IsScheduleEnabled
+              Ref: IScheduleEnabled
 
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription

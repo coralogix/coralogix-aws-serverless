@@ -1,4 +1,4 @@
-# Coralogix-OpenSearch-Reporter
+# Coralogix-Reporter
 
 Generates reports from [Coralogix OpenSearch API](https://coralogix.com/docs/opensearch-api/) and send by email.
 

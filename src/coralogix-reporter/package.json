@@ -1,7 +1,7 @@
 {
-  "name": "coralogix-opensearch-reporter",
-  "title": "AWS Lambda function for Coralogix OpenSearch reporting",
-  "version": "1.0.12",
+  "name": "coralogix-reporter",
+  "title": "AWS Lambda function for Coralogix Reporting",
+  "version": "2.0.0",
   "description": "AWS Lambda function for reports generated from Coralogix OpenSearch API sending",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",
