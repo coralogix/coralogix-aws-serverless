@@ -1,4 +1,6 @@
-# Coralogix Resource Tags
+# DEPRECATED
+
+## Coralogix Resource Tags
 
 This application collect AWS resource tags and sends them to your **Coralogix** account.
 
