@@ -4,7 +4,7 @@ Description: Send resource tags to Coralogix.
 Metadata:
   AWS::ServerlessRepo::Application:
     Name: Coralogix-Resource-Tags
-    Description: Send resource tags to Coralogix.
+    Description: (Deprecated) Send resource tags to Coralogix.
     Author: Coralogix
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
@@ -14,7 +14,7 @@ Metadata:
       - logs
       - tags
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.3
+    SemanticVersion: 1.0.4
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
