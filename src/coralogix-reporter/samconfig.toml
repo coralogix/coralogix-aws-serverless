@@ -1,9 +1,0 @@
-version = 0.1
-[default.deploy.parameters]
-stack_name = "stack-report-13dec1228"
-resolve_s3 = true
-s3_prefix = "stack-report-13dec1228"
-region = "ap-southeast-1"
-capabilities = "CAPABILITY_IAM"
-parameter_overrides = "CoralogixRegion=\"US2\" FunctionArchitecture=\"x86_64\" FunctionMemorySize=\"2048\" FunctionTimeout=\"600\" Schedule=\"cron(1/2 * * * ? *)\" ScheduleEnable=\"true\" Sender=\"coralogixryan@gmail.com\" Recipient=\"coralogixryan@gmail.com\" Subject=\"Coralogix Report\" Query=\"{\\\"query\\\":{\\\"bool\\\":{\\\"must\\\":[{\\\"term\\\":{\\\"coralogix.metadata.applicationName\\\":\\\"demo\\\"}},{\\\"range\\\":{\\\"coralogix.timestamp\\\":{\\\"gte\\\":\\\"now-5m\\\",\\\"lt\\\":\\\"now\\\"}}}]}}}\" Template=\"_shards\" RequestTimeout=\"30000\" NotificationEmail=\"\""
-image_repositories = []
