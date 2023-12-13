@@ -2,6 +2,9 @@
 
 ## resource-metadata
 
+### 1.2.6 / 13.12.2023
+* [Change] The function will not fail when it can't collect metadata of some lambda function
+
 ### 1.2.5 / 7.12.2023
 * [Update] Add filtering of Lambda functions.
 

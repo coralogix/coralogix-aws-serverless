@@ -1,7 +1,7 @@
 import assert from 'assert'
 import { paginateListFunctions, LambdaClient, GetFunctionCommand, ListAliasesCommand, GetPolicyCommand, ListVersionsByFunctionCommand, ListEventSourceMappingsCommand } from '@aws-sdk/client-lambda'
 import { ResourceGroupsTaggingAPIClient, paginateGetResources } from '@aws-sdk/client-resource-groups-tagging-api';
-import { schemaUrl, extractArchitecture, intAttr, stringAttr, traverse } from './common.js'
+import { schemaUrl, extractArchitecture, intAttr, stringAttr, traverse, flatTraverse } from './common.js'
 
 const validateAndExtractConfiguration = () => {
     assert(process.env.LATEST_VERSIONS_PER_FUNCTION, "LATEST_VERSIONS_PER_FUNCTION env var missing!")
@@ -69,31 +69,39 @@ const collectFunctionsArnsMatchingTagFilters = async () => {
 }
 
 const collectFunctionAndAliasResources = async (listOfFunctions) => {
-    const results = await traverse(listOfFunctions, async (lambdaFunctionVersionLatest, index) => {
+    const results = await flatTraverse(listOfFunctions, async (lambdaFunctionVersionLatest, index) => {
         const functionName = lambdaFunctionVersionLatest.FunctionName
+        try {
+            const lambdaFunction = await lambdaClient.send(new GetFunctionCommand({ FunctionName: functionName }))
+            const functionResource = makeLambdaFunctionResource(lambdaFunction)
 
-        const lambdaFunction = await lambdaClient.send(new GetFunctionCommand({ FunctionName: functionName }))
-        const functionResource = makeLambdaFunctionResource(lambdaFunction)
+            const aliases = collectAliases
+                ? (await lambdaClient.send(new ListAliasesCommand({ FunctionName: functionName })))?.Aliases
+                : []
+            const aliasResources = aliases.map(alias => makeAliasResource(functionName, alias))
 
-        const aliases = collectAliases
-            ? (await lambdaClient.send(new ListAliasesCommand({ FunctionName: functionName })))?.Aliases
-            : []
-        const aliasResources = aliases.map(alias => makeAliasResource(functionName, alias))
+            const versions = latestVersionsPerFunction > 0
+                ? (await lambdaClient.send(new ListVersionsByFunctionCommand({ FunctionName: functionName }))).Versions
+                : [lambdaFunctionVersionLatest]
 
-        const versions = latestVersionsPerFunction > 0
-            ? (await lambdaClient.send(new ListVersionsByFunctionCommand({ FunctionName: functionName }))).Versions
-            : [lambdaFunctionVersionLatest]
+            const versionsToCollect = versions.filter((version, index) => {
+                return (index <= latestVersionsPerFunction) // Is either $LATEST or one of the latestVersionsPerFunction latest released versions // This relies on the fact that AWS returns the functions in latest -> oldest order
+                    || (aliases.some(alias => version.Version === alias.FunctionVersion)) // has an alias
+            })
 
-        const versionsToCollect = versions.filter((version, index) => {
-            return (index <= latestVersionsPerFunction) // Is either $LATEST or one of the latestVersionsPerFunction latest released versions // This relies on the fact that AWS returns the functions in latest -> oldest order
-                || (aliases.some(alias => version.Version === alias.FunctionVersion)) // has an alias
-        })
+            console.debug(`Function (${index + 1}/${listOfFunctions.length}): ${JSON.stringify(functionResource)}`)
+            aliasResources.forEach(a => console.debug(`Alias: ${JSON.stringify(a)}`))
 
-        console.debug(`Function (${index + 1}/${listOfFunctions.length}): ${JSON.stringify(functionResource)}`)
-        aliasResources.forEach(a => console.debug(`Alias: ${JSON.stringify(a)}`))
-
-        return { functionResource, aliasResources, versionsToCollect }
+            return { functionResource, aliasResources, versionsToCollect }
+        } catch (error) {
+            console.warn(`Failed to collect metadata of ${functionName}: `, error.stack)
+        }
     })
+
+    if (listOfFunctions.length > 0 && results.length == 0) {
+        console.error("Failed to collect metadata of any lambda function.")
+        throw "Failed to collect metadata of any lambda function."
+    }
 
     return {
         functionResources: results.map(x => x.functionResource),
@@ -108,7 +116,12 @@ const collectFunctionVersionResources = async (versionsToCollect) =>
             ? lambdaFunctionVersion.FunctionName
             : `${lambdaFunctionVersion.FunctionName}:${lambdaFunctionVersion.Version}`
 
-        const eventSourceMappings = await lambdaClient.send(new ListEventSourceMappingsCommand({ FunctionName: functionNameForRequests }))
+        let eventSourceMappings = null
+        try {
+            eventSourceMappings = await lambdaClient.send(new ListEventSourceMappingsCommand({ FunctionName: functionNameForRequests }))
+        } catch (error) {
+            console.warn(`Failed to collect event source mappings of ${functionNameForRequests}: `, error.stack)
+        }
         let maybePolicy = null
         try {
             maybePolicy = await lambdaClient.send(new GetPolicyCommand({ FunctionName: functionNameForRequests }))
@@ -193,9 +206,11 @@ const makeLambdaFunctionVersionResource = (fv, eventSourceMappings, maybePolicy)
         })
     }
 
-    eventSourceMappings.EventSourceMappings.forEach((eventSource, index) => {
-        attributes.push(stringAttr(`lambda.event_source.${index}.arn`, eventSource.EventSourceArn))
-    })
+    if (eventSourceMappings && eventSourceMappings.EventSourceMappings) {
+        eventSourceMappings.EventSourceMappings.forEach((eventSource, index) => {
+            attributes.push(stringAttr(`lambda.event_source.${index}.arn`, eventSource.EventSourceArn))
+        })
+    }
 
     if (maybePolicy) {
         attributes.push(stringAttr("lambda.policy", maybePolicy.Policy))

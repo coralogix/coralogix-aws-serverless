@@ -33,3 +33,14 @@ export const traverse = async (array, f) => {
     }
     return results;
 }
+
+export const flatTraverse = async (array, f) => {
+    const results = [];
+    for (var i = 0; i < array.length; i++) {
+        let result = await f(array[i], i)
+        if (result) {
+            results.push(result);
+        }
+    }
+    return results;
+}
