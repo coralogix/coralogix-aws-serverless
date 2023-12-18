@@ -57,11 +57,7 @@ const makeEc2InstanceResource = (i, region, accountId) => {
         stringAttr("host.name", name)
     }
 
-    if (i.Tags) {
-        Object.keys(i.Tags).forEach(key => {
-            attributes.push(stringAttr(`cloud.tag.${key}`, i.Tags[key]))
-        })
-    }
+    attributes.push(...convertEc2TagsToAttributes(i.Tags))
 
     return {
         resourceId: arn,
@@ -73,4 +69,12 @@ const makeEc2InstanceResource = (i, region, accountId) => {
             nanos: 0,
         },
     }
+}
+
+// WARNING the tags data structure is different in lambda and in ec2
+const convertEc2TagsToAttributes = tags => {
+    if (!tags) {
+        return []
+    }
+    return tags.map(tag => stringAttr(`cloud.tag.${tag.Key}`, tag.Value));
 }

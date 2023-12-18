@@ -149,11 +149,7 @@ const makeLambdaFunctionResource = (f) => {
         stringAttr("lambda.last_update_status", f.Configuration.LastUpdateStatus),
     ]
 
-    if (f.Tags) {
-        Object.keys(f.Tags).forEach(key => {
-            attributes.push(stringAttr(`cloud.tag.${key}`, f.Tags[key]))
-        })
-    }
+    attributes.push(...convertFunctionTagsToAttributes(f.Tags))
 
     const reservedConcurrency = f.Concurrency?.ReservedConcurrentExecutions
     if (reservedConcurrency) {
@@ -170,6 +166,14 @@ const makeLambdaFunctionResource = (f) => {
             nanos: 0,
         },
     }
+}
+
+// WARNING the tags data structure is different in lambda and in ec2
+const convertFunctionTagsToAttributes = tags => {
+    if (!tags) {
+        return []
+    }
+    return Object.entries(tags).map(([key, value]) => stringAttr(`cloud.tag.${key}`, value));
 }
 
 const makeLambdaFunctionVersionResource = (fv, eventSourceMappings, maybePolicy) => {

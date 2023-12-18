@@ -2,6 +2,9 @@
 
 ## resource-metadata
 
+### 1.2.7 / 13.12.2023
+* [Fix] Correct conversion of tags to attributes
+
 ### 1.2.6 / 13.12.2023
 * [Change] The function will not fail when it can't collect metadata of some lambda function
 
