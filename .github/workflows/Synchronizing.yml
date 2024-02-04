@@ -164,7 +164,7 @@ jobs:
           
       - uses: planetscale/ghcommit-action@v0.1.19
         with:
-          commit_message: "${{ github.event.pull_request.title }}#${{ github.event.pull_request.head.ref }}"
+          commit_message: "${{ github.event.pull_request.title }}"
           repo: coralogix/cloudformation-coralogix-aws
           branch: master
           file_pattern: '*.yaml *.md'
