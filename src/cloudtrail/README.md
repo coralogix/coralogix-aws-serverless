@@ -1,3 +1,6 @@
+# Warning: This Lambda Function will be deprecated on May 1st
+We recommend using [Coralogix AWS Shipper](https://github.com/coralogix/coralogix-aws-shipper/tree/master)
+
 # AWS cloud trail integarion for Coralogix
 
 Coralogix provides a predefined Lambda function to easily forward your CloudTrail logs straight to the Coralogix platform.

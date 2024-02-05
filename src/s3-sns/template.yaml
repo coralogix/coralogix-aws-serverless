@@ -4,7 +4,7 @@ Description: Send logs from S3 bucket to Coralogix.
 Metadata:
   AWS::ServerlessRepo::Application:
     Name: Coralogix-S3-via-SNS
-    Description: Send logs from S3 bucket to Coralogix via SNS trigger.
+    Description: Warning This Lambda Function will be deprecated on May 1st, We recommend using Coralogix AWS Shipper. Send logs from S3 bucket to Coralogix via SNS trigger.
     Author: Coralogix
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
@@ -15,7 +15,7 @@ Metadata:
       - s3
       - sns
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.29
+    SemanticVersion: 1.0.30
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:

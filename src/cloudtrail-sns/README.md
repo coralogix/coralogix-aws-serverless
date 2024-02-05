@@ -1,3 +1,6 @@
+# Warning: This Lambda Function will be deprecated on May 1st
+We recommend using [Coralogix AWS Shipper](https://github.com/coralogix/coralogix-aws-shipper/tree/master)
+
 # AWS CloudTrail-SNS integration for Coralogix
 
 Coralogix provides a predefined Lambda function to easily forward your CloudTrail logs through SNS to the Coralogix platform.

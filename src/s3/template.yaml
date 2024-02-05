@@ -4,7 +4,7 @@ Description: Send logs from S3 bucket to Coralogix.
 Metadata:
   AWS::ServerlessRepo::Application:
     Name: Coralogix-S3
-    Description: Send logs from S3 bucket to  Coralogix.
+    Description: Warning This Lambda Function will be deprecated on May 1st, We recommend using Coralogix AWS Shipper. Send logs from S3 bucket to  Coralogix.
     Author: Coralogix
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
@@ -14,7 +14,7 @@ Metadata:
       - logs
       - s3
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.31
+    SemanticVersion: 1.0.32
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:

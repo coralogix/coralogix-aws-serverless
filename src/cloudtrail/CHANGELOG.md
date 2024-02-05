@@ -1,6 +1,10 @@
 # Changelog
 
 ## cloudtrail
+
+### 1.0.27
+* Deprecation Notice
+
 ### 1.0.26
 * [Hotfix] Update UrlLib
 ### 0.0.2 / 1.10.2023
