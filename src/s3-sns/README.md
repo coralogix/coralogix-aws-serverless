@@ -1,3 +1,6 @@
+# Warning: This Lambda Function will be deprecated on May 1st
+We recommend using [Coralogix AWS Shipper](https://github.com/coralogix/coralogix-aws-shipper/tree/master)
+
 # Coralogix-S3-via-SNS
 
 Coralogix provides a predefined Lambda function to easily forward your S3 logs via SNS topic to the **Coralogix** platform.

@@ -1,5 +1,8 @@
 # Changelog
 
+### 1.0.12
+* Deprecation Notice
+
 ### 1.0.11
 * [Hotfix] Update UrlLib
 ## kafka

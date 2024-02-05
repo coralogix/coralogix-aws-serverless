@@ -4,7 +4,7 @@ Description: Send CloudWatch logs to Coralogix.
 Metadata:
   AWS::ServerlessRepo::Application:
     Name: Coralogix-CloudWatch
-    Description: Send CloudWatch logs to Coralogix.
+    Description: Warning This Lambda Function will be deprecated on May 1st, We recommend using Coralogix AWS Shipper. Send CloudWatch logs to Coralogix.
     Author: Coralogix
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
@@ -14,7 +14,7 @@ Metadata:
       - logs
       - cloudwatch
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.27
+    SemanticVersion: 1.0.28
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:

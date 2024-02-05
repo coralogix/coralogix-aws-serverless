@@ -4,7 +4,7 @@ Description: AWS Lambda function for sending VPC Flow Logs from an existing S3 b
 Metadata:
   AWS::ServerlessRepo::Application:
     Name: Coralogix-VPC-Flog-Logs-S3
-    Description: Send logs from S3 bucket to Coralogix.
+    Description: Warning This Lambda Function will be deprecated on May 1st, We recommend using Coralogix AWS Shipper. Send logs from S3 bucket to Coralogix.
     Author: Coralogix
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
@@ -15,7 +15,7 @@ Metadata:
       - s3
       - vpc
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.10
+    SemanticVersion: 1.0.11
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:

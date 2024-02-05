@@ -4,7 +4,7 @@ Description: Send CloudTrail logs from SNS bucket to Coralogix.
 Metadata:
   AWS::ServerlessRepo::Application:
     Name: Coralogix-CloudTrail-via-SNS
-    Description: Send CloudTrail logs from SNS bucket to Coralogix.
+    Description: Warning This Lambda Function will be deprecated on May 1st, We recommend using Coralogix AWS Shipper. Send CloudTrail logs from SNS bucket to Coralogix.
     Author: Coralogix
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
@@ -15,7 +15,7 @@ Metadata:
       - cloudtrail
       - sns
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.5
+    SemanticVersion: 1.0.6
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:

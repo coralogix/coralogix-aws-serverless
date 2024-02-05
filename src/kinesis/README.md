@@ -1,3 +1,6 @@
+# Warning: This Lambda Function will be deprecated on May 1st
+We recommend using [Coralogix AWS Shipper](https://github.com/coralogix/coralogix-aws-shipper/tree/master)
+
 # Coralogix-Kinesis
 
 This application retrieves **Kinesis** stream data and sends them to your **Coralogix** account.

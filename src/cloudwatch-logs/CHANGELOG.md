@@ -1,6 +1,9 @@
 # Changelog
 
 ## cloudwatch-logs
+### 1.0.28 / 5.2.2024
+* Deprecation Notice
+
 ### 1.0.27 / 23.10.2023
 * [HotFix] Urllib3 Update due to CVE-2023-43804
 

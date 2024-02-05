@@ -2,6 +2,9 @@
 
 ## ecr
 
+## 1.0.6 / 5/2/2024
+* Deprecation Notice
+
 ## 1.0.5 / 17/8/2023
 
 * [Update] Following Snowbit research team request - Adding `package_name:package_version` key from the findings object for each finding log

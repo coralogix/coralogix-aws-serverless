@@ -1,3 +1,6 @@
+# Warning: This Lambda Function will be deprecated on May 1st
+We recommend using [Coralogix AWS Shipper](https://github.com/coralogix/coralogix-aws-shipper/tree/master)
+
 # Coralogix-Kafka
 
 This application retrieves logs from self-hosted Apache Kafka cluster and sends them to your **Coralogix** account.

@@ -1,5 +1,5 @@
 # Changelog
-### 1.0.12
+### 1.0.12 / 5.2.2024
 * Deprecation Notice
 ### 1.0.11
 * [Hotfix] Update UrlLib
