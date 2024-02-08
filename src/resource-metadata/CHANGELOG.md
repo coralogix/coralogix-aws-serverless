@@ -2,6 +2,9 @@
 
 ## resource-metadata
 
+### 1.2.8 / 8.02.2024
+* [Update] update dependencies and remove jest and babel
+
 ### 1.2.7 / 13.12.2023
 * [Fix] Correct conversion of tags to attributes
 
