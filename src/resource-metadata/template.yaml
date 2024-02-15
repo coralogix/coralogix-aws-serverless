@@ -13,7 +13,7 @@ Metadata:
       - coralogix
       - metadata
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.2.7
+    SemanticVersion: 1.2.8
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -212,7 +212,7 @@ Resources:
       Description: Send resource metadata to Coralogix.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs18.x
+      Runtime: nodejs20.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
@@ -292,7 +292,7 @@ Resources:
       Layers:
         - Ref: LayerARN
       Handler: index.handler
-      Runtime: nodejs18.x
+      Runtime: nodejs20.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
