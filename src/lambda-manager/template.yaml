@@ -28,6 +28,7 @@ Metadata:
           - NotificationEmail
           - DestinationArn
           - DestinationRole
+          - DestinationType
       - Label:
           default: Lambda configuration
         Parameters:
@@ -45,17 +46,14 @@ Parameters:
   DestinationRole:
     Type: String
     Description: Coralogix Firehose stream / Lambda role ARN
+  DestinationType:
+    Type: String
+    Description: Coralogix Firehose stream / Lambda type
+    Default: firehose
   RegexPattern:
     Type: String
     Description: Loggroup name regex pattern
     Default: \/aws\/lambda\/.*
-  FunctionArchitecture:
-    Type: String
-    Description: Lambda function architecture, possible options are [x86_64, arm64]
-    AllowedValues:
-      - x86_64
-      - arm64
-    Default: x86_64
   FunctionMemorySize:
     Type: Number
     Description: Lambda function memory limit
@@ -86,9 +84,9 @@ Resources:
       Description: Adds Coralogix firehose to Loggroups
       CodeUri: .
       Handler: lambda_function.lambda_handler
-      Runtime: python3.9
+      Runtime: python3.12
       Architectures:
-        Ref: FunctionArchitecture
+        - arm64
       MemorySize:
         Ref: FunctionMemorySize
       Timeout:
@@ -103,6 +101,8 @@ Resources:
             Ref: DestinationArn
           DESTINATION_ROLE: 
             Ref: DestinationRole
+          DESTINATION_TYPE:
+            Ref: DestinationType
       Policies:
         - Statement:
             - Sid: CWSubscriptionPolicy
@@ -121,6 +121,22 @@ Resources:
         DestinationConfig:
           OnFailure:
             Type: SNS
+      Events:
+        EventBridgeRule:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source: 
+                - "aws.logs"
+              detail-type:
+                - "AWS API Call via CloudTrail"
+              detail:
+                eventSource:
+                  - "logs.amazonaws.com"
+                eventName:
+                  - "CreateLogGroup"
+            Target:
+                Id: cx-loggroup-target
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
     Condition: IsNotificationEnabled

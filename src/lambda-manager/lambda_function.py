@@ -1,6 +1,7 @@
 import boto3
 import os
 import re
+import uuid
 
 def lambda_handler(event, context):
     cloudwatch_logs = boto3.client('logs')
@@ -8,20 +9,29 @@ def lambda_handler(event, context):
     print("The name of Log Group to subscribe ::",log_group_to_subscribe)
     
     regex_pattern = os.environ.get('REGEX_PATTERN')
+    destination_type = os.environ.get('DESTINATION_TYPE')
     logs_filter = os.environ.get('LOGS_FILTER', '?REPORT ?"Task timed out" ?"Process exited before completing" ?errorMessage ?"module initialization error:" ?"Unable to import module" ?"ERROR Invoke Error" ?"EPSAGON_TRACE:"')
     if regex_pattern and re.match(regex_pattern, log_group_to_subscribe):
         DESTINATION_ARN = os.environ.get('DESTINATION_ARN')
         ROLE_ARN = os.environ.get('FIREHOSE_ROLE')
-        FILTER_NAME = 'Coralogix_Filter'
+        FILTER_NAME = 'Coralogix_Filter_' + str(uuid.uuid4())
         LOG_GROUP = log_group_to_subscribe
-
-        # Create a subscription filter
-        cloudwatch_logs.put_subscription_filter(
-            destinationArn=DESTINATION_ARN,
-            roleArn=ROLE_ARN,
-            filterName= FILTER_NAME,
-            filterPattern=logs_filter,
-            logGroupName=LOG_GROUP,
-        )
+        if destination_type == 'firehose':
+            cloudwatch_logs.put_subscription_filter(
+                destinationArn=DESTINATION_ARN,
+                roleArn=ROLE_ARN,
+                filterName= FILTER_NAME,
+                filterPattern=logs_filter,
+                logGroupName=LOG_GROUP,
+            )
+        elif destination_type == 'lambda':
+            cloudwatch_logs.put_subscription_filter(
+                destinationArn=DESTINATION_ARN,
+                filterName= FILTER_NAME,
+                filterPattern=logs_filter,
+                logGroupName=LOG_GROUP,
+            )
+        else:
+            print(f"Invalid destination type {destination_type}")  
     else:
         print(f"Loggroup {log_group_to_subscribe} excluded")
