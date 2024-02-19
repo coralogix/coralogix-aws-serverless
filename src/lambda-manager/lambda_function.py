@@ -107,7 +107,7 @@ def lambda_handler(event, context):
     cloudwatch_logs = boto3.client('logs')
     regex_pattern = os.environ.get('REGEX_PATTERN')
     destination_type = os.environ.get('DESTINATION_TYPE')
-    logs_filter = os.environ.get('LOGS_FILTER', '?REPORT ?"Task timed out" ?"Process exited before completing" ?errorMessage ?"module initialization error:" ?"Unable to import module" ?"ERROR Invoke Error" ?"EPSAGON_TRACE:"')
+    logs_filter = os.environ.get('LOGS_FILTER', '')
     scan_all_log_groups = os.environ.get('SCAN_OLD_LOGGROUPS', 'false')
     destination_arn = os.environ.get('DESTINATION_ARN')
     role_arn = os.environ.get('DESTINATION_ROLE')

@@ -2,8 +2,16 @@
 
 ## lambda-manager
 
-### 1.1.0
-* [Update] New functionality, scan all loggroups and process them.
+## 2.0.0 🎉 / 02-20-2024
+### 🛑 Breaking changes 🛑
+- New CloudFormation Template does not deploy firehose stream as part of the deployment.
+- New CloudFormation Temaplate does not create permissions for destination, check README.
+- Environment Variable names changed.
+
+### 🚀 New components 🚀
+- Supports Lambda as a Destination
+- scan all loggroups and process them.
+
 <!-- To add a new entry write: -->
 <!-- ### version / full date -->
 <!-- * [Update/Bug fix] message that describes the changes that you apply -->

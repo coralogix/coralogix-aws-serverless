@@ -7,7 +7,7 @@ Environment variables:
 | Parameter | Description | Default Value | Required |
 |---|---|---|---|
 | RegexPattern | Set up this regex to match the Log Groups names that you want to automatically subscribe to the destination| | :heavy_check_mark: |
-| LogsFilter | Subscription filter to select which logs needs to be sent to Coralogix. Default is for Lambda Errors that are not sendable by Coralogix Lambda Layer. | | :heavy_check_mark: |
+| LogsFilter | Subscription filter to select which logs needs to be sent to Coralogix. For Example for Lambda Errors that are not sendable by Coralogix Lambda Layer '?REPORT ?"Task timed out" ?"Process exited before completing" ?errorMessage ?"module initialization error:" ?"Unable to import module" ?"ERROR Invoke Error" ?"EPSAGON_TRACE:"'. | | :heavy_check_mark: |
 | DESTINATION_ARN | Arn for the firehose to subscribe the log groups (By default is the firehose created by Serverless Template) | | :heavy_check_mark: |
 | DESTINATION_ROLE | Arn for the role to allow destination subscription to be pushed (Lambda or Firehose) | | :heavy_check_mark: |
 | DESTINATION_TYPE | Type of destination (Lambda or Firehose) | | :heavy_check_mark: |
