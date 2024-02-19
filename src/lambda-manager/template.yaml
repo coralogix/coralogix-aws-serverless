@@ -29,6 +29,7 @@ Metadata:
           - DestinationArn
           - DestinationRole
           - DestinationType
+          - ScanOldLogGroups
       - Label:
           default: Lambda configuration
         Parameters:
@@ -48,8 +49,12 @@ Parameters:
     Description: Coralogix Firehose stream / Lambda role ARN
   DestinationType:
     Type: String
-    Description: Coralogix Firehose stream / Lambda type
+    Description: firehose / lambda 
     Default: firehose
+  ScanOldLogGroups:
+    Type: String
+    Description: Scan old log groups
+    Default: false
   RegexPattern:
     Type: String
     Description: Loggroup name regex pattern
@@ -103,6 +108,8 @@ Resources:
             Ref: DestinationRole
           DESTINATION_TYPE:
             Ref: DestinationType
+          SCAN_OLD_LOGGROUPS:
+            Ref: ScanOldLogGroups
       Policies:
         - Statement:
             - Sid: CWSubscriptionPolicy
