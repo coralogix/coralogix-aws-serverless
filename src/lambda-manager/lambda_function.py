@@ -116,17 +116,20 @@ def lambda_handler(event, context):
     if scan_all_log_groups == 'true':
         list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern, logs_filter, destination_arn, role_arn, filter_name)
         lambda_client = boto3.client('lambda')
+        function_name = context.function_name
 
-        # Directly specify the environment variables you want to update
+        # Fetch the current function configuration
+        current_config = lambda_client.get_function_configuration(FunctionName=function_name)
+        current_env_vars = current_config['Environment']['Variables']
+
+        # Update the environment variables
+        current_env_vars['SCAN_OLD_LOGGROUPS'] = 'false'
+
+        # Update the Lambda function configuration
         try:
             response = lambda_client.update_function_configuration(
-                FunctionName=context.function_name,
-                Environment={
-                    'Variables': {
-                        'SCAN_OLD_LOGGROUPS': 'false'
-                        # Add any other variables you need to explicitly set
-                    }
-                }
+                FunctionName=function_name,
+                Environment={'Variables': current_env_vars}
             )
             print("Updated environment variables:", response['Environment']['Variables'])
         except Exception as e:

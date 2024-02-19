@@ -83,6 +83,31 @@ Conditions:
           - Ref: NotificationEmail
           - ''
 Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: CXLambdaUpdateConfig
+                Effect: Allow
+                Action:
+                  - lambda:UpdateFunctionConfiguration
+                Resource: !GetAtt LambdaFunction.Arn
+              - Sid: SNSPublishPermission
+                Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: "arn:aws:sns:us-east-1:771039649440:manager4-LambdaFunctionEventInvokeConfigOnFailureTopic-xB2dSpg5hshT"
   LambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -112,10 +137,18 @@ Resources:
             Ref: ScanOldLogGroups
       Policies:
         - Statement:
+            - Sid: CXLambdaUpdateConfig
+              Effect: Allow
+              Action:
+                - lambda:UpdateFunctionConfiguration
+                - lambda:GetFunctionConfiguration
+              Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:*"
             - Sid: CWSubscriptionPolicy
               Effect: Allow
               Action:
                 - logs:PutSubscriptionFilter
+                - logs:DescribeLogGroups
+                - logs:DescribeSubscriptionFilters
               Resource:
                 - "arn:aws:logs:*:*:*"
             - Sid: CXPassRole
