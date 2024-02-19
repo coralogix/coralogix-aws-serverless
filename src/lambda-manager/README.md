@@ -1,6 +1,6 @@
 # Coralogix-Lambda-Manager
 
-This Lambda Function was created pick up newly created log groups and attach them to Firehose or Lambda integration
+This Lambda Function was created pick up newly created and existing log groups and attach them to Firehose or Lambda integration
 
 Environment variables:
 
@@ -11,7 +11,7 @@ Environment variables:
 | DESTINATION_ARN | Arn for the firehose to subscribe the log groups (By default is the firehose created by Serverless Template) | | :heavy_check_mark: |
 | DESTINATION_ROLE | Arn for the role to allow destination subscription to be pushed (Lambda or Firehose) | | :heavy_check_mark: |
 | DESTINATION_TYPE | Type of destination (Lambda or Firehose) | | :heavy_check_mark: |
-| SCAN_OLD_LOGGROUPS | This will scan all LogGroups in the account and apply the subscription configured, will only run Once and set to false. Default is true | true | :heavy_check_mark: |
+| SCAN_OLD_LOGGROUPS | This will scan all LogGroups in the account and apply the subscription configured, will only run Once and set to false. Default is false | false | :heavy_check_mark: |
 | FunctionArchitecture | Lambda function architecture, possible options are [x86_64, arm64] | x86_64 | |
 | FunctionMemorySize | The maximum allocated memory this lambda may consume. Default value is the minimum recommended setting please consult coralogix support before changing. | 1024 |  |
 | FunctionTimeout | The maximum time in seconds the function may be allowed to run. Default value is the minimum recommended setting please consult coralogix support before changing. | 300 |  |
