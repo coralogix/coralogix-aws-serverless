@@ -21,7 +21,7 @@ Environment variables:
 
 ### Firehose
 
-We are asuming you deployed ouf Firehose integration per our integration https://coralogix.com/docs/aws-firehose/
+We are assuming you deployed our Firehose integration per our integration https://coralogix.com/docs/aws-firehose/
 
 Firehose Destination requires a Role to allow Cloudwatch to send logs to Firehose. For that please verify that the role you are using in DESTINATION_ROLO has the following definitions.
 
@@ -64,7 +64,7 @@ Trust relationships
 
 ### Lamba
 
-Lambda destination does not need a specific role, but please check that the execution rolo of the destination lambda has the following resource based policy.
+Lambda destination does not need a specific role, but please check that the execution role of the destination lambda has the following resource based policy.
 
 ```
 {
