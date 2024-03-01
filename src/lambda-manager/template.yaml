@@ -33,7 +33,6 @@ Metadata:
       - Label:
           default: Lambda configuration
         Parameters:
-          - FunctionArchitecture
           - FunctionMemorySize
           - FunctionTimeout
 Parameters:
@@ -115,8 +114,6 @@ Resources:
       CodeUri: .
       Handler: lambda_function.lambda_handler
       Runtime: python3.12
-      Architectures:
-        - arm64
       MemorySize:
         Ref: FunctionMemorySize
       Timeout:
