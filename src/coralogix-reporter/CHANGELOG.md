@@ -8,3 +8,6 @@
 
 ### 2.0.1 / 1.03.2024
 * [Fix] Add SES sendmail policy to lambda function
+
+### 2.0.2 / 1.03.2024
+* [Fix] Add semantic versioning

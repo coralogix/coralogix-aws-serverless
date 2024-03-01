@@ -18,7 +18,7 @@ Metadata:
       - ses
       - email
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 2.0.0
+    SemanticVersion: 2.0.2
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
