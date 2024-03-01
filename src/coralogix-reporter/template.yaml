@@ -18,7 +18,7 @@ Metadata:
       - ses
       - email
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 2.0.0
+    SemanticVersion: 2.0.2
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -158,6 +158,13 @@ Resources:
           requestTimeout:
             Ref: RequestTimeout
       Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - 'ses:SendEmail'
+                - 'ses:SendRawEmail'
+              Resource: '*'
         - SESCrudPolicy:
             IdentityName:
               Ref: Sender
