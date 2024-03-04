@@ -16,58 +16,48 @@ Metadata:
       - cloudwatch
       - lambda
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.3
+    SemanticVersion: 2.0.0
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      - Label:
-          default: Coralogix configuration
-        Parameters:
-          - CoralogixRegion
-          - ApiKey
       - Label:
           default: Integration configuration
         Parameters:
           - LogsFilter
           - RegexPattern
           - NotificationEmail
+          - DestinationArn
+          - DestinationRole
+          - DestinationType
+          - ScanOldLogGroups
       - Label:
           default: Lambda configuration
         Parameters:
-          - FunctionArchitecture
           - FunctionMemorySize
           - FunctionTimeout
 Parameters:
   LogsFilter:
     Type: String
-    Description: Subscription Filter.
-    Default: '?REPORT ?"Task timed out" ?"Process exited before completing" ?errorMessage ?"module initialization error:" ?"Unable to import module" ?"ERROR Invoke Error" ?"EPSAGON_TRACE:"'
+    Description: Log group filter
+    Default: ''
+  DestinationArn:
+    Type: String
+    Description: Coralogix Firehose stream / Lambda  ARN
+  DestinationRole:
+    Type: String
+    Description: Coralogix Firehose stream / Lambda role ARN
+  DestinationType:
+    Type: String
+    Description: firehose / lambda 
+    Default: firehose
+  ScanOldLogGroups:
+    Type: String
+    Description: Scan old log groups
+    Default: false
   RegexPattern:
     Type: String
     Description: Loggroup name regex pattern
     Default: \/aws\/lambda\/.*
-  ApiKey:
-    Type: String
-    Description: The Coralogix Api key which is used to validate your authenticity
-    NoEcho: true
-  CoralogixRegion:
-    Type: String
-    Description: The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US, US2]
-    AllowedValues:
-      - Europe
-      - Europe2
-      - India
-      - Singapore
-      - US
-      - US2
-    Default: Europe
-  FunctionArchitecture:
-    Type: String
-    Description: Lambda function architecture, possible options are [x86_64, arm64]
-    AllowedValues:
-      - x86_64
-      - arm64
-    Default: x86_64
   FunctionMemorySize:
     Type: Number
     Description: Lambda function memory limit
@@ -85,20 +75,6 @@ Parameters:
     Description: Failure notification email address
     MaxLength: 320
     Default: ''
-Mappings:
-  CoralogixRegionMap:
-    Europe:
-      LogUrl: https://firehose-ingress.coralogix.com/firehose
-    Europe2:
-      LogUrl: https://firehose-ingress.eu2.coralogix.com/firehose
-    India:
-      LogUrl: https://firehose-ingress.coralogix.in/firehose
-    Singapore:
-      LogUrl: https://firehose-ingress.coralogixsg.com/firehose
-    US:
-      LogUrl: https://firehose-ingress.coralogix.us/firehose
-    US2:
-      LogUrl: https://firehose-ingress.cx498.coralogix.com/firehose
 Conditions:
   IsNotificationEnabled:
     Fn::Not:
@@ -106,136 +82,38 @@ Conditions:
           - Ref: NotificationEmail
           - ''
 Resources:
-  CoralogixFirehoseFailed:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Join
-        - '-'
-        - - coralogixfirehosefailed
-          - !Ref 'AWS::Region'
-      AccessControl: Private
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-  FirehoseLogsRole:
+  LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Sid: 'FirehoseAssumeRole'
-            Effect: Allow
-            Principal:
-              Service: firehose.amazonaws.com
-            Action: sts:AssumeRole
-            Condition:
-              StringEquals:
-                sts:ExternalId: !Ref "AWS::AccountId"
-
-  AttachBucketPolicyToFirehoseLogsRole:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: "S3BucketPermissionPolicy"
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
           - Effect: Allow
-            Action:
-              - s3:AbortMultipartUpload
-              - s3:GetBucketLocation
-              - s3:GetObject
-              - s3:ListBucket
-              - s3:ListBucketMultipartUploads
-              - s3:PutObject
-            Resource: 
-              - "*"
-      Roles:
-        - Ref: FirehoseLogsRole
-  CoralogixDeliveryStream:
-    Type: AWS::KinesisFirehose::DeliveryStream
-    Properties:
-      DeliveryStreamName: !Join
-        - '-'
-        - - coralogixdeliverystream
-          - !Ref 'AWS::Region'
-      DeliveryStreamType: DirectPut
-      HttpEndpointDestinationConfiguration:
-        EndpointConfiguration:
-          Name: "Coralogix"
-          AccessKey:
-            Ref: ApiKey
-          Url: !FindInMap
-               - CoralogixRegionMap
-               - Ref: CoralogixRegion
-               - LogUrl
-        RequestConfiguration:
-          ContentEncoding: GZIP
-          CommonAttributes:
-            - AttributeName: "dynamicMetadata"
-              AttributeValue: "true"
-            - AttributeName: "integrationType"
-              AttributeValue: "CloudWatch_Lambda"
-        BufferingHints:
-          IntervalInSeconds: 60
-          SizeInMBs: 6
-        RetryOptions:
-          DurationInSeconds: 60
-        S3BackupMode: FailedDataOnly
-        S3Configuration:
-          BucketARN: !GetAtt 
-            - CoralogixFirehoseFailed
-            - Arn
-          CompressionFormat: UNCOMPRESSED
-          RoleARN: !GetAtt FirehoseLogsRole.Arn
-        CloudWatchLoggingOptions:
-          Enabled: true
-          LogGroupName: !Ref CoralogixFirehoseFailed
-          LogStreamName: !Ref CoralogixFirehoseFailed
-        ProcessingConfiguration:
-          Enabled: false
-        RoleARN: !GetAtt FirehoseLogsRole.Arn
-        
-  CloudwatchToFirehoseRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Sid: 'CloudwatchToFirehoseRole'
-            Effect: Allow
             Principal:
-              Service: !Join
-                - ''
-                - - 'logs.'
-                  - !Ref 'AWS::Region'
-                  - '.amazonaws.com'
+              Service: lambda.amazonaws.com
             Action: sts:AssumeRole
-  CloudwatchToFirehoseAttachePolicy:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: "CloudWatchFirehosePermissionPolicy"
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Action:
-              - firehose:PutRecord
-              - firehose:PutRecordBatch
-              - firehose:UpdateDestination
-            Resource: !GetAtt CoralogixDeliveryStream.Arn
-      Roles:
-        - Ref: CloudwatchToFirehoseRole
+      Policies:
+        - PolicyName: LambdaExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: CXLambdaUpdateConfig
+                Effect: Allow
+                Action:
+                  - lambda:UpdateFunctionConfiguration
+                Resource: !GetAtt LambdaFunction.Arn
+              - Sid: SNSPublishPermission
+                Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: "arn:aws:sns:us-east-1:771039649440:manager4-LambdaFunctionEventInvokeConfigOnFailureTopic-xB2dSpg5hshT"
   LambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
       Description: Adds Coralogix firehose to Loggroups
       CodeUri: .
       Handler: lambda_function.lambda_handler
-      Runtime: python3.9
-      Architectures:
-        - Ref: FunctionArchitecture
+      Runtime: python3.12
       MemorySize:
         Ref: FunctionMemorySize
       Timeout:
@@ -246,18 +124,28 @@ Resources:
             Ref: LogsFilter
           REGEX_PATTERN:
             Ref: RegexPattern
-          FIREHOSE_ARN: !GetAtt 
-            - CoralogixDeliveryStream
-            - Arn
-          FIREHOSE_ROLE: !GetAtt 
-            - CloudwatchToFirehoseRole
-            - Arn
+          DESTINATION_ARN: 
+            Ref: DestinationArn
+          DESTINATION_ROLE: 
+            Ref: DestinationRole
+          DESTINATION_TYPE:
+            Ref: DestinationType
+          SCAN_OLD_LOGGROUPS:
+            Ref: ScanOldLogGroups
       Policies:
         - Statement:
+            - Sid: CXLambdaUpdateConfig
+              Effect: Allow
+              Action:
+                - lambda:UpdateFunctionConfiguration
+                - lambda:GetFunctionConfiguration
+              Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:*"
             - Sid: CWSubscriptionPolicy
               Effect: Allow
               Action:
                 - logs:PutSubscriptionFilter
+                - logs:DescribeLogGroups
+                - logs:DescribeSubscriptionFilters
               Resource:
                 - "arn:aws:logs:*:*:*"
             - Sid: CXPassRole
