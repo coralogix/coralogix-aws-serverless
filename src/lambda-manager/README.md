@@ -61,27 +61,6 @@ Trust relationships
 }
 ```
 
-### Lamba
-
-Lambda destination does not need a specific role, but please check that the execution role of the destination lambda has the following resource based policy.
-
-```
-{
-    "Sid": "lsdmvpsdf",
-    "Effect": "Allow",
-    "Principal": {
-        Service": "logs.amazonaws.com"
-    },
-    "Action": "lambda:InvokeFunction",
-    "Resource": "arn:aws:lambda:us-east-1:771039649440:function:coralogix-aws-shipper",
-    "Condition": {
-        "ArnLike": {
-        "AWS:SourceArn": "arn:aws:logs:us-east-1:771039649440:*:*:*"
-        }
-    }
-}
-```
-
 ## License
 
 This project is licensed under the Apache-2.0 License.

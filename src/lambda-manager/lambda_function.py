@@ -14,7 +14,7 @@ def identify_arn_service(arn):
     else:
         return "Unknown AWS Service"
 
-def list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern, logs_filter, destination_arn, role_arn, filter_name):
+def list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern, logs_filter, destination_arn, role_arn, filter_name, context):
     log_groups = []
     response = {'nextToken': None}  # Initialize with a dict containing nextToken as None
     print("Scanning all log groups")
@@ -51,9 +51,19 @@ def list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern, logs_filte
                         continue
                 elif destination_type == 'lambda':
                     try:
+                        lambda_client = boto3.client('lambda')
+                        region = context.invoked_function_arn.split(":")[3]
+                        account_id = context.invoked_function_arn.split(":")[4]
+                        lambda_client.add_permission(
+                          FunctionName=destination_arn,
+                          StatementId=f'allow-trigger-from-{log_group_name}',
+                          Action='lambda:InvokeFunction',
+                          Principal='logs.amazonaws.com',
+                          SourceArn=f'arn:aws:logs:{region}:{account_id}:log-group:{log_group_name}:*',
+                        )
                         cloudwatch_logs.put_subscription_filter(
                             destinationArn=destination_arn,
-                            filterName= filter_name,
+                            filterName= "coralogix-aws-shipper-cloudwatch-trigger",
                             filterPattern=logs_filter,
                             logGroupName=log_group_name,
                         )
@@ -89,9 +99,19 @@ def list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern, logs_filte
                         continue
                 elif destination_type == 'lambda':
                     try:
+                        lambda_client = boto3.client('lambda')
+                        region = context.invoked_function_arn.split(":")[3]
+                        account_id = context.invoked_function_arn.split(":")[4]
+                        lambda_client.add_permission(
+                          FunctionName=destination_arn,
+                          StatementId=f'allow-trigger-from-{log_group_name}',
+                          Action='lambda:InvokeFunction',
+                          Principal='logs.amazonaws.com',
+                          SourceArn=f'arn:aws:logs:{region}:{account_id}:log-group:{log_group_name}:*',
+                        )
                         cloudwatch_logs.put_subscription_filter(
                             destinationArn=destination_arn,
-                            filterName= filter_name,
+                            filterName= "coralogix-aws-shipper-cloudwatch-trigger",
                             filterPattern=logs_filter,
                             logGroupName=log_group_name,
                         )
@@ -114,7 +134,7 @@ def lambda_handler(event, context):
     filter_name = 'Coralogix_Filter_' + str(uuid.uuid4())
     print(f"Scanning all log groups: {scan_all_log_groups}")
     if scan_all_log_groups == 'true':
-        list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern, logs_filter, destination_arn, role_arn, filter_name)
+        list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern, logs_filter, destination_arn, role_arn, filter_name, context)
         lambda_client = boto3.client('lambda')
         function_name = context.function_name
 
@@ -151,9 +171,19 @@ def lambda_handler(event, context):
                         print(f"Failed to put subscription filter for {log_group_to_subscribe}: {e}")
             elif destination_type == 'lambda':
                 try:
+                    lambda_client = boto3.client('lambda')
+                    region = context.invoked_function_arn.split(":")[3]
+                    account_id = context.invoked_function_arn.split(":")[4]
+                    lambda_client.add_permission(
+                      FunctionName=destination_arn,
+                      StatementId=f'allow-trigger-from-{log_group_to_subscribe}',
+                      Action='lambda:InvokeFunction',
+                      Principal='logs.amazonaws.com',
+                      SourceArn=f'arn:aws:logs:{region}:{account_id}:log-group:{log_group_to_subscribe}:*',
+                    )
                     cloudwatch_logs.put_subscription_filter(
                         destinationArn=destination_arn,
-                        filterName= filter_name,
+                        filterName= "coralogix-aws-shipper-cloudwatch-trigger",
                         filterPattern=logs_filter,
                         logGroupName=log_group_to_subscribe,
                     )

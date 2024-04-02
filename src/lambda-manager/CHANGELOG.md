@@ -2,6 +2,10 @@
 
 ## lambda-manager
 
+## 2.0.1  / 04-2-2024
+### 💡 Enhancements 💡
+- Update lambda code so it will not require the allow all policy
+
 ## 2.0.0 🎉 / 02-20-2024
 ### 🛑 Breaking changes 🛑
 - New CloudFormation Template does not deploy firehose stream as part of the deployment.
