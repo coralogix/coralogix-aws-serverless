@@ -16,7 +16,7 @@ Metadata:
       - cloudwatch
       - lambda
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 2.0.0
+    SemanticVersion: 2.0.1
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -113,7 +113,7 @@ Resources:
       Description: Adds Coralogix firehose to Loggroups
       CodeUri: .
       Handler: lambda_function.lambda_handler
-      Runtime: python3.12
+      Runtime: python3.10
       MemorySize:
         Ref: FunctionMemorySize
       Timeout:
@@ -139,6 +139,7 @@ Resources:
               Action:
                 - lambda:UpdateFunctionConfiguration
                 - lambda:GetFunctionConfiguration
+                - lambda:AddPermission
               Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:*"
             - Sid: CWSubscriptionPolicy
               Effect: Allow
@@ -153,7 +154,7 @@ Resources:
               Action: 
                 - iam:PassRole
               Resource: 
-                - !Sub "arn:aws:iam::${AWS::AccountId}:role/*"      
+                - !Sub "arn:aws:iam::${AWS::AccountId}:role/*"
       EventInvokeConfig:
         DestinationConfig:
           OnFailure:
