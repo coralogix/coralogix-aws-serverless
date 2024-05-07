@@ -18,7 +18,7 @@ jobs:
       packages: ${{ steps.get-changed-packages.outputs.packages }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -39,14 +39,14 @@ jobs:
         package: ${{ fromJSON(needs.check.outputs.packages) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - uses: aws-actions/setup-sam@v2
         with:
           use-installer: true
 
       - if: ${{ matrix.package != 'helper' }}
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -68,14 +68,14 @@ jobs:
         package: ${{ fromJSON(needs.check.outputs.packages) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - uses: aws-actions/setup-sam@v2
         with:
           use-installer: true
 
       - if: ${{ matrix.package != 'helper' }}
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -127,7 +127,7 @@ jobs:
           name: ${{ matrix.package }}-packaged.yaml
 
       - if: ${{ matrix.package != 'helper' }}
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

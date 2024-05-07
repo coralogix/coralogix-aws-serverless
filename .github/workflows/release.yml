@@ -18,7 +18,7 @@ jobs:
       AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Init
         working-directory: infra/
@@ -42,7 +42,7 @@ jobs:
       packages: ${{ steps.get-changed-packages.outputs.packages }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -63,7 +63,7 @@ jobs:
         package: ${{ fromJSON(needs.check.outputs.packages) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Validate
         working-directory: src/${{ matrix.package }}
@@ -79,7 +79,7 @@ jobs:
         package: ${{ fromJSON(needs.check.outputs.packages) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build
         working-directory: ./src/${{ matrix.package }}
@@ -96,7 +96,7 @@ jobs:
 
       - name: Store
         if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.package }}-packaged.yaml
           path: src/${{ matrix.package }}/packaged.yaml
@@ -113,7 +113,7 @@ jobs:
         package: ${{ fromJSON(needs.check.outputs.packages) }}
     steps:
       - name: Download
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.package }}-packaged.yaml
 
