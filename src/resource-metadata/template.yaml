@@ -87,7 +87,8 @@ Parameters:
       - AP2
       - US1
       - US2
-    Default: EU1
+      - Custom
+    Default: Custom
   CustomDomain:
     Type: String
     Description: The Coralogix custom domain
@@ -172,6 +173,8 @@ Mappings:
       MetadataUrl: coralogix.us
     US2:
       MetadataUrl: cx498.coralogix.com
+    Custom:
+      MetadataUrl: ""
 
 Conditions:
   IsNotificationEnabled:
