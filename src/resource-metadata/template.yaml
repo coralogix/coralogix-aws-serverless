@@ -79,7 +79,7 @@ Metadata:
 Parameters:
   CoralogixRegion:
     Type: String
-    Description: The Coralogix location region [EU1, EU2, AP1, AP2, US1, US2]
+    Description: The Coralogix location region [EU1, EU2, AP1, AP2, US1, US2, Custom]
     AllowedValues:
       - EU1
       - EU2
