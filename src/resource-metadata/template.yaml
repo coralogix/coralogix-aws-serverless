@@ -13,7 +13,7 @@ Metadata:
       - coralogix
       - metadata
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.2.8
+    SemanticVersion: 1.2.9
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -79,17 +79,16 @@ Metadata:
 Parameters:
   CoralogixRegion:
     Type: String
-    Description: The Coralogix location region [Europe, Europe2, India, Singapore, US, US2]
+    Description: The Coralogix location region [EU1, EU2, AP1, AP2, US1, US2, Custom]
     AllowedValues:
-      - DevShared
-      - Staging
-      - Europe
-      - Europe2
-      - India
-      - Singapore
-      - US
+      - EU1
+      - EU2
+      - AP1
+      - AP2
+      - US1
       - US2
-    Default: Europe
+      - Custom
+    Default: Custom
   CustomDomain:
     Type: String
     Description: The Coralogix custom domain
@@ -162,22 +161,20 @@ Parameters:
     Default: 'True'
 Mappings:
   CoralogixRegionMap:
-    DevShared:
-      MetadataUrl: dev-shared.coralogix.net
-    Staging:
-      MetadataUrl: staging.coralogix.net
-    Europe:
+    EU1:
       MetadataUrl: coralogix.com
-    Europe2:
+    EU2:
       MetadataUrl: eu2.coralogix.com
-    India:
+    AP1:
       MetadataUrl: app.coralogix.in
-    Singapore:
+    AP2:
       MetadataUrl: coralogixsg.com
-    US:
+    US1:
       MetadataUrl: coralogix.us
     US2:
       MetadataUrl: cx498.coralogix.com
+    Custom:
+      MetadataUrl: ""
 
 Conditions:
   IsNotificationEnabled:
