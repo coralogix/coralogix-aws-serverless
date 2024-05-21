@@ -2,6 +2,9 @@
 
 ## resource-metadata
 
+### 1.2.9 / 21.05.2024
+* [Update] update dependencies and remove jest and babel
+
 ### 1.2.8 / 8.02.2024
 * [Update] update dependencies and remove jest and babel
 
