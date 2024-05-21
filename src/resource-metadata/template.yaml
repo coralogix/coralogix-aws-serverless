@@ -5,7 +5,7 @@ Metadata:
   AWS::ServerlessRepo::Application:
     Name: Coralogix-Resource-Metadata
     Description: Send resource metadata to Coralogix.
-    Author: guy
+    Author: Coralogix
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
     ReadmeUrl: README.md
