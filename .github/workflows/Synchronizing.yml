@@ -7,7 +7,7 @@ on:
     paths:
       - "src/**/template.*"
       - "src/**/README.md"
-     
+
 jobs:
   Get-matrix:
     runs-on: ubuntu-latest
@@ -30,7 +30,7 @@ jobs:
         touch template-readme-directory/file.tmp
 
     - name: Upload template-readme-directory
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v4.3.3
       with:
         name: template-readme-directory
         path: ./template-readme-directory/
@@ -39,7 +39,7 @@ jobs:
       run: touch change_file_list.txt
 
     - name: Upload changes file list
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v4.3.3
       with:
         name: change_file_list
         path: change_file_list.txt
@@ -54,26 +54,27 @@ jobs:
       max-parallel: 1
     steps:
       - uses: actions/checkout@v4
+          
       - id: changes
         uses: dorny/paths-filter@v3
         with:
           filters: |
             '${{ matrix.package }}':
               - 'src/${{ matrix.package }}/**'
-          
-      - if: steps.changes.outputs[matrix.package] == 'true'          
+
+      - if: steps.changes.outputs[matrix.package] == 'true'
         name: Change template and README to CF
         run: |
           chmod +x scripts/replace_codeuri.sh
           scripts/replace_codeuri.sh src/${{ matrix.package }}/template.* ${{ matrix.package }} src/${{ matrix.package }}/README.md
 
-      - if: steps.changes.outputs[matrix.package] == 'true'      
+      - if: steps.changes.outputs[matrix.package] == 'true'     
         name: Create template and readme directory
         run: mkdir template-readme-directory
 
       - if: steps.changes.outputs[matrix.package] == 'true'      
         name: Download template and readme artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: template-readme-directory
           path: ./template-readme-directory
@@ -89,9 +90,9 @@ jobs:
       
       - if: steps.changes.outputs[matrix.package] == 'true' 
         name: Upload template-readme-directory
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.3.3
         with:
-          name: template-readme-directory
+          name: template-readme-directory-${{ matrix.package }}
           path: ./template-readme-directory/ 
 
       - if: steps.changes.outputs[matrix.package] == 'true'      
@@ -106,9 +107,9 @@ jobs:
           
       - if: steps.changes.outputs[matrix.package] == 'true' 
         name: Upload change_file_list
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.3.3
         with:
-          name: change_file_list
+          name: change_file_list_${{ matrix.package }}
           path: change_file_list.txt   
 
   Push-changes:
@@ -128,43 +129,56 @@ jobs:
       - name: Download template-readme-directory
         uses: actions/download-artifact@v4
         with:
-          name: template-readme-directory
+          # name: template-readme-directory
           path: ./template-readme-directory
 
       - name: Download change_file_list
         uses: actions/download-artifact@v4
-        with:
-          name: change_file_list
+        # with:
+        #   name: change_file_list
 
       - name: Commit and push chage files 
         run: |
-          while IFS= read -r line; do
+          echo "the file"
+          ls | grep change_file_list
+          echo "end of file"
+          for file in change_file_list_*; do
+            line="${file#change_file_list_}"
+            echo "The integration is:"
+            echo $line
             if [[ -d "aws-integrations/lambda-integrations/$line" ]]; then
-              mv template-readme-directory/${line}_README aws-integrations/lambda-integrations/$line/README.md
-              mv template-readme-directory/${line}_template.yaml aws-integrations/lambda-integrations/$line/template.yaml
-              if [ -f "template-readme-directory/${line}_CHANGELOG.md" ]; then
-                mv template-readme-directory/${line}_CHANGELOG.md aws-integrations/lambda-integrations/$line/CHANGELOG.md
+              echo " in the if"
+              mv template-readme-directory-${line}/${line}_README aws-integrations/lambda-integrations/$line/README.md
+              mv template-readme-directory-${line}/${line}_template.yaml aws-integrations/lambda-integrations/$line/template.yaml
+              if [ -f "template-readme-directory-${line}/${line}_CHANGELOG.md" ]; then
+                mv template-readme-directory-${line}/${line}_CHANGELOG.md aws-integrations/lambda-integrations/$line/CHANGELOG.md
               fi
             else 
-              mkdir aws-integrations/lambda-integrations/$line/
-              mv template-readme-directory/${line}_README aws-integrations/lambda-integrations/$line/README.md
-              mv template-readme-directory/${line}_template.yaml aws-integrations/lambda-integrations/$line/template.yaml
-              if [ -f "template-readme-directory/${line}_CHANGELOG.md" ]; then
-                mv template-readme-directory/${line}_CHANGELOG.md aws-integrations/lambda-integrations/$line/CHANGELOG.md
+              echo "in the else condition"
+              mkdir aws-integrations/lambda-integrations/$line
+              mv template-readme-directory-${line}/${line}_README aws-integrations/lambda-integrations/$line/README.md
+              mv template-readme-directory-${line}/${line}_template.yaml aws-integrations/lambda-integrations/$line/template.yaml
+              if [ -f "template-readme-directory-${line}/${line}_CHANGELOG.md" ]; then
+                mv template-readme-directory-${line}/${line}_CHANGELOG.md aws-integrations/lambda-integrations/$line/CHANGELOG.md
               fi
             fi
-          done < "change_file_list.txt"
-          rm change_file_list.txt
-          rm -rf template-readme-directory
+          done
+          rm -rf change_file_list*
+          rm -rf template-readme-directory*
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git checkout master
           git pull
           git add .
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "commit_message=sync-from-serverless" >> $GITHUB_ENV
+          else
+            echo "commit_message=${{ github.event.pull_request.title }}" >> $GITHUB_ENV
+          fi
           
       - uses: planetscale/ghcommit-action@v0.1.19
         with:
-          commit_message: "${{ github.event.pull_request.title }}"
+          commit_message: ${{ env.commit_message }}
           repo: coralogix/cloudformation-coralogix-aws
           branch: master
           file_pattern: '*.yaml *.md'
