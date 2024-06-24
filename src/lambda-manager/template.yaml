@@ -16,7 +16,7 @@ Metadata:
       - cloudwatch
       - lambda
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 2.0.1
+    SemanticVersion: 2.0.2
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -81,6 +81,10 @@ Conditions:
       - Fn::Equals:
           - Ref: NotificationEmail
           - ''
+  ScanOldLogGroups:
+    Fn::Equals:
+      - Ref: ScanOldLogGroups
+      - 'true'
 Resources:
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -175,6 +179,14 @@ Resources:
                   - "CreateLogGroup"
             Target:
                 Id: cx-loggroup-target
+
+  LambdaTrigger:
+    Type: Custom::LambdaTrigger
+    Condition: ScanOldLogGroups
+    DependsOn: LambdaFunction
+    Properties:
+      ServiceToken: !GetAtt LambdaFunction.Arn
+
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
     Condition: IsNotificationEnabled
