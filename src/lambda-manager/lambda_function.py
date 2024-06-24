@@ -204,11 +204,12 @@ def lambda_handler(event, context):
         print(f"Failed with exception: {e}")
         status = cfnresponse.FAILED
     finally:
-        print("Sending response to custom resource")
-        cfnresponse.send(
-            event,
-            context,
-            status,
-            {},
-            event.get('PhysicalResourceId', context.aws_request_id)
-        )
+        if "RequestType" in event:
+            print("Sending response to custom resource")
+            cfnresponse.send(
+                event,
+                context,
+                status,
+                {},
+                event.get('PhysicalResourceId', context.aws_request_id)
+            )
