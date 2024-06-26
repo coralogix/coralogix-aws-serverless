@@ -54,13 +54,11 @@ def lambda_handler(event, context):
             for regex_pattern in regex_pattern_list:
                 if regex_pattern and re.match(regex_pattern, log_group_to_subscribe):
                     if destination_type == 'firehose':
-                        print(f"Adding subscription filter for {log_group_to_subscribe}")
                         status = add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn, role_arn)
                     elif destination_type == 'lambda':
                         try:
                             if not check_if_log_group_exist_in_log_group_permission_prefix(log_group_to_subscribe, log_group_permission_prefix):
                                 add_permission_to_lambda(destination_arn, log_group_to_subscribe, region, account_id)
-                            print(f"Adding subscription filter for {log_group_to_subscribe}")
                             status = add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn)
                         except Exception as e:
                             print(f"Failed to put subscription filter for {log_group_to_subscribe}: {e}")
@@ -109,6 +107,8 @@ def list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern_list, logs_
         elif len(subscriptions) < 2:
             create_subscription = True
             for subscription in subscriptions:
+                print(f" subscription length {len(subscriptions)}")
+                print(f" subscription arn {subscription['destinationArn']}")
                 if subscription['destinationArn'] == destination_arn:
                     print(f"  Subscription already exists for {log_group_name}")
                     create_subscription = False
@@ -121,15 +121,14 @@ def list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern_list, logs_
                     if identify_arn_service(destination_arn) == "lambda":
                         if not check_if_log_group_exist_in_log_group_permission_prefix(log_group_name, log_group_permission_prefix):
                             add_permission_to_lambda(destination_arn, log_group_name, region, account_id)
-                        print(f"Adding subscription filter for {log_group_name}")
                         add_subscription(filter_name, logs_filter, log_group_name, destination_arn)
                     else:
-                        print(f"Adding subscription filter for {log_group_name}")
                         add_subscription(filter_name, logs_filter, log_group_name, destination_arn, role_arn)
                     break # no need to continue the loop if we find a match for the log group
 
 def add_subscription(filter_name: str, logs_filter: str, log_group_to_subscribe: str, destination_arn: str, role_arn: str = None) -> str:
     '''Add subscription to CloudWatch log group'''
+    print(f"Adding subscription filter for {log_group_to_subscribe}")
     try:
         if role_arn is None:
             cloudwatch_logs.put_subscription_filter(
