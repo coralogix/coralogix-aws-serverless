@@ -8,12 +8,13 @@ Environment variables:
 |---|---|---|---|
 | RegexPattern | Set up this regex to match the Log Groups names that you want to automatically subscribe to the destination| | :heavy_check_mark: |
 | LogsFilter | Subscription filter to select which logs needs to be sent to Coralogix. For Example for Lambda Errors that are not sendable by Coralogix Lambda Layer '?REPORT ?"Task timed out" ?"Process exited before completing" ?errorMessage ?"module initialization error:" ?"Unable to import module" ?"ERROR Invoke Error" ?"EPSAGON_TRACE:"'. | | :heavy_check_mark: |
-| DESTINATION_ARN | Arn for the firehose to subscribe the log groups (By default is the firehose created by Serverless Template) | | :heavy_check_mark: |
-| DESTINATION_ROLE | Arn for the role to allow destination subscription to be pushed (Lambda or Firehose) | | :heavy_check_mark: |
+| DESTINATION_ARN | Arn for the firehose / lambda to subscribe the log groups | | :heavy_check_mark: |
+| DESTINATION_ROLE | Arn for the role to allow destination subscription to be pushed (needed only for Firehose) | | :heavy_check_mark: |
 | DESTINATION_TYPE | Type of destination (Lambda or Firehose) | | :heavy_check_mark: |
-| SCAN_OLD_LOGGROUPS | This will scan all LogGroups in the account and apply the subscription configured, will only run Once and set to false. Default is false | false | :heavy_check_mark: |
-| FunctionMemorySize | The maximum allocated memory this lambda may consume. Default value is the minimum recommended setting please consult coralogix support before changing. | 1024 |  |
-| FunctionTimeout | The maximum time in seconds the function may be allowed to run. Default value is the minimum recommended setting please consult coralogix support before changing. | 300 |  |
+| SCAN_OLD_LOGGROUPS | When set to true the lambda will scan all existing log group and add the ones that match the RegexPattern as a trigger, the scan will only happen on the creation of the lambda after that it will only detect a new log group. | false | |
+| LogGroupPermissionPreFix | Instead of creating one permission for each log group in the destination lambda, the code will take the prefix that you set in the parameter and create 1 permission for all of the log groups that match the prefix, for example if you will define "/aws/log/logs" than the lambda will create only 1 permission for all of your log groups that start with /aws/log/logs instead of 1 permision for each of the log group. use this parameter when you have more than 50 log groups. Pay attention that you will not see the log groups as a trigger in the lambda if you use this parameter. | n/a | |
+| FunctionMemorySize | The maximum allocated memory this lambda may consume. The default value is the minimum recommended setting please consult coralogix support before changing. | 1024 |  |
+| FunctionTimeout | The maximum time in seconds the function may be allowed to run. The default value is the minimum recommended setting please consult coralogix support before changing. | 300 |  |
 | NotificationEmail | Failure notification email address | | |
 
 ## Requirements
