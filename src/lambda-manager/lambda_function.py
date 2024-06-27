@@ -4,141 +4,31 @@ import re
 import uuid
 import cfnresponse 
 
-def identify_arn_service(arn):
-    arn_parts = arn.split(':')
-    if len(arn_parts) < 6:
-        return "Invalid ARN format"
-    service = arn_parts[2]
-    if service == "lambda":
-        return "lambda"
-    elif service == "firehose":
-        return "firehose"
-    else:
-        return "Unknown AWS Service"
-
-def list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern, logs_filter, destination_arn, role_arn, filter_name, context):
-    log_groups = []
-    response = {'nextToken': None}  # Initialize with a dict containing nextToken as None
-    print("Scanning all log groups")
-    while response.get('nextToken') is not None or 'logGroups' not in response:
-        kwargs = {}
-        if 'nextToken' in response and response['nextToken'] is not None:
-            kwargs['nextToken'] = response['nextToken']
-        response = cloudwatch_logs.describe_log_groups(**kwargs)
-        log_groups.extend(response['logGroups'])
-    for log_group in log_groups:
-        log_group_name = log_group['logGroupName']
-        if regex_pattern and re.match(regex_pattern, log_group_name):
-            print(f"Log Group: {log_group_name}")
-
-            subscriptions = cloudwatch_logs.describe_subscription_filters(logGroupName=log_group_name)
-            subscriptions = subscriptions.get('subscriptionFilters')
-            print(f" Subscriptions: {subscriptions} for {log_group_name}")
-            print(f" Subscriptions length: {len(subscriptions)} for {log_group_name}")
-            if subscriptions is None or len(subscriptions) == 0:
-                print(f"  No subscriptions found for {log_group_name}")
-                destination_type = identify_arn_service(destination_arn)
-                print(f"  Subscribing {log_group_name} to {destination_type} {destination_arn}")
-                if destination_type == 'firehose':
-                    try:
-                        cloudwatch_logs.put_subscription_filter(
-                            destinationArn=destination_arn,
-                            roleArn=role_arn,
-                            filterName= filter_name,
-                            filterPattern=logs_filter,
-                            logGroupName=log_group_name,
-                        )
-                    except Exception as e:
-                        print(f"Failed to put subscription filter for {log_group_name}: {e}")
-                        continue
-                elif destination_type == 'lambda':
-                    try:
-                        lambda_client = boto3.client('lambda')
-                        region = context.invoked_function_arn.split(":")[3]
-                        account_id = context.invoked_function_arn.split(":")[4]
-                        lambda_client.add_permission(
-                          FunctionName=destination_arn,
-                          StatementId=f'allow-trigger-from-{log_group_name}',
-                          Action='lambda:InvokeFunction',
-                          Principal='logs.amazonaws.com',
-                          SourceArn=f'arn:aws:logs:{region}:{account_id}:log-group:{log_group_name}:*',
-                        )
-                        cloudwatch_logs.put_subscription_filter(
-                            destinationArn=destination_arn,
-                            filterName= "coralogix-aws-shipper-cloudwatch-trigger",
-                            filterPattern=logs_filter,
-                            logGroupName=log_group_name,
-                        )
-                    except Exception as e:
-                        print(f"Failed to put subscription filter for {log_group_name}: {e}")
-                        continue
-                else:
-                    print(f"Invalid destination type {destination_type}")
-            for subscription in subscriptions:
-                print(f" subscription length {len(subscriptions)}")
-                print(f" subscription arn {subscription['destinationArn']}")
-                if subscription['destinationArn'] == destination_arn:
-                    print(f"  Subscription already exists for {log_group_name}")
-                    continue
-                if len(subscriptions) == 2:
-                    print(f"  Subscriptions limit for {log_group_name}")
-                    print(f" subscription length {len(subscriptions)}")
-                    continue
-
-                destination_type = identify_arn_service(destination_arn)
-                print(f"  Subscribing {log_group_name} to {destination_type} {destination_arn}")
-                if destination_type == 'firehose':
-                    try:
-                        cloudwatch_logs.put_subscription_filter(
-                            destinationArn=destination_arn,
-                            roleArn=role_arn,
-                            filterName= filter_name,
-                            filterPattern=logs_filter,
-                            logGroupName=log_group_name,
-                        )
-                    except Exception as e:
-                        print(f"Failed to put subscription filter for {log_group_name}: {e}")
-                        continue
-                elif destination_type == 'lambda':
-                    try:
-                        lambda_client = boto3.client('lambda')
-                        region = context.invoked_function_arn.split(":")[3]
-                        account_id = context.invoked_function_arn.split(":")[4]
-                        lambda_client.add_permission(
-                          FunctionName=destination_arn,
-                          StatementId=f'allow-trigger-from-{log_group_name}',
-                          Action='lambda:InvokeFunction',
-                          Principal='logs.amazonaws.com',
-                          SourceArn=f'arn:aws:logs:{region}:{account_id}:log-group:{log_group_name}:*',
-                        )
-                        cloudwatch_logs.put_subscription_filter(
-                            destinationArn=destination_arn,
-                            filterName= "coralogix-aws-shipper-cloudwatch-trigger",
-                            filterPattern=logs_filter,
-                            logGroupName=log_group_name,
-                        )
-                    except Exception as e:
-                        print(f"Failed to put subscription filter for {log_group_name}: {e}")
-                        continue
-                else:
-                    print(f"Invalid destination type {destination_type}")
+cloudwatch_logs = boto3.client('logs')
 
 def lambda_handler(event, context):
     status = cfnresponse.SUCCESS
+    lambda_client = boto3.client('lambda')
     try:
-        cloudwatch_logs     = boto3.client('logs')
-        regex_pattern       = os.environ.get('REGEX_PATTERN')
+        regex_pattern_list  = os.environ.get('REGEX_PATTERN').split(',')
         destination_type    = os.environ.get('DESTINATION_TYPE')
         logs_filter         = os.environ.get('LOGS_FILTER', '')
         scan_all_log_groups = os.environ.get('SCAN_OLD_LOGGROUPS', 'false')
         destination_arn     = os.environ.get('DESTINATION_ARN')
         role_arn            = os.environ.get('DESTINATION_ROLE')
         filter_name         = 'Coralogix_Filter_' + str(uuid.uuid4())
+        log_group_permission_prefix = os.environ.get('LOG_GROUP_PERMISSION_PREFIX', '').split(',')
+        region              = context.invoked_function_arn.split(":")[3]
+        account_id          = context.invoked_function_arn.split(":")[4]
+
+        if "RequestType" in event and event['RequestType'] == 'Create' and log_group_permission_prefix != ['']:
+            print("Addning permissions in creation")
+            add_permissions_first_time(destination_arn, log_group_permission_prefix, region, account_id)
 
         print(f"Scanning all log groups: {scan_all_log_groups}")
         if scan_all_log_groups == 'true' and "RequestType" in event:
-            list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern, logs_filter, destination_arn, role_arn, filter_name, context)
-            lambda_client = boto3.client('lambda')
+            list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern_list, logs_filter, destination_arn, role_arn, filter_name, context,log_group_permission_prefix)
+
             function_name = context.function_name
 
             # Fetch the current function configuration
@@ -161,45 +51,25 @@ def lambda_handler(event, context):
         elif scan_all_log_groups != 'true' and "RequestType" not in event:
             log_group_to_subscribe = event['detail']['requestParameters']['logGroupName']
             print(f"Log Group: {log_group_to_subscribe}")
-            if regex_pattern and re.match(regex_pattern, log_group_to_subscribe):
-                if destination_type == 'firehose':
+            for regex_pattern in regex_pattern_list:
+                if regex_pattern and re.match(regex_pattern, log_group_to_subscribe):
+                    if destination_type == 'firehose':
+                        print(f"Adding subscription filter for {log_group_to_subscribe}")
+                        status = add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn, role_arn)
+                    elif destination_type == 'lambda':
                         try:
-                            cloudwatch_logs.put_subscription_filter(
-                                destinationArn=destination_arn,
-                                roleArn=role_arn,
-                                filterName= filter_name,
-                                filterPattern=logs_filter,
-                                logGroupName=log_group_to_subscribe,
-                            )
+                            if not check_if_log_group_exist_in_log_group_permission_prefix(log_group_to_subscribe, log_group_permission_prefix):
+                                add_permission_to_lambda(destination_arn, log_group_to_subscribe, region, account_id)
+                            print(f"Adding subscription filter for {log_group_to_subscribe}")
+                            status = add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn)
                         except Exception as e:
                             print(f"Failed to put subscription filter for {log_group_to_subscribe}: {e}")
                             status = cfnresponse.FAILED
-                elif destination_type == 'lambda':
-                    try:
-                        lambda_client = boto3.client('lambda')
-                        region = context.invoked_function_arn.split(":")[3]
-                        account_id = context.invoked_function_arn.split(":")[4]
-                        lambda_client.add_permission(
-                          FunctionName=destination_arn,
-                          StatementId=f'allow-trigger-from-{log_group_to_subscribe}',
-                          Action='lambda:InvokeFunction',
-                          Principal='logs.amazonaws.com',
-                          SourceArn=f'arn:aws:logs:{region}:{account_id}:log-group:{log_group_to_subscribe}:*',
-                        )
-                        cloudwatch_logs.put_subscription_filter(
-                            destinationArn=destination_arn,
-                            filterName= "coralogix-aws-shipper-cloudwatch-trigger",
-                            filterPattern=logs_filter,
-                            logGroupName=log_group_to_subscribe,
-                        )
-                    except Exception as e:
-                        print(f"Failed to put subscription filter for {log_group_to_subscribe}: {e}")
+                    else:
+                        print(f"Invalid destination type {destination_type}")
                         status = cfnresponse.FAILED
                 else:
-                    print(f"Invalid destination type {destination_type}")
-                    status = cfnresponse.FAILED
-            else:
-                print(f"Loggroup {log_group_to_subscribe} excluded")
+                    print(f"Loggroup {log_group_to_subscribe} excluded")
     except Exception as e:
         print(f"Failed with exception: {e}")
         status = cfnresponse.FAILED
@@ -213,3 +83,120 @@ def lambda_handler(event, context):
                 {},
                 event.get('PhysicalResourceId', context.aws_request_id)
             )
+
+def list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern_list, logs_filter, destination_arn, role_arn, filter_name, context,log_group_permission_prefix):
+    '''Scan for all of the log groups in the region and add subscription to the log groups that match the regex pattern, this function will only run 1 time'''
+    log_groups = []
+    create_subscription = False
+    response = {'nextToken': None}  # Initialize with a dict containing nextToken as None
+    print("Scanning all log groups")
+    while response.get('nextToken') is not None or 'logGroups' not in response:
+        kwargs = {}
+        if 'nextToken' in response and response['nextToken'] is not None:
+            kwargs['nextToken'] = response['nextToken']
+        response = cloudwatch_logs.describe_log_groups(**kwargs)
+        log_groups.extend(response['logGroups'])
+    region = context.invoked_function_arn.split(":")[3]
+    account_id = context.invoked_function_arn.split(":")[4]
+    for log_group in log_groups:
+        log_group_name = log_group['logGroupName']
+        
+        subscriptions = cloudwatch_logs.describe_subscription_filters(logGroupName=log_group_name)
+        subscriptions = subscriptions.get('subscriptionFilters')
+
+        if subscriptions == None:
+            create_subscription = True
+        elif len(subscriptions) < 2:
+            create_subscription = True
+            for subscription in subscriptions:
+                if subscription['destinationArn'] == destination_arn:
+                    print(f"  Subscription already exists for {log_group_name}")
+                    create_subscription = False
+                    break
+
+        if create_subscription:
+            for regex_pattern in regex_pattern_list:
+                if regex_pattern and re.match(regex_pattern, log_group_name):
+                    print(f"Log Group: {log_group_name}")
+                    if identify_arn_service(destination_arn) == "lambda":
+                        if not check_if_log_group_exist_in_log_group_permission_prefix(log_group_name, log_group_permission_prefix):
+                            add_permission_to_lambda(destination_arn, log_group_name, region, account_id)
+                        print(f"Adding subscription filter for {log_group_name}")
+                        add_subscription(filter_name, logs_filter, log_group_name, destination_arn)
+                    else:
+                        print(f"Adding subscription filter for {log_group_name}")
+                        add_subscription(filter_name, logs_filter, log_group_name, destination_arn, role_arn)
+                    break # no need to continue the loop if we find a match for the log group
+
+def add_subscription(filter_name: str, logs_filter: str, log_group_to_subscribe: str, destination_arn: str, role_arn: str = None) -> str:
+    '''Add subscription to CloudWatch log group'''
+    try:
+        if role_arn is None:
+            cloudwatch_logs.put_subscription_filter(
+                destinationArn=destination_arn,
+                filterName= filter_name,
+                filterPattern=logs_filter,
+                logGroupName=log_group_to_subscribe,
+            )
+        else:
+            cloudwatch_logs.put_subscription_filter(
+                destinationArn=destination_arn,
+                roleArn=role_arn,
+                filterName= filter_name,
+                filterPattern=logs_filter,
+                logGroupName=log_group_to_subscribe,
+            )
+        return cfnresponse.SUCCESS
+    except Exception as e:
+        print(f"Failed to put subscription filter for {log_group_to_subscribe}: {e}")
+        return cfnresponse.FAILED
+
+def add_permissions_first_time(destination_arn: str, log_group_permission_prefix: list[str], region: str, account_id: str):
+    '''Add permissions to the lambda on the creation of the lambda function for the first time'''
+    lambda_client   = boto3.client('lambda')
+    for prefix in log_group_permission_prefix:
+        try:
+            lambda_client.add_permission(
+                FunctionName=destination_arn,
+                StatementId=f'allow-trigger-from-{prefix.replace("/","")}-log-groups',
+                Action='lambda:InvokeFunction',
+                Principal='logs.amazonaws.com',
+                SourceArn=f'arn:aws:logs:{region}:{account_id}:log-group:{prefix}*:*',
+            )
+        except Exception as e:
+            print(f"Failed to add permission {prefix}: {e}")
+
+def add_permission_to_lambda(destination_arn: str, log_group_name: str, region: str, account_id: str):
+    '''In case that the log group is not part of the log_group_permission_prefix then add permissions for it to the lambda function'''
+    lambda_client   = boto3.client('lambda')
+    try:
+        lambda_client.add_permission(
+            FunctionName=destination_arn,
+            StatementId=f'allow-trigger-from-{log_group_name.replace('/','')}',
+            Action='lambda:InvokeFunction',
+            Principal='logs.amazonaws.com',
+            SourceArn=f'arn:aws:logs:{region}:{account_id}:log-group:{log_group_name}:*',
+        )
+    except Exception as e:
+        print(f"Failed to add permission to lambda {destination_arn}: {e}")
+
+def check_if_log_group_exist_in_log_group_permission_prefix(log_group_name: str, log_group_permission_prefix: str) -> bool:
+    '''Check if the log group is part of the log_group_permission_prefix'''
+    if log_group_permission_prefix == ['']:
+        return False
+    for prefix in log_group_permission_prefix:
+        if log_group_name.startswith(prefix):
+            return True
+    return False
+
+def identify_arn_service(arn: str) -> str:
+    arn_parts = arn.split(':')
+    if len(arn_parts) < 6:
+        return "Invalid ARN format"
+    service = arn_parts[2]
+    if service == "lambda":
+        return "lambda"
+    elif service == "firehose":
+        return "firehose"
+    else:
+        return "Unknown AWS Service"

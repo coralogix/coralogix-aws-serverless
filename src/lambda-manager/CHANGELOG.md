@@ -2,6 +2,10 @@
 
 ## lambda-manager
 
+## 2.0.3  / 26-06-2024
+### 💡 Enhancements 💡
+- Add a new parameter LogGroupPermissionPreFix, when defined the lambda will not create permission for each log group, but 1 permission for the prefix defined in the parameter.
+
 ## 2.0.2  / 24-06-2024
 ### 💡 Enhancements 💡
 - Update the lambda to trigger on creation if ScanOldLogGroups is set to true

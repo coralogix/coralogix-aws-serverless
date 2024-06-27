@@ -16,7 +16,7 @@ Metadata:
       - cloudwatch
       - lambda
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 2.0.2
+    SemanticVersion: 2.0.3
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -56,8 +56,12 @@ Parameters:
     Default: false
   RegexPattern:
     Type: String
-    Description: Loggroup name regex pattern
+    Description: Comma-separated list of Loggroup name regex pattern
     Default: \/aws\/lambda\/.*
+  LogGroupPermissionPreFix:
+    Type: String
+    Description: instead creating one permission for each log group in the destination lambda, the code will take the prefix that you set in the parameter and create 1 permission for all of the log groups that match the prefix
+    Default: ""
   FunctionMemorySize:
     Type: Number
     Description: Lambda function memory limit
@@ -81,10 +85,6 @@ Conditions:
       - Fn::Equals:
           - Ref: NotificationEmail
           - ''
-  ScanOldLogGroups:
-    Fn::Equals:
-      - Ref: ScanOldLogGroups
-      - 'true'
 Resources:
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -136,6 +136,8 @@ Resources:
             Ref: DestinationType
           SCAN_OLD_LOGGROUPS:
             Ref: ScanOldLogGroups
+          LOG_GROUP_PERMISSION_PREFIX:
+            Ref: LogGroupPermissionPreFix
       Policies:
         - Statement:
             - Sid: CXLambdaUpdateConfig
@@ -182,7 +184,6 @@ Resources:
 
   LambdaTrigger:
     Type: Custom::LambdaTrigger
-    Condition: ScanOldLogGroups
     DependsOn: LambdaFunction
     Properties:
       ServiceToken: !GetAtt LambdaFunction.Arn
