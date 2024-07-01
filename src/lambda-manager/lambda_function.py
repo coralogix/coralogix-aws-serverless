@@ -64,6 +64,7 @@ def lambda_handler(event, context):
                             status = add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn)
                             if status == cfnresponse.FAILED:
                                 print(f"retrying to add subscription filter for {log_group_to_subscribe}")
+                                add_permission_to_lambda(destination_arn, log_group_to_subscribe, region, account_id)
                                 add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn)
                         except Exception as e:
                             print(f"Failed to put subscription filter for {log_group_to_subscribe}: {e}")
@@ -135,6 +136,7 @@ def list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern_list, logs_
                             status = add_subscription(filter_name, logs_filter, log_group_name, destination_arn)
                             if status == cfnresponse.FAILED:
                                 print(f"retrying to add subscription filter for {log_group_name}")
+                                add_permission_to_lambda(destination_arn, log_group_name, region, account_id)
                                 add_subscription(filter_name, logs_filter, log_group_name, destination_arn)
                         else:
                             print(f"Adding subscription filter for {log_group_name}")
@@ -162,6 +164,7 @@ def add_subscription(filter_name: str, logs_filter: str, log_group_to_subscribe:
                 filterPattern=logs_filter,
                 logGroupName=log_group_to_subscribe,
             )
+        print("Successfully put subscription filter for", log_group_to_subscribe)
         return cfnresponse.SUCCESS
     except Exception as e:
         print(f"Failed to put subscription filter for {log_group_to_subscribe}: {e}")
