@@ -6,8 +6,8 @@ import cfnresponse
 from botocore.config import Config
 
 config = Config(
-   retries = {
-      'max_attempts': 10,
+   retries = { 
+      'max_attempts': int(os.environ.get('AWS_API_REUESTS_LIMIT', 10)),
       'mode': 'standard'
    }
 )
