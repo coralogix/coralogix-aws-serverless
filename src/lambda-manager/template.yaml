@@ -16,7 +16,7 @@ Metadata:
       - cloudwatch
       - lambda
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 2.0.3
+    SemanticVersion: 2.0.4
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -62,6 +62,10 @@ Parameters:
     Type: String
     Description: instead creating one permission for each log group in the destination lambda, the code will take the prefix that you set in the parameter and create 1 permission for all of the log groups that match the prefix
     Default: ""
+  AWSApiRequestsLimit:
+    Type: Number
+    Description: In case you got an error in the lambda which is related to ThrottlingException, then you can increase the limit of the requests that the lambda can do to the AWS API.
+    Default: 10
   FunctionMemorySize:
     Type: Number
     Description: Lambda function memory limit
@@ -138,6 +142,8 @@ Resources:
             Ref: ScanOldLogGroups
           LOG_GROUP_PERMISSION_PREFIX:
             Ref: LogGroupPermissionPreFix
+          AWS_API_REUESTS_LIMIT:
+            Ref: AWSApiRequestsLimit
       Policies:
         - Statement:
             - Sid: CXLambdaUpdateConfig
