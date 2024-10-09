@@ -14,6 +14,13 @@ import { collectLambdaResources, parseLambdaFunctionArn } from './lambda.js'
 import { sendToCoralogix } from './coralogix.js'
 import { collectEc2Resources } from './ec2.js';
 
+const validateAndExtractConfiguration = () => {
+    const filterEC2= String(process.env.RESOURCE_TYPE_FILTER).toLowerCase() === 'ec2';
+    const filterLambda= String(process.env.RESOURCE_TYPE_FILTER).toLowerCase() === 'lambda';
+    return { filterEC2, filterLambda };
+}
+const { filterEC2, filterLambda } = validateAndExtractConfiguration();
+
 /**
  * @description Lambda function handler
  */
@@ -25,7 +32,10 @@ export const handler = async (_, context) => {
     const lambda = collectAndSendLambdaResources(collectorId)
     const ec2 = collectAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId)
 
-    await Promise.all([lambda, ec2])
+    let dataToCollect = []
+    if(!filterEC2) dataToCollect.push(ec2)
+    if(!filterLambda) dataToCollect.push(lambda)
+    await Promise.all(dataToCollect)
 
     console.info("Collection done")
 }
