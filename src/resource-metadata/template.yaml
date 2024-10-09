@@ -211,6 +211,14 @@ Conditions:
       - Fn::Equals:
           - Ref: CreateSecret
           - 'True'
+  IsEC2ResourceTypeFilter:
+    Fn::Equals:
+      - Ref: ResourceTypeFilter
+      - ec2
+  IsLambdaResourceTypeFilter:
+    Fn::Equals:
+      - Ref: ResourceTypeFilter
+      - lambda
 Resources:
   LambdaFunction:
     Condition: IsNotSMEnabled
@@ -264,6 +272,7 @@ Resources:
           OnFailure:
             Type: SNS
       Policies:
+        - !If 
         - Version: "2012-10-17"
           Statement:
             - Sid: GetEc2Metadata
@@ -349,25 +358,31 @@ Resources:
           OnFailure:
             Type: SNS
       Policies:
-        - Version: "2012-10-17"
-          Statement:
-            - Sid: GetEc2Metadata
-              Effect: Allow
-              Action:
-                - ec2:DescribeInstances
-              Resource: "*"
-        - Version: "2012-10-17"
-          Statement:
-            - Sid: GetLambdaMetadata
-              Effect: Allow
-              Action:
-                - lambda:ListFunctions
-                - lambda:ListVersionsByFunction
-                - lambda:GetFunction
-                - lambda:ListAliases
-                - lambda:ListEventSourceMappings
-                - lambda:GetPolicy
-              Resource: "*"
+        - !If 
+          - IsEC2ResourceTypeFilter
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetEc2Metadata
+                Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                Resource: "*"
+          - !Ref 'AWS::NoValue'
+        - If:
+          - IsLambdaResourceTypeFilter
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetLambdaMetadata
+                Effect: Allow
+                Action:
+                  - lambda:ListFunctions
+                  - lambda:ListVersionsByFunction
+                  - lambda:GetFunction
+                  - lambda:ListAliases
+                  - lambda:ListEventSourceMappings
+                  - lambda:GetPolicy
+                Resource: "*"
+          - !Ref 'AWS::NoValue' 
         - Version: "2012-10-17"
           Statement:
             - Sid: GetResourcesByTags
