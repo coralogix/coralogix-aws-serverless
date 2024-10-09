@@ -13,7 +13,7 @@ Metadata:
       - coralogix
       - metadata
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.2.9
+    SemanticVersion: 1.2.10
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -30,6 +30,7 @@ Metadata:
           - ResourceTtlMinutes
           - LatestVersionsPerFunction
           - CollectAliases
+          - ResourceTypeFilter
           - LambdaFunctionIncludeRegexFilter
           - LambdaFunctionExcludeRegexFilter
           - LambdaFunctionTagFilters
@@ -60,6 +61,8 @@ Metadata:
         default: Latest Versions Per Function
       CollectAliases:
         default: Collect Aliases
+      ResourceTypeFilter:
+        default: Resource Type Filter
       LambdaFunctionIncludeRegexFilter:
         default: Lambda Function Include Regex
       LambdaFunctionExcludeRegexFilter:
@@ -85,6 +88,7 @@ Parameters:
       - EU2
       - AP1
       - AP2
+      - AP3
       - US1
       - US2
       - Custom
@@ -115,6 +119,10 @@ Parameters:
     Type: String
     Description: '[True/False]'
     Default: 'False'
+  ResourceTypeFilter:
+    Type: String
+    Description: 'If specified, resources of the specified type will be excluded in the collected metadata [ec2, lambda]'
+    Default: ""
   LambdaFunctionIncludeRegexFilter:
     Type: String
     Description: 'If specified, only lambda functions with ARNs matching the regex will be included in the collected metadata'
@@ -169,6 +177,8 @@ Mappings:
       MetadataUrl: app.coralogix.in
     AP2:
       MetadataUrl: coralogixsg.com
+    AP3:
+      MetadataUrl: ap3.coralogix.com
     US1:
       MetadataUrl: coralogix.us
     US2:
@@ -311,6 +321,8 @@ Resources:
             Ref: LatestVersionsPerFunction
           COLLECT_ALIASES:
             Ref: CollectAliases
+          RESOURCE_TYPE_FILTER:
+            Ref: ResourceTypeFilter
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
           LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER:
