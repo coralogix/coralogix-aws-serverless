@@ -30,7 +30,7 @@ Metadata:
           - ResourceTtlMinutes
           - LatestVersionsPerFunction
           - CollectAliases
-          - ResourceTypeFilter
+          - ResourceTypeExclude
           - LambdaFunctionIncludeRegexFilter
           - LambdaFunctionExcludeRegexFilter
           - LambdaFunctionTagFilters
@@ -61,8 +61,8 @@ Metadata:
         default: Latest Versions Per Function
       CollectAliases:
         default: Collect Aliases
-      ResourceTypeFilter:
-        default: Resource Type Filter
+      ResourceTypeExclude:
+        default: Resource Type Exclude
       LambdaFunctionIncludeRegexFilter:
         default: Lambda Function Include Regex
       LambdaFunctionExcludeRegexFilter:
@@ -119,7 +119,7 @@ Parameters:
     Type: String
     Description: '[True/False]'
     Default: 'False'
-  ResourceTypeFilter:
+  ResourceTypeExclude:
     Type: String
     Description: 'If specified, resources of the specified type will be excluded in the collected metadata [ec2, lambda]'
     Default: ""
@@ -211,14 +211,14 @@ Conditions:
       - Fn::Equals:
           - Ref: CreateSecret
           - 'True'
-  IsEC2ResourceTypeFilter:
+  IsEC2ResourceTypeExcluded:
     Fn::Equals:
-      - Ref: ResourceTypeFilter
-      - ec2
-  IsLambdaResourceTypeFilter:
+      - Ref: ResourceTypeExclude
+      - 'ec2'
+  IsLambdaResourceTypeExcluded:
     Fn::Equals:
-      - Ref: ResourceTypeFilter
-      - lambda
+      - Ref: ResourceTypeExclude
+      - 'lambda'
 Resources:
   LambdaFunction:
     Condition: IsNotSMEnabled
@@ -250,6 +250,8 @@ Resources:
             Ref: LatestVersionsPerFunction
           COLLECT_ALIASES:
             Ref: CollectAliases
+          RESOURCE_TYPE_EXCLUDE:
+            Ref: ResourceTypeExclude
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
           LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER:
@@ -273,25 +275,30 @@ Resources:
             Type: SNS
       Policies:
         - !If 
-        - Version: "2012-10-17"
-          Statement:
-            - Sid: GetEc2Metadata
-              Effect: Allow
-              Action:
-                - ec2:DescribeInstances
-              Resource: "*"
-        - Version: "2012-10-17"
-          Statement:
-            - Sid: GetLambdaMetadata
-              Effect: Allow
-              Action:
-                - lambda:ListFunctions
-                - lambda:ListVersionsByFunction
-                - lambda:GetFunction
-                - lambda:ListAliases
-                - lambda:ListEventSourceMappings
-                - lambda:GetPolicy
-              Resource: "*"
+          - IsEC2ResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetEc2Metadata
+                Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                Resource: "*"
+          - !Ref 'AWS::NoValue'
+        - !If:
+          - IsLambdaResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetLambdaMetadata
+                Effect: Allow
+                Action:
+                  - lambda:ListFunctions
+                  - lambda:ListVersionsByFunction
+                  - lambda:GetFunction
+                  - lambda:ListAliases
+                  - lambda:ListEventSourceMappings
+                  - lambda:GetPolicy
+                Resource: "*"
+          - !Ref 'AWS::NoValue' 
         - Version: "2012-10-17"
           Statement:
             - Sid: GetResourcesByTags
@@ -330,8 +337,8 @@ Resources:
             Ref: LatestVersionsPerFunction
           COLLECT_ALIASES:
             Ref: CollectAliases
-          RESOURCE_TYPE_FILTER:
-            Ref: ResourceTypeFilter
+          RESOURCE_TYPE_EXCLUDE:
+            Ref: ResourceTypeExclude
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
           LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER:
@@ -359,7 +366,7 @@ Resources:
             Type: SNS
       Policies:
         - !If 
-          - IsEC2ResourceTypeFilter
+          - IsEC2ResourceTypeExcluded
           - Version: "2012-10-17"
             Statement:
               - Sid: GetEc2Metadata
@@ -367,9 +374,9 @@ Resources:
                 Action:
                   - ec2:DescribeInstances
                 Resource: "*"
-          - !Ref 'AWS::NoValue'
-        - If:
-          - IsLambdaResourceTypeFilter
+          - !Ref "AWS::NoValue"
+        - !If:
+          - IsLambdaResourceTypeExcluded
           - Version: "2012-10-17"
             Statement:
               - Sid: GetLambdaMetadata
@@ -382,7 +389,7 @@ Resources:
                   - lambda:ListEventSourceMappings
                   - lambda:GetPolicy
                 Resource: "*"
-          - !Ref 'AWS::NoValue' 
+          - !Ref "AWS::NoValue"
         - Version: "2012-10-17"
           Statement:
             - Sid: GetResourcesByTags
