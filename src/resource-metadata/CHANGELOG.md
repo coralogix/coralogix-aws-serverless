@@ -2,6 +2,10 @@
 
 ## resource-metadata
 
+### 1.2.10 / 09.10.2024
+* [Update] Add resource type filter to exclude either lambda and ec2 resources.
+* [Update] Add AP3 region to the list of regions.
+
 ### 1.2.9 / 21.05.2024
 * [Update] Align Regions names with other integration .i.e EU1,EU2...
 

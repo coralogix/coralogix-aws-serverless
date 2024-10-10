@@ -14,6 +14,13 @@ import { collectLambdaResources, parseLambdaFunctionArn } from './lambda.js'
 import { sendToCoralogix } from './coralogix.js'
 import { collectEc2Resources } from './ec2.js';
 
+const validateAndExtractConfiguration = () => {
+    const excludeEC2 = String(process.env.IS_EC2_RESOURCE_TYPE_EXCLUDED).toLowerCase() === "true"
+    const excludeLambda = String(process.env.IS_LAMBDA_RESOURCE_TYPE_EXCLUDED).toLowerCase() === "true"
+    return { excludeEC2, excludeLambda };
+}
+const { excludeEC2, excludeLambda } = validateAndExtractConfiguration();
+
 /**
  * @description Lambda function handler
  */
@@ -22,10 +29,18 @@ export const handler = async (_, context) => {
     const collectorId = `arn:aws:lambda:${invokedArn.region}:${invokedArn.accountId}:function:${invokedArn.functionName}`
     console.info(`Collector ${collectorId} starting collection`)
 
-    const lambda = collectAndSendLambdaResources(collectorId)
-    const ec2 = collectAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId)
+    let dataToCollect = []
 
-    await Promise.all([lambda, ec2])
+    if(!excludeEC2) {
+        const ec2 = collectAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId)
+        dataToCollect.push(ec2)
+    }
+
+    if(!excludeLambda) {
+        const lambda = collectAndSendLambdaResources(collectorId)
+        dataToCollect.push(lambda)
+    }
+    await Promise.all(dataToCollect)
 
     console.info("Collection done")
 }

@@ -13,7 +13,7 @@ This application collect AWS resource metadata and sends them to your **Coralogi
 
 | Parameter | Description | Default Value | Required |
 |---|---|---|---|
-| CoralogixRegion | The Coralogix location region, possible options are [EU1, EU2, AP1, AP2, US1, US2, Custom].In case that you want to use Custom domain, leave this as default and write the Custom doamin in the ``CustomDomain`` filed. | Custom | :heavy_check_mark: |
+| CoralogixRegion | The Coralogix location region, possible options are [EU1, EU2, AP1, AP2, AP3, US1, US2, Custom].In case that you want to use Custom domain, leave this as default and write the Custom doamin in the ``CustomDomain`` filed. | Custom | :heavy_check_mark: |
 | CustomDomain | The Coralogix custom domain, leave empty if you don't use Custom domain. | | |
 | aplication name | The stack name of this application created via AWS CloudFormation. | | :heavy_check_mark: |
 | CreateSecret |  Set to False In case you want to use secrets manager with a predefine secret that was already created and contains Coralogix Send Your Data API key. | True | |
@@ -21,6 +21,7 @@ This application collect AWS resource metadata and sends them to your **Coralogi
 | ResourceTtlMinutes | Once a resource is collected, how long should it remain valid. | 60 | |
 | LatestVersionsPerFunction | How many latest published versions of each Lambda function should be collected. | 0 | |
 | CollectAliases | [True/False] | False | |
+| ResourceTypeFilter | Specify a resource type to filter out. Possible options are [`ec2`, `lambda`] | | |
 | LambdaFunctionIncludeRegexFilter | If specified, only lambda functions with ARNs matching the regex will be included in the collected metadata | | |
 | LambdaFunctionExcludeRegexFilter | If specified, only lambda functions with ARNs NOT matching the regex will be included in the collected metadata | | |
 | LambdaFunctionTagFilters | If specified, only lambda functions with tags matching the filters will be included in the collected metadata. Values should follow the JSON syntax for --tag-filters as documented [here](https://docs.aws.amazon.com/cli/latest/reference/resourcegroupstaggingapi/get-resources.html#options) | | |
