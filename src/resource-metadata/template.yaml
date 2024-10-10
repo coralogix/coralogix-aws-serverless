@@ -30,11 +30,12 @@ Metadata:
           - ResourceTtlMinutes
           - LatestVersionsPerFunction
           - CollectAliases
-          - ResourceTypeExclude
           - LambdaFunctionIncludeRegexFilter
           - LambdaFunctionExcludeRegexFilter
           - LambdaFunctionTagFilters
           - NotificationEmail
+          - IsEC2ResourceTypeExcluded
+          - IsLambdaResourceTypeExcluded
       - Label:
           default: Lambda Configuration
         Parameters:
@@ -61,8 +62,6 @@ Metadata:
         default: Latest Versions Per Function
       CollectAliases:
         default: Collect Aliases
-      ResourceTypeExclude:
-        default: Resource Type Exclude
       LambdaFunctionIncludeRegexFilter:
         default: Lambda Function Include Regex
       LambdaFunctionExcludeRegexFilter:
@@ -79,6 +78,10 @@ Metadata:
         default: Timeout
       NotificationEmail:
         default: Notification Email
+      IsEC2ResourceTypeExcluded:
+        default: Is EC2 Resource Type Excluded?
+      IsLambdaResourceTypeExcluded:
+        default: Is Lambda Resource Type Excluded?
 Parameters:
   CoralogixRegion:
     Type: String
@@ -119,10 +122,6 @@ Parameters:
     Type: String
     Description: '[True/False]'
     Default: 'False'
-  ResourceTypeExclude:
-    Type: String
-    Description: 'If specified, resources of the specified type will be excluded in the collected metadata [ec2, lambda]'
-    Default: ""
   LambdaFunctionIncludeRegexFilter:
     Type: String
     Description: 'If specified, only lambda functions with ARNs matching the regex will be included in the collected metadata'
@@ -167,6 +166,14 @@ Parameters:
     Type: String
     Description: Set to False In case you want to use secrets manager with a predefine secret that was already created and contains Coralogix Send Your Data API key.
     Default: 'True'
+  IsEC2ResourceTypeExcluded:
+    Type: String
+    Description: '[True/False]'
+    Default: 'False'
+  IsLambdaResourceTypeExcluded:
+    Type: String
+    Description: '[True/False]'
+    Default: 'False'
 Mappings:
   CoralogixRegionMap:
     EU1:
@@ -213,12 +220,12 @@ Conditions:
           - 'True'
   IsEC2ResourceTypeExcluded:
     Fn::Equals:
-      - Ref: ResourceTypeExclude
-      - 'ec2'
+      - Ref: IsEC2ResourceTypeExcluded
+      - 'True'
   IsLambdaResourceTypeExcluded:
     Fn::Equals:
-      - Ref: ResourceTypeExclude
-      - 'lambda'
+      - Ref: IsLambdaResourceTypeExcluded
+      - 'True'
 Resources:
   LambdaFunction:
     Condition: IsNotSMEnabled
@@ -250,8 +257,6 @@ Resources:
             Ref: LatestVersionsPerFunction
           COLLECT_ALIASES:
             Ref: CollectAliases
-          RESOURCE_TYPE_EXCLUDE:
-            Ref: ResourceTypeExclude
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
           LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER:
@@ -262,6 +267,14 @@ Resources:
             Ref: LambdaFunctionTagFilters
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
+          IS_EC2_RESOURCE_TYPE_EXCLUDED: !If
+              - IsEC2ResourceTypeExcluded
+              - true
+              - false
+          IS_LAMBDA_RESOURCE_TYPE_EXCLUDED: !If
+              - IsLambdaResourceTypeExcluded
+              - true
+              - false
       Events:
         ScheduledEvent:
           Type: Schedule
@@ -337,8 +350,6 @@ Resources:
             Ref: LatestVersionsPerFunction
           COLLECT_ALIASES:
             Ref: CollectAliases
-          RESOURCE_TYPE_EXCLUDE:
-            Ref: ResourceTypeExclude
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
           LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER:
@@ -353,6 +364,14 @@ Resources:
               - CreateSecret
               - ""
               - Ref: ApiKey
+          IS_EC2_RESOURCE_TYPE_EXCLUDED: !If
+              - IsEC2ResourceTypeExcluded
+              - true
+              - false
+          IS_LAMBDA_RESOURCE_TYPE_EXCLUDED: !If
+              - IsLambdaResourceTypeExcluded
+              - true
+              - false
       Events:
         ScheduledEvent:
           Type: Schedule

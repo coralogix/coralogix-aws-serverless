@@ -15,8 +15,8 @@ import { sendToCoralogix } from './coralogix.js'
 import { collectEc2Resources } from './ec2.js';
 
 const validateAndExtractConfiguration = () => {
-    const excludeEC2= String(process.env.RESOURCE_TYPE_EXCLUDE).toLowerCase() === 'ec2';
-    const excludeLambda= String(process.env.RESOURCE_TYPE_EXCLUDE).toLowerCase() === 'lambda';
+    const excludeEC2 = process.env.IS_EC2_RESOURCE_TYPE_EXCLUDED;
+    const excludeLambda = process.env.IS_LAMBDA_RESOURCE_TYPE_EXCLUDED;
     return { excludeEC2, excludeLambda };
 }
 const { excludeEC2, excludeLambda } = validateAndExtractConfiguration();
