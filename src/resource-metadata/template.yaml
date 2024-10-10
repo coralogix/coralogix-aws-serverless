@@ -168,11 +168,17 @@ Parameters:
     Default: 'True'
   IsEC2ResourceTypeExcluded:
     Type: String
-    Description: '[True/False]'
+    Description: Is EC2 Resource Type Excluded?
+    AllowedValues:
+      - 'True'
+      - 'False'
     Default: 'False'
   IsLambdaResourceTypeExcluded:
     Type: String
-    Description: '[True/False]'
+    Description: Is Lambda Resource Type Excluded?
+    AllowedValues:
+      - 'True'
+      - 'False'
     Default: 'False'
 Mappings:
   CoralogixRegionMap:
@@ -269,12 +275,12 @@ Resources:
           AWS_MAX_ATTEMPTS: 10
           IS_EC2_RESOURCE_TYPE_EXCLUDED: !If
               - IsEC2ResourceTypeExcluded
-              - true
-              - false
+              - 'true'
+              - 'false'
           IS_LAMBDA_RESOURCE_TYPE_EXCLUDED: !If
               - IsLambdaResourceTypeExcluded
-              - true
-              - false
+              - 'true'
+              - 'false'
       Events:
         ScheduledEvent:
           Type: Schedule
@@ -366,12 +372,12 @@ Resources:
               - Ref: ApiKey
           IS_EC2_RESOURCE_TYPE_EXCLUDED: !If
               - IsEC2ResourceTypeExcluded
-              - true
-              - false
+              - 'true'
+              - 'false'
           IS_LAMBDA_RESOURCE_TYPE_EXCLUDED: !If
               - IsLambdaResourceTypeExcluded
-              - true
-              - false
+              - 'true'
+              - 'false'
       Events:
         ScheduledEvent:
           Type: Schedule
