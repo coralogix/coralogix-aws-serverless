@@ -19,7 +19,7 @@ const validateAndExtractConfiguration = () => {
     const excludeLambda= String(process.env.RESOURCE_TYPE_EXCLUDE).toLowerCase() === 'lambda';
     return { excludeEC2, excludeLambda };
 }
-const { filterEC2, filterLambda } = validateAndExtractConfiguration();
+const { excludeEC2, excludeLambda } = validateAndExtractConfiguration();
 
 /**
  * @description Lambda function handler
@@ -29,12 +29,17 @@ export const handler = async (_, context) => {
     const collectorId = `arn:aws:lambda:${invokedArn.region}:${invokedArn.accountId}:function:${invokedArn.functionName}`
     console.info(`Collector ${collectorId} starting collection`)
 
-    const lambda = collectAndSendLambdaResources(collectorId)
-    const ec2 = collectAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId)
-
     let dataToCollect = []
-    if(!excludeEC2) dataToCollect.push(ec2)
-    if(!excludeLambda) dataToCollect.push(lambda)
+
+    if(!excludeEC2) {
+        const ec2 = collectAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId)
+        dataToCollect.push(ec2)
+    }
+
+    if(!excludeLambda) {
+        const lambda = collectAndSendLambdaResources(collectorId)
+        dataToCollect.push(lambda)
+    }
     await Promise.all(dataToCollect)
 
     console.info("Collection done")
