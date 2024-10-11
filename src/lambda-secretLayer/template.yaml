@@ -15,13 +15,13 @@ Metadata:
       - lambda
       - extension
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.3
+    SemanticVersion: 1.0.2
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CompatibleRuntimes:
     Type: CommaDelimitedList
     Description: Lambda Layer Version compatible runtimes
-    Default: nodejs16.x, nodejs18.x, nodejs14.x, nodejs20.x
+    Default: nodejs16.x, nodejs18.x, nodejs14.x
   RetentionPolicy:
     Type: String
     Description: Lambda Layer Version retention policy
