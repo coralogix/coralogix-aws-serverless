@@ -13,7 +13,7 @@ Metadata:
       - coralogix
       - metadata
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.2.9
+    SemanticVersion: 1.2.10
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -34,6 +34,8 @@ Metadata:
           - LambdaFunctionExcludeRegexFilter
           - LambdaFunctionTagFilters
           - NotificationEmail
+          - IsEC2ResourceTypeExcluded
+          - IsLambdaResourceTypeExcluded
       - Label:
           default: Lambda Configuration
         Parameters:
@@ -76,6 +78,10 @@ Metadata:
         default: Timeout
       NotificationEmail:
         default: Notification Email
+      IsEC2ResourceTypeExcluded:
+        default: Is EC2 Resource Type Excluded?
+      IsLambdaResourceTypeExcluded:
+        default: Is Lambda Resource Type Excluded?
 Parameters:
   CoralogixRegion:
     Type: String
@@ -85,6 +91,7 @@ Parameters:
       - EU2
       - AP1
       - AP2
+      - AP3
       - US1
       - US2
       - Custom
@@ -159,6 +166,20 @@ Parameters:
     Type: String
     Description: Set to False In case you want to use secrets manager with a predefine secret that was already created and contains Coralogix Send Your Data API key.
     Default: 'True'
+  IsEC2ResourceTypeExcluded:
+    Type: String
+    Description: Is EC2 Resource Type Excluded?
+    AllowedValues:
+      - 'True'
+      - 'False'
+    Default: 'False'
+  IsLambdaResourceTypeExcluded:
+    Type: String
+    Description: Is Lambda Resource Type Excluded?
+    AllowedValues:
+      - 'True'
+      - 'False'
+    Default: 'False'
 Mappings:
   CoralogixRegionMap:
     EU1:
@@ -169,6 +190,8 @@ Mappings:
       MetadataUrl: app.coralogix.in
     AP2:
       MetadataUrl: coralogixsg.com
+    AP3:
+      MetadataUrl: ap3.coralogix.com
     US1:
       MetadataUrl: coralogix.us
     US2:
@@ -201,6 +224,14 @@ Conditions:
       - Fn::Equals:
           - Ref: CreateSecret
           - 'True'
+  IsEC2ResourceTypeExcluded:
+    Fn::Equals:
+      - Ref: IsEC2ResourceTypeExcluded
+      - 'True'
+  IsLambdaResourceTypeExcluded:
+    Fn::Equals:
+      - Ref: IsLambdaResourceTypeExcluded
+      - 'True'
 Resources:
   LambdaFunction:
     Condition: IsNotSMEnabled
@@ -242,6 +273,14 @@ Resources:
             Ref: LambdaFunctionTagFilters
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
+          IS_EC2_RESOURCE_TYPE_EXCLUDED: !If
+              - IsEC2ResourceTypeExcluded
+              - 'true'
+              - 'false'
+          IS_LAMBDA_RESOURCE_TYPE_EXCLUDED: !If
+              - IsLambdaResourceTypeExcluded
+              - 'true'
+              - 'false'
       Events:
         ScheduledEvent:
           Type: Schedule
@@ -254,25 +293,31 @@ Resources:
           OnFailure:
             Type: SNS
       Policies:
-        - Version: "2012-10-17"
-          Statement:
-            - Sid: GetEc2Metadata
-              Effect: Allow
-              Action:
-                - ec2:DescribeInstances
-              Resource: "*"
-        - Version: "2012-10-17"
-          Statement:
-            - Sid: GetLambdaMetadata
-              Effect: Allow
-              Action:
-                - lambda:ListFunctions
-                - lambda:ListVersionsByFunction
-                - lambda:GetFunction
-                - lambda:ListAliases
-                - lambda:ListEventSourceMappings
-                - lambda:GetPolicy
-              Resource: "*"
+        - !If 
+          - IsEC2ResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetEc2Metadata
+                Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                Resource: "*"
+          - !Ref 'AWS::NoValue'
+        - !If:
+          - IsLambdaResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetLambdaMetadata
+                Effect: Allow
+                Action:
+                  - lambda:ListFunctions
+                  - lambda:ListVersionsByFunction
+                  - lambda:GetFunction
+                  - lambda:ListAliases
+                  - lambda:ListEventSourceMappings
+                  - lambda:GetPolicy
+                Resource: "*"
+          - !Ref 'AWS::NoValue' 
         - Version: "2012-10-17"
           Statement:
             - Sid: GetResourcesByTags
@@ -325,6 +370,14 @@ Resources:
               - CreateSecret
               - ""
               - Ref: ApiKey
+          IS_EC2_RESOURCE_TYPE_EXCLUDED: !If
+              - IsEC2ResourceTypeExcluded
+              - 'true'
+              - 'false'
+          IS_LAMBDA_RESOURCE_TYPE_EXCLUDED: !If
+              - IsLambdaResourceTypeExcluded
+              - 'true'
+              - 'false'
       Events:
         ScheduledEvent:
           Type: Schedule
@@ -337,25 +390,31 @@ Resources:
           OnFailure:
             Type: SNS
       Policies:
-        - Version: "2012-10-17"
-          Statement:
-            - Sid: GetEc2Metadata
-              Effect: Allow
-              Action:
-                - ec2:DescribeInstances
-              Resource: "*"
-        - Version: "2012-10-17"
-          Statement:
-            - Sid: GetLambdaMetadata
-              Effect: Allow
-              Action:
-                - lambda:ListFunctions
-                - lambda:ListVersionsByFunction
-                - lambda:GetFunction
-                - lambda:ListAliases
-                - lambda:ListEventSourceMappings
-                - lambda:GetPolicy
-              Resource: "*"
+        - !If 
+          - IsEC2ResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetEc2Metadata
+                Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                Resource: "*"
+          - !Ref "AWS::NoValue"
+        - !If:
+          - IsLambdaResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetLambdaMetadata
+                Effect: Allow
+                Action:
+                  - lambda:ListFunctions
+                  - lambda:ListVersionsByFunction
+                  - lambda:GetFunction
+                  - lambda:ListAliases
+                  - lambda:ListEventSourceMappings
+                  - lambda:GetPolicy
+                Resource: "*"
+          - !Ref "AWS::NoValue"
         - Version: "2012-10-17"
           Statement:
             - Sid: GetResourcesByTags
