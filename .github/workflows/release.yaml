@@ -15,7 +15,7 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     outputs:
-      packages: ${{ steps.get-changed-packages.outputs.packages }}
+      packages: ${{ env.packages }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,7 +27,7 @@ jobs:
         id: get-changed-packages
         run: |
           export PACKAGES=$(git diff --name-only --diff-filter=d ${{ github.event.pull_request.base.sha || 'origin/master' }} ${{ github.sha }} src/ | xargs -n1 dirname | sed -r 's/src\/([^\/]+).*$/src\/\1/g' | xargs -n1 basename | sort | uniq | jq -rcnR '[inputs]')
-          echo "::set-output name=packages::$PACKAGES"
+          echo "packages=$PACKAGES" >> $GITHUB_ENV
 
   validate:
     name: Validate
@@ -97,7 +97,7 @@ jobs:
 
       - name: Store
         if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true && matrix.package != 'helper' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.package }}-packaged.yaml
           path: src/${{ matrix.package }}/packaged.yaml
@@ -122,7 +122,7 @@ jobs:
 
       - if: ${{ matrix.package != 'helper' }}
         name: Download
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.package }}-packaged.yaml
 

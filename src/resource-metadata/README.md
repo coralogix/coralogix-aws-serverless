@@ -25,6 +25,8 @@ This application collect AWS resource metadata and sends them to your **Coralogi
 | LambdaFunctionIncludeRegexFilter | If specified, only lambda functions with ARNs matching the regex will be included in the collected metadata | | |
 | LambdaFunctionExcludeRegexFilter | If specified, only lambda functions with ARNs NOT matching the regex will be included in the collected metadata | | |
 | LambdaFunctionTagFilters | If specified, only lambda functions with tags matching the filters will be included in the collected metadata. Values should follow the JSON syntax for --tag-filters as documented [here](https://docs.aws.amazon.com/cli/latest/reference/resourcegroupstaggingapi/get-resources.html#options) | | |
+| ExcludedEC2ResourceType | Set to true to Excluded EC2 Resource Type | `False` | |
+| ExcludedLambdaResourceType | Set to true to Excluded Resource Type | `False` | |
 | Schedule | Collect metadata on a specific schedule. | rate(10 minutes) | |
 | LayerARN | In case you want to use Secret Manager This is the ARN of the Coralogix [lambda layer](https://serverlessrepo.aws.amazon.com/applications/eu-central-1/597078901540/Coralogix-Lambda-SSMLayer). | | |
 | NotificationEmail | If the lambda fails a notification email will be sent to this address via SNS (requires you have a working SNS, with a validated domain). | | |
