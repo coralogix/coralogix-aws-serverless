@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Get PR labels
         id: pr-labels
-        uses: joerick/pr-labels-action@v1.0.9
+        uses: joerick/pr-labels-action@e61c643fe47e53d3495405cc9f441b5da06ab1e9
         
   check-changelog-updates:
     if: "${{ needs.get-label.outputs.labels != ' skip-changelog ' }}"
