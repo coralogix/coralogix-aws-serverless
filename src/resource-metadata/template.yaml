@@ -303,7 +303,7 @@ Resources:
                   - ec2:DescribeInstances
                 Resource: "*"
           - !Ref 'AWS::NoValue'
-        - !If:
+        - !If
           - IsLambdaResourceTypeExcluded
           - Version: "2012-10-17"
             Statement:
@@ -400,7 +400,7 @@ Resources:
                   - ec2:DescribeInstances
                 Resource: "*"
           - !Ref "AWS::NoValue"
-        - !If:
+        - !If
           - IsLambdaResourceTypeExcluded
           - Version: "2012-10-17"
             Statement:
