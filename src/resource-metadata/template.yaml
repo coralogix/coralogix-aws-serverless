@@ -34,8 +34,8 @@ Metadata:
           - LambdaFunctionExcludeRegexFilter
           - LambdaFunctionTagFilters
           - NotificationEmail
-          - IsEC2ResourceTypeExcluded
-          - IsLambdaResourceTypeExcluded
+          - ExcludedEC2ResourceType
+          - ExcludedLambdaResourceType
       - Label:
           default: Lambda Configuration
         Parameters:
@@ -78,9 +78,9 @@ Metadata:
         default: Timeout
       NotificationEmail:
         default: Notification Email
-      IsEC2ResourceTypeExcluded:
+      ExcludedEC2ResourceType:
         default: Is EC2 Resource Type Excluded?
-      IsLambdaResourceTypeExcluded:
+      ExcludedLambdaResourceType:
         default: Is Lambda Resource Type Excluded?
 Parameters:
   CoralogixRegion:
@@ -166,14 +166,14 @@ Parameters:
     Type: String
     Description: Set to False In case you want to use secrets manager with a predefine secret that was already created and contains Coralogix Send Your Data API key.
     Default: 'True'
-  IsEC2ResourceTypeExcluded:
+  ExcludedEC2ResourceType:
     Type: String
     Description: Is EC2 Resource Type Excluded?
     AllowedValues:
       - 'True'
       - 'False'
     Default: 'False'
-  IsLambdaResourceTypeExcluded:
+  ExcludedLambdaResourceType:
     Type: String
     Description: Is Lambda Resource Type Excluded?
     AllowedValues:
@@ -226,12 +226,20 @@ Conditions:
           - 'True'
   IsEC2ResourceTypeExcluded:
     Fn::Equals:
-      - Ref: IsEC2ResourceTypeExcluded
+      - Ref: ExcludedEC2ResourceType
       - 'True'
   IsLambdaResourceTypeExcluded:
     Fn::Equals:
-      - Ref: IsLambdaResourceTypeExcluded
+      - Ref: ExcludedLambdaResourceType
       - 'True'
+  IsNotEC2ResourceTypeExcluded:
+    Fn::Equals:
+      - Ref: ExcludedEC2ResourceType
+      - 'False'
+  IsNotLambdaResourceTypeExcluded:
+    Fn::Equals:
+      - Ref: ExcludedLambdaResourceType
+      - 'False'
 Resources:
   LambdaFunction:
     Condition: IsNotSMEnabled
@@ -294,7 +302,7 @@ Resources:
             Type: SNS
       Policies:
         - !If 
-          - IsEC2ResourceTypeExcluded
+          - IsNotEC2ResourceTypeExcluded
           - Version: "2012-10-17"
             Statement:
               - Sid: GetEc2Metadata
@@ -304,7 +312,7 @@ Resources:
                 Resource: "*"
           - !Ref 'AWS::NoValue'
         - !If
-          - IsLambdaResourceTypeExcluded
+          - IsNotLambdaResourceTypeExcluded
           - Version: "2012-10-17"
             Statement:
               - Sid: GetLambdaMetadata
@@ -391,7 +399,7 @@ Resources:
             Type: SNS
       Policies:
         - !If 
-          - IsEC2ResourceTypeExcluded
+          - IsNotEC2ResourceTypeExcluded
           - Version: "2012-10-17"
             Statement:
               - Sid: GetEc2Metadata
@@ -401,7 +409,7 @@ Resources:
                 Resource: "*"
           - !Ref "AWS::NoValue"
         - !If
-          - IsLambdaResourceTypeExcluded
+          - IsNotLambdaResourceTypeExcluded
           - Version: "2012-10-17"
             Statement:
               - Sid: GetLambdaMetadata
