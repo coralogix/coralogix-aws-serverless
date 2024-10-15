@@ -2,6 +2,9 @@
 
 ## resource-metadata
 
+### 1.2.11 / 15.10.2024
+* [Fix] Fix typo in the conditioning to exclude ec2/lambdas resources.
+
 ### 1.2.10 / 09.10.2024
 * [Update] Add resource type filter to exclude either lambda and ec2 resources.
 * [Update] Add AP3 region to the list of regions.
