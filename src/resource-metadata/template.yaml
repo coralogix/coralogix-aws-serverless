@@ -283,12 +283,12 @@ Resources:
           AWS_MAX_ATTEMPTS: 10
           IS_EC2_RESOURCE_TYPE_EXCLUDED: !If
               - IsEC2ResourceTypeExcluded
-              - 'true'
-              - 'false'
+              - 'True'
+              - 'False'
           IS_LAMBDA_RESOURCE_TYPE_EXCLUDED: !If
               - IsLambdaResourceTypeExcluded
-              - 'true'
-              - 'false'
+              - 'True'
+              - 'False'
       Events:
         ScheduledEvent:
           Type: Schedule
@@ -380,12 +380,12 @@ Resources:
               - Ref: ApiKey
           IS_EC2_RESOURCE_TYPE_EXCLUDED: !If
               - IsEC2ResourceTypeExcluded
-              - 'true'
-              - 'false'
+              - 'True'
+              - 'False'
           IS_LAMBDA_RESOURCE_TYPE_EXCLUDED: !If
               - IsLambdaResourceTypeExcluded
-              - 'true'
-              - 'false'
+              - 'True'
+              - 'False'
       Events:
         ScheduledEvent:
           Type: Schedule
