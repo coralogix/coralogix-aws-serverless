@@ -260,8 +260,6 @@ Resources:
             Ref: LatestVersionsPerFunction
           COLLECT_ALIASES:
             Ref: CollectAliases
-          RESOURCE_TTL_MINUTES:
-            Ref: ResourceTtlMinutes
           LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER:
             Ref: LambdaFunctionIncludeRegexFilter
           LAMBDA_FUNCTION_EXCLUDE_REGEX_FILTER:
@@ -345,6 +343,8 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
+          RESOURCE_TTL_MINUTES:
+            Ref: ResourceTtlMinutes
           CORALOGIX_METADATA_URL: !If
             - IsRegionCustomUrlEmpty
             - !Sub  'ingress.${CustomDomain}:443'
@@ -364,6 +364,38 @@ Resources:
             Queue: !GetAtt MetadataQueue.Arn
             BatchSize: 1
       Policies:
+        - !If 
+          - IsNotEC2ResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetEc2Metadata
+                Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                Resource: "*"
+          - !Ref 'AWS::NoValue'
+        - !If
+          - IsNotLambdaResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetLambdaMetadata
+                Effect: Allow
+                Action:
+                  - lambda:ListFunctions
+                  - lambda:ListVersionsByFunction
+                  - lambda:GetFunction
+                  - lambda:ListAliases
+                  - lambda:ListEventSourceMappings
+                  - lambda:GetPolicy
+                Resource: "*"
+          - !Ref 'AWS::NoValue' 
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: GetResourcesByTags
+              Effect: Allow
+              Action:
+                - tag:GetResources
+              Resource: "*"
         - Version: "2012-10-17"
           Statement:
             - Sid: ReadSQS
@@ -379,6 +411,7 @@ Resources:
     Properties:
       VisibilityTimeout: 900 # 15 minutes, matching lambda timeout
       MessageRetentionPeriod: 1209600 # 14 days
+
   GeneratorLambdaFunctionSM:
     Condition: IsSMEnabled
     Type: AWS::Serverless::Function
@@ -397,6 +430,8 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
+          RESOURCE_TTL_MINUTES:
+            Ref: ResourceTtlMinutes
           CORALOGIX_METADATA_URL: !If
             - IsRegionCustomUrlEmpty
             - !Sub  'ingress.${CustomDomain}:443'
@@ -419,6 +454,38 @@ Resources:
             Queue: !GetAtt MetadataQueue.Arn
             BatchSize: 1
       Policies:
+        - !If 
+          - IsNotEC2ResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetEc2Metadata
+                Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                Resource: "*"
+          - !Ref 'AWS::NoValue'
+        - !If
+          - IsNotLambdaResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetLambdaMetadata
+                Effect: Allow
+                Action:
+                  - lambda:ListFunctions
+                  - lambda:ListVersionsByFunction
+                  - lambda:GetFunction
+                  - lambda:ListAliases
+                  - lambda:ListEventSourceMappings
+                  - lambda:GetPolicy
+                Resource: "*"
+          - !Ref 'AWS::NoValue' 
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: GetResourcesByTags
+              Effect: Allow
+              Action:
+                - tag:GetResources
+              Resource: "*"
         - Version: "2012-10-17"
           Statement:
             - Sid: ReadSQS
