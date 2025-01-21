@@ -241,12 +241,11 @@ Conditions:
       - Ref: ExcludedLambdaResourceType
       - 'False'
 Resources:
-  LambdaFunction:
-    Condition: IsNotSMEnabled
+  CollectorLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Description: Send resource metadata to Coralogix.
-      CodeUri: .
+      Description: Collect AWS resource metadata for Coralogix.
+      CodeUri: ./collector
       Handler: index.handler
       Runtime: nodejs20.x
       Architectures:
@@ -257,16 +256,6 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
-          CORALOGIX_METADATA_URL: !If
-            - IsRegionCustomUrlEmpty
-            - !Sub  'ingress.${CustomDomain}:443'
-            - !Sub
-              - '${Prefix}${Domain}${Suffix}'
-              - Prefix: ingress.
-                Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, MetadataUrl]
-                Suffix: :443
-          private_key:
-            Ref: ApiKey
           LATEST_VERSIONS_PER_FUNCTION:
             Ref: LatestVersionsPerFunction
           COLLECT_ALIASES:
@@ -289,6 +278,7 @@ Resources:
               - IsLambdaResourceTypeExcluded
               - 'True'
               - 'False'
+          METADATA_QUEUE_URL: !Ref MetadataQueue
       Events:
         ScheduledEvent:
           Type: Schedule
@@ -333,12 +323,68 @@ Resources:
               Action:
                 - tag:GetResources
               Resource: "*"
-  LambdaFunctionSM:
+            - Sid: WriteSQS
+              Effect: Allow
+              Action:
+                - sqs:SendMessage
+              Resource: !GetAtt MetadataQueue.Arn
+
+  GeneratorLambdaFunction:
+    Condition: IsNotSMEnabled
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Generate and send resource metadata to Coralogix.
+      CodeUri: ./generator
+      Handler: index.handler
+      Runtime: nodejs20.x
+      Architectures:
+        - Ref: FunctionArchitecture
+      MemorySize:
+        Ref: FunctionMemorySize
+      Timeout:
+        Ref: FunctionTimeout
+      Environment:
+        Variables:
+          CORALOGIX_METADATA_URL: !If
+            - IsRegionCustomUrlEmpty
+            - !Sub  'ingress.${CustomDomain}:443'
+            - !Sub
+              - '${Prefix}${Domain}${Suffix}'
+              - Prefix: ingress.
+                Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, MetadataUrl]
+                Suffix: :443
+          private_key:
+            Ref: ApiKey
+          AWS_RETRY_MODE: adaptive
+          AWS_MAX_ATTEMPTS: 10
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MetadataQueue.Arn
+            BatchSize: 1
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: ReadSQS
+              Effect: Allow
+              Action:
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:GetQueueAttributes
+              Resource: !GetAtt MetadataQueue.Arn
+
+  MetadataQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 900 # 15 minutes, matching lambda timeout
+      MessageRetentionPeriod: 1209600 # 14 days
+  GeneratorLambdaFunctionSM:
     Condition: IsSMEnabled
     Type: AWS::Serverless::Function
     Properties:
-      Description: Send resource metadata to Coralogix.
-      CodeUri: .
+      Description: Generate and send resource metadata to Coralogix.
+      CodeUri: ./generator
       Layers:
         - Ref: LayerARN
       Handler: index.handler
@@ -360,76 +406,28 @@ Resources:
                 Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, MetadataUrl]
                 Suffix: :443
           AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
-          LATEST_VERSIONS_PER_FUNCTION:
-            Ref: LatestVersionsPerFunction
-          COLLECT_ALIASES:
-            Ref: CollectAliases
-          RESOURCE_TTL_MINUTES:
-            Ref: ResourceTtlMinutes
-          LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER:
-            Ref: LambdaFunctionIncludeRegexFilter
-          LAMBDA_FUNCTION_EXCLUDE_REGEX_FILTER:
-            Ref: LambdaFunctionExcludeRegexFilter
-          LAMBDA_FUNCTION_TAG_FILTERS:
-            Ref: LambdaFunctionTagFilters
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
           SECRET_NAME: !If
               - CreateSecret
               - ""
               - Ref: ApiKey
-          IS_EC2_RESOURCE_TYPE_EXCLUDED: !If
-              - IsEC2ResourceTypeExcluded
-              - 'True'
-              - 'False'
-          IS_LAMBDA_RESOURCE_TYPE_EXCLUDED: !If
-              - IsLambdaResourceTypeExcluded
-              - 'True'
-              - 'False'
       Events:
-        ScheduledEvent:
-          Type: Schedule
+        SQSEvent:
+          Type: SQS
           Properties:
-            Schedule:
-              Ref: Schedule
-            Enabled: True
-      EventInvokeConfig:
-        DestinationConfig:
-          OnFailure:
-            Type: SNS
+            Queue: !GetAtt MetadataQueue.Arn
+            BatchSize: 1
       Policies:
-        - !If 
-          - IsNotEC2ResourceTypeExcluded
-          - Version: "2012-10-17"
-            Statement:
-              - Sid: GetEc2Metadata
-                Effect: Allow
-                Action:
-                  - ec2:DescribeInstances
-                Resource: "*"
-          - !Ref "AWS::NoValue"
-        - !If
-          - IsNotLambdaResourceTypeExcluded
-          - Version: "2012-10-17"
-            Statement:
-              - Sid: GetLambdaMetadata
-                Effect: Allow
-                Action:
-                  - lambda:ListFunctions
-                  - lambda:ListVersionsByFunction
-                  - lambda:GetFunction
-                  - lambda:ListAliases
-                  - lambda:ListEventSourceMappings
-                  - lambda:GetPolicy
-                Resource: "*"
-          - !Ref "AWS::NoValue"
         - Version: "2012-10-17"
           Statement:
-            - Sid: GetResourcesByTags
+            - Sid: ReadSQS
               Effect: Allow
               Action:
-                - tag:GetResources
-              Resource: "*"
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:GetQueueAttributes
+              Resource: !GetAtt MetadataQueue.Arn
         - SecretsManagerReadWrite
 
   PrivateKeySecret:
