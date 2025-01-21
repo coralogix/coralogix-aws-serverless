@@ -26,7 +26,6 @@ Metadata:
       - Label:
           default: Integration configuration
         Parameters:
-          - Schedule
           - ResourceTtlMinutes
           - LatestVersionsPerFunction
           - CollectAliases
@@ -56,8 +55,6 @@ Metadata:
         default: In case you are using Secret Manager This is the ARN of the Coralogix Security lambda Layer.
       ApiKey:
         default: Api Key
-      Schedule:
-        default: Schedule
       LatestVersionsPerFunction:
         default: Latest Versions Per Function
       CollectAliases:
@@ -108,11 +105,6 @@ Parameters:
     Type: String
     Description: In case you are using Secret Manager This is the ARN of the Coralogix Security lambda Layer.
     Default: ''
-  Schedule:
-    Type: String
-    Description: Collect metadata on a specific schedule
-    MaxLength: 256
-    Default: "rate(10 minutes)"
   LatestVersionsPerFunction:
     Type: Number
     Description: How many latest published versions of each Lambda function should be collected
@@ -277,13 +269,6 @@ Resources:
               - 'True'
               - 'False'
           METADATA_QUEUE_URL: !Ref MetadataQueue
-      Events:
-        ScheduledEvent:
-          Type: Schedule
-          Properties:
-            Schedule:
-              Ref: Schedule
-            Enabled: True
       EventInvokeConfig:
         DestinationConfig:
           OnFailure:
