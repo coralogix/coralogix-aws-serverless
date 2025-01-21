@@ -1,0 +1,456 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Send resource metadata to Coralogix.
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: Coralogix-Resource-Metadata
+    Description: Send resource metadata to Coralogix.
+    Author: Coralogix
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE
+    ReadmeUrl: README.md
+    Labels:
+      - coralogix
+      - metadata
+    HomePageUrl: https://coralogix.com
+    SemanticVersion: 1.2.11
+    SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Coralogix configuration
+        Parameters:
+          - CoralogixRegion
+          - ApiKey
+          - CustomDomain
+      - Label:
+          default: Integration configuration
+        Parameters:
+          - Schedule
+          - ResourceTtlMinutes
+          - LatestVersionsPerFunction
+          - CollectAliases
+          - LambdaFunctionIncludeRegexFilter
+          - LambdaFunctionExcludeRegexFilter
+          - LambdaFunctionTagFilters
+          - NotificationEmail
+          - ExcludedEC2ResourceType
+          - ExcludedLambdaResourceType
+      - Label:
+          default: Lambda Configuration
+        Parameters:
+          - FunctionArchitecture
+          - FunctionMemorySize
+          - FunctionTimeout
+      - Label:
+          default: Security configuration
+        Parameters:
+          - LayerARN
+          - CreateSecret
+    ParameterLabels:
+      CoralogixRegion:
+        default: Region
+      CustomDomain:
+        default: CustomDomain
+      LayerARN:
+        default: In case you are using Secret Manager This is the ARN of the Coralogix Security lambda Layer.
+      ApiKey:
+        default: Api Key
+      Schedule:
+        default: Schedule
+      LatestVersionsPerFunction:
+        default: Latest Versions Per Function
+      CollectAliases:
+        default: Collect Aliases
+      LambdaFunctionIncludeRegexFilter:
+        default: Lambda Function Include Regex
+      LambdaFunctionExcludeRegexFilter:
+        default: Lambda Function Exclude Regex
+      LambdaFunctionTagFilters:
+        default: Lambda Function Tag Filters
+      ResourceTtlMinutes:
+        default: Resource Time-to-live (TTL) in Minutes
+      FunctionArchitecture:
+        default: Architecture
+      FunctionMemorySize:
+        default: Memory
+      FunctionTimeout:
+        default: Timeout
+      NotificationEmail:
+        default: Notification Email
+      ExcludedEC2ResourceType:
+        default: Is EC2 Resource Type Excluded?
+      ExcludedLambdaResourceType:
+        default: Is Lambda Resource Type Excluded?
+Parameters:
+  CoralogixRegion:
+    Type: String
+    Description: The Coralogix location region [EU1, EU2, AP1, AP2, US1, US2, Custom]
+    AllowedValues:
+      - EU1
+      - EU2
+      - AP1
+      - AP2
+      - AP3
+      - US1
+      - US2
+      - Custom
+    Default: Custom
+  CustomDomain:
+    Type: String
+    Description: The Coralogix custom domain
+    Default: ''
+  ApiKey:
+    Type: String
+    Description: Your Coralogix Send Your Data - API Key or incase you use pre created secret (created in AWS secret manager) put here the name of the secret that contains the Coralogix send your data key
+    NoEcho: true
+  LayerARN:
+    Type: String
+    Description: In case you are using Secret Manager This is the ARN of the Coralogix Security lambda Layer.
+    Default: ''
+  Schedule:
+    Type: String
+    Description: Collect metadata on a specific schedule
+    MaxLength: 256
+    Default: "rate(10 minutes)"
+  LatestVersionsPerFunction:
+    Type: Number
+    Description: How many latest published versions of each Lambda function should be collected
+    MinValue: 0
+    Default: 0
+  CollectAliases:
+    Type: String
+    Description: '[True/False]'
+    Default: 'False'
+  LambdaFunctionIncludeRegexFilter:
+    Type: String
+    Description: 'If specified, only lambda functions with ARNs matching the regex will be included in the collected metadata'
+    Default: ""
+  LambdaFunctionExcludeRegexFilter:
+    Type: String
+    Description: 'If specified, only lambda functions with ARNs NOT matching the regex will be included in the collected metadata'
+    Default: ""
+  LambdaFunctionTagFilters:
+    Type: String
+    Description: 'If specified, only lambda functions with tags matching the filters will be included in the collected metadata. Values should follow the JSON syntax for --tag-filters as documented here: https://docs.aws.amazon.com/cli/latest/reference/resourcegroupstaggingapi/get-resources.html#options'
+    Default: ""
+  ResourceTtlMinutes:
+    Type: Number
+    Description: Once a resource is collected, how long should it remain valid?
+    Default: 60
+  FunctionArchitecture:
+    Type: String
+    Description: Lambda function architecture [x86_64, arm64]
+    AllowedValues:
+      - x86_64
+      - arm64
+    Default: x86_64
+  FunctionMemorySize:
+    Type: Number
+    Description: Lambda function memory limit
+    MinValue: 128
+    MaxValue: 10240
+    Default: 256
+  FunctionTimeout:
+    Type: Number
+    Description: Lambda function timeout limit
+    MinValue: 30
+    MaxValue: 900
+    Default: 300
+  NotificationEmail:
+    Type: String
+    Description: Failure notification email address
+    MaxLength: 320
+    Default: ""
+  CreateSecret:
+    Type: String
+    Description: Set to False In case you want to use secrets manager with a predefine secret that was already created and contains Coralogix Send Your Data API key.
+    Default: 'True'
+  ExcludedEC2ResourceType:
+    Type: String
+    Description: Is EC2 Resource Type Excluded?
+    AllowedValues:
+      - 'True'
+      - 'False'
+    Default: 'False'
+  ExcludedLambdaResourceType:
+    Type: String
+    Description: Is Lambda Resource Type Excluded?
+    AllowedValues:
+      - 'True'
+      - 'False'
+    Default: 'False'
+Mappings:
+  CoralogixRegionMap:
+    EU1:
+      MetadataUrl: coralogix.com
+    EU2:
+      MetadataUrl: eu2.coralogix.com
+    AP1:
+      MetadataUrl: app.coralogix.in
+    AP2:
+      MetadataUrl: coralogixsg.com
+    AP3:
+      MetadataUrl: ap3.coralogix.com
+    US1:
+      MetadataUrl: coralogix.us
+    US2:
+      MetadataUrl: cx498.coralogix.com
+    Custom:
+      MetadataUrl: ""
+
+Conditions:
+  IsNotificationEnabled:
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: NotificationEmail
+          - ""
+  IsSMEnabled:
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: LayerARN
+          - ""
+  IsNotSMEnabled:
+    Fn::Equals:
+      - Ref: LayerARN
+      - ''
+  IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
+  CreateSecret:
+    Fn::And:
+      - Fn::Not:
+        - Fn::Equals:
+          - Ref: LayerARN
+          - ""
+      - Fn::Equals:
+          - Ref: CreateSecret
+          - 'True'
+  IsEC2ResourceTypeExcluded:
+    Fn::Equals:
+      - Ref: ExcludedEC2ResourceType
+      - 'True'
+  IsLambdaResourceTypeExcluded:
+    Fn::Equals:
+      - Ref: ExcludedLambdaResourceType
+      - 'True'
+  IsNotEC2ResourceTypeExcluded:
+    Fn::Equals:
+      - Ref: ExcludedEC2ResourceType
+      - 'False'
+  IsNotLambdaResourceTypeExcluded:
+    Fn::Equals:
+      - Ref: ExcludedLambdaResourceType
+      - 'False'
+Resources:
+  LambdaFunction:
+    Condition: IsNotSMEnabled
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Send resource metadata to Coralogix.
+      CodeUri: .
+      Handler: index.handler
+      Runtime: nodejs20.x
+      Architectures:
+        - Ref: FunctionArchitecture
+      MemorySize:
+        Ref: FunctionMemorySize
+      Timeout:
+        Ref: FunctionTimeout
+      Environment:
+        Variables:
+          CORALOGIX_METADATA_URL: !If
+            - IsRegionCustomUrlEmpty
+            - !Sub  'ingress.${CustomDomain}:443'
+            - !Sub
+              - '${Prefix}${Domain}${Suffix}'
+              - Prefix: ingress.
+                Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, MetadataUrl]
+                Suffix: :443
+          private_key:
+            Ref: ApiKey
+          LATEST_VERSIONS_PER_FUNCTION:
+            Ref: LatestVersionsPerFunction
+          COLLECT_ALIASES:
+            Ref: CollectAliases
+          RESOURCE_TTL_MINUTES:
+            Ref: ResourceTtlMinutes
+          LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER:
+            Ref: LambdaFunctionIncludeRegexFilter
+          LAMBDA_FUNCTION_EXCLUDE_REGEX_FILTER:
+            Ref: LambdaFunctionExcludeRegexFilter
+          LAMBDA_FUNCTION_TAG_FILTERS:
+            Ref: LambdaFunctionTagFilters
+          AWS_RETRY_MODE: adaptive
+          AWS_MAX_ATTEMPTS: 10
+          IS_EC2_RESOURCE_TYPE_EXCLUDED: !If
+              - IsEC2ResourceTypeExcluded
+              - 'True'
+              - 'False'
+          IS_LAMBDA_RESOURCE_TYPE_EXCLUDED: !If
+              - IsLambdaResourceTypeExcluded
+              - 'True'
+              - 'False'
+      Events:
+        ScheduledEvent:
+          Type: Schedule
+          Properties:
+            Schedule:
+              Ref: Schedule
+            Enabled: True
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: SNS
+      Policies:
+        - !If 
+          - IsNotEC2ResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetEc2Metadata
+                Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                Resource: "*"
+          - !Ref 'AWS::NoValue'
+        - !If
+          - IsNotLambdaResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetLambdaMetadata
+                Effect: Allow
+                Action:
+                  - lambda:ListFunctions
+                  - lambda:ListVersionsByFunction
+                  - lambda:GetFunction
+                  - lambda:ListAliases
+                  - lambda:ListEventSourceMappings
+                  - lambda:GetPolicy
+                Resource: "*"
+          - !Ref 'AWS::NoValue' 
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: GetResourcesByTags
+              Effect: Allow
+              Action:
+                - tag:GetResources
+              Resource: "*"
+  LambdaFunctionSM:
+    Condition: IsSMEnabled
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Send resource metadata to Coralogix.
+      CodeUri: .
+      Layers:
+        - Ref: LayerARN
+      Handler: index.handler
+      Runtime: nodejs20.x
+      Architectures:
+        - Ref: FunctionArchitecture
+      MemorySize:
+        Ref: FunctionMemorySize
+      Timeout:
+        Ref: FunctionTimeout
+      Environment:
+        Variables:
+          CORALOGIX_METADATA_URL: !If
+            - IsRegionCustomUrlEmpty
+            - !Sub  'ingress.${CustomDomain}:443'
+            - !Sub
+              - '${Prefix}${Domain}${Suffix}'
+              - Prefix: ingress.
+                Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, MetadataUrl]
+                Suffix: :443
+          AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
+          LATEST_VERSIONS_PER_FUNCTION:
+            Ref: LatestVersionsPerFunction
+          COLLECT_ALIASES:
+            Ref: CollectAliases
+          RESOURCE_TTL_MINUTES:
+            Ref: ResourceTtlMinutes
+          LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER:
+            Ref: LambdaFunctionIncludeRegexFilter
+          LAMBDA_FUNCTION_EXCLUDE_REGEX_FILTER:
+            Ref: LambdaFunctionExcludeRegexFilter
+          LAMBDA_FUNCTION_TAG_FILTERS:
+            Ref: LambdaFunctionTagFilters
+          AWS_RETRY_MODE: adaptive
+          AWS_MAX_ATTEMPTS: 10
+          SECRET_NAME: !If
+              - CreateSecret
+              - ""
+              - Ref: ApiKey
+          IS_EC2_RESOURCE_TYPE_EXCLUDED: !If
+              - IsEC2ResourceTypeExcluded
+              - 'True'
+              - 'False'
+          IS_LAMBDA_RESOURCE_TYPE_EXCLUDED: !If
+              - IsLambdaResourceTypeExcluded
+              - 'True'
+              - 'False'
+      Events:
+        ScheduledEvent:
+          Type: Schedule
+          Properties:
+            Schedule:
+              Ref: Schedule
+            Enabled: True
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: SNS
+      Policies:
+        - !If 
+          - IsNotEC2ResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetEc2Metadata
+                Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                Resource: "*"
+          - !Ref "AWS::NoValue"
+        - !If
+          - IsNotLambdaResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetLambdaMetadata
+                Effect: Allow
+                Action:
+                  - lambda:ListFunctions
+                  - lambda:ListVersionsByFunction
+                  - lambda:GetFunction
+                  - lambda:ListAliases
+                  - lambda:ListEventSourceMappings
+                  - lambda:GetPolicy
+                Resource: "*"
+          - !Ref "AWS::NoValue"
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: GetResourcesByTags
+              Effect: Allow
+              Action:
+                - tag:GetResources
+              Resource: "*"
+        - SecretsManagerReadWrite
+
+  PrivateKeySecret:
+    Condition: CreateSecret
+    Type: AWS::SecretsManager::Secret
+    Properties: 
+      Description: Coralogix Send Your Data key Secret
+      Name: !Sub
+        - 'lambda/coralogix/${AWS::Region}/${function}'
+        - function: !Ref LambdaFunctionSM
+      SecretString: !Ref ApiKey
+
+  LambdaFunctionNotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: IsNotificationEnabled
+    Properties:
+      Protocol: email
+      Endpoint:
+        Ref: NotificationEmail
+      TopicArn:
+        !If
+          - IsSMEnabled
+          - !Ref LambdaFunctionSM.DestinationTopic
+          - !Ref LambdaFunction.DestinationTopic
