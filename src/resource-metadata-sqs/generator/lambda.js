@@ -1,5 +1,5 @@
 import assert from 'assert'
-import { paginateListFunctions, LambdaClient, GetFunctionCommand, ListAliasesCommand, GetPolicyCommand, ListVersionsByFunctionCommand, ListEventSourceMappingsCommand } from '@aws-sdk/client-lambda'
+import { LambdaClient, GetFunctionCommand, ListAliasesCommand, GetPolicyCommand, ListVersionsByFunctionCommand, ListEventSourceMappingsCommand } from '@aws-sdk/client-lambda'
 import { ResourceGroupsTaggingAPIClient, paginateGetResources } from '@aws-sdk/client-resource-groups-tagging-api';
 import { schemaUrl, extractArchitecture, intAttr, stringAttr, traverse, flatTraverse } from './common.js'
 
@@ -20,43 +20,34 @@ const { latestVersionsPerFunction, resourceTtlMinutes, collectAliases, includeRe
 const lambdaClient = new LambdaClient();
 const resourceGroupsTaggingAPIClient = tagFilters ? new ResourceGroupsTaggingAPIClient() : null;
 
-export const collectLambdaResources = async () => {
+export const generateLambdaResources = async (functions) => {
 
-    console.info("Collecting list of functions")
-    let listOfFunctions = await collectListOfFunctions()
     if (includeRegex) {
-        listOfFunctions = listOfFunctions.filter(f => includeRegex.test(f.FunctionArn))
+        functions = functions.filter(f => includeRegex.test(f.FunctionArn))
     }
     if (excludeRegex) {
-        listOfFunctions = listOfFunctions.filter(f => !excludeRegex.test(f.FunctionArn))
+        functions = functions.filter(f => !excludeRegex.test(f.FunctionArn))
     }
     if (tagFilters) {
-        const arns = new Set(await collectFunctionsArnsMatchingTagFilters());
-        listOfFunctions = listOfFunctions.filter(f => arns.has(f.FunctionArn))
+        const arns = new Set(await generateFunctionsArnsMatchingTagFilters());
+        functions = functions.filter(f => arns.has(f.FunctionArn))
     }
 
-    console.info("Collecting function details")
-    const { functionResources, aliasResources, versionsToCollect } = await collectFunctionAndAliasResources(listOfFunctions)
+    console.info("Generating function details")
+    const { functionResources, aliasResources, versionsToCollect } = await generateFunctionAndAliasResources(functions)
 
-    console.info("Collecting function version details")
-    const functionVersionResources = await collectFunctionVersionResources(versionsToCollect)
+    console.info("Generating function version details")
+    const functionVersionResources = await generateFunctionVersionResources(versionsToCollect)
 
     const resources = [...functionResources, ...functionVersionResources, ...aliasResources]
 
-    console.info(`Collected ${functionResources.length} functions, ${functionVersionResources.length} function versions and ${aliasResources.length} aliases`)
+    console.info(`Generated ${functionResources.length} functions, ${functionVersionResources.length} function versions and ${aliasResources.length} aliases`)
 
     return resources
 }
 
-const collectListOfFunctions = async () => {
-    const listOfFunctions = [];
-    for await (const page of paginateListFunctions({ client: lambdaClient }, {})) { // this uses the maximum page size of 50
-        listOfFunctions.push(...page.Functions);
-    }
-    return listOfFunctions
-}
 
-const collectFunctionsArnsMatchingTagFilters = async () => {
+const generateFunctionsArnsMatchingTagFilters = async () => {
     const input = {
         ResourceTypeFilters: ['lambda:function'],
         TagFilters: tagFilters,
@@ -68,7 +59,7 @@ const collectFunctionsArnsMatchingTagFilters = async () => {
     return arns
 }
 
-const collectFunctionAndAliasResources = async (listOfFunctions) => {
+const generateFunctionAndAliasResources = async (listOfFunctions) => {
     const results = await flatTraverse(listOfFunctions, async (lambdaFunctionVersionLatest, index) => {
         const functionName = lambdaFunctionVersionLatest.FunctionName
         try {
@@ -94,13 +85,13 @@ const collectFunctionAndAliasResources = async (listOfFunctions) => {
 
             return { functionResource, aliasResources, versionsToCollect }
         } catch (error) {
-            console.warn(`Failed to collect metadata of ${functionName}: `, error.stack)
+            console.warn(`Failed to generate metadata of ${functionName}: `, error.stack)
         }
     })
 
     if (listOfFunctions.length > 0 && results.length == 0) {
-        console.error("Failed to collect metadata of any lambda function.")
-        throw "Failed to collect metadata of any lambda function."
+        console.error("Failed to generate metadata of any lambda function.")
+        throw "Failed to generate metadata of any lambda function."
     }
 
     return {
@@ -110,7 +101,7 @@ const collectFunctionAndAliasResources = async (listOfFunctions) => {
     }
 }
 
-const collectFunctionVersionResources = async (versionsToCollect) =>
+const generateFunctionVersionResources = async (versionsToCollect) =>
     await traverse(versionsToCollect, async (lambdaFunctionVersion, index) => {
         const functionNameForRequests = lambdaFunctionVersion.Version === "$LATEST"
             ? lambdaFunctionVersion.FunctionName
@@ -120,7 +111,7 @@ const collectFunctionVersionResources = async (versionsToCollect) =>
         try {
             eventSourceMappings = await lambdaClient.send(new ListEventSourceMappingsCommand({ FunctionName: functionNameForRequests }))
         } catch (error) {
-            console.warn(`Failed to collect event source mappings of ${functionNameForRequests}: `, error.stack)
+            console.warn(`Failed to generate event source mappings of ${functionNameForRequests}: `, error.stack)
         }
         let maybePolicy = null
         try {

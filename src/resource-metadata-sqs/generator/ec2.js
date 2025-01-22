@@ -1,5 +1,4 @@
 import assert from 'assert'
-import { EC2Client, paginateDescribeInstances } from '@aws-sdk/client-ec2'
 import { schemaUrl, stringAttr } from './common.js'
 
 const validateAndExtractConfiguration = () => {
@@ -9,30 +8,18 @@ const validateAndExtractConfiguration = () => {
 };
 const { resourceTtlMinutes } = validateAndExtractConfiguration();
 
-const ec2Client = new EC2Client();
+export const generateEc2Resources = async (region, accountId, instances) => {
 
-export const collectEc2Resources = async (region, accountId) => {
-
-    console.info("Collecting EC2 instances")
-    const instanceResources = await collectEc2InstanceResources(region, accountId)
+    console.info("Generating EC2 instances")
+    const instanceResources = instances.map(i => makeEc2InstanceResource(i, region, accountId))
 
     instanceResources.forEach((f, index) =>
-        console.debug(`Ec2Instance (${index+1}/${instanceResources.length}): ${JSON.stringify(f)}`)
+        console.debug(`Ec2Instance (${index + 1}/${instanceResources.length}): ${JSON.stringify(f)}`)
     )
 
-    console.info(`Collected ${instanceResources.length} EC2 instances`)
+    console.info(`Generated ${instanceResources.length} EC2 instances`)
 
     return instanceResources
-}
-
-const collectEc2InstanceResources = async (region, accountId) => {
-    const instances = [];
-    for await (const page of paginateDescribeInstances({ client: ec2Client }, {})) {
-        if (page.Reservations) {
-            instances.push(...page.Reservations.flatMap(r => r.Instances));
-        }
-    }
-    return instances.map(i => makeEc2InstanceResource(i, region, accountId))
 }
 
 const makeEc2InstanceResource = (i, region, accountId) => {
