@@ -12,25 +12,33 @@ const { includeRegex, excludeRegex, tagFilters } = validateAndExtractConfigurati
 const lambdaClient = new LambdaClient();
 const resourceGroupsTaggingAPIClient = tagFilters ? new ResourceGroupsTaggingAPIClient() : null;
 
-export const collectLambdaResources = async () => {
-
+export const collectLambdaResources = async function* () {
     console.info("Collecting list of functions")
-    const listOfFunctions = [];
-    for await (const page of paginateListFunctions({ client: lambdaClient }, {})) { // this uses the maximum page size of 50
-        listOfFunctions.push(...page.Functions);
-    }
-    if (includeRegex) {
-        listOfFunctions = listOfFunctions.filter(f => includeRegex.test(f.FunctionArn))
-    }
-    if (excludeRegex) {
-        listOfFunctions = listOfFunctions.filter(f => !excludeRegex.test(f.FunctionArn))
-    }
+
+    let arnsMatchingTags;
     if (tagFilters) {
-        const arns = new Set(await collectFunctionsArnsMatchingTagFilters());
-        listOfFunctions = listOfFunctions.filter(f => arns.has(f.FunctionArn))
+        arnsMatchingTags = new Set(await collectFunctionsArnsMatchingTagFilters());
     }
 
-    return listOfFunctions
+    for await (const page of paginateListFunctions({ client: lambdaClient }, { MaxItems: 5 })) {
+        let pageFunctions = page.Functions;
+
+        if (includeRegex) {
+            pageFunctions = pageFunctions.filter(f => includeRegex.test(f.FunctionArn));
+        }
+
+        if (excludeRegex) {
+            pageFunctions = pageFunctions.filter(f => !excludeRegex.test(f.FunctionArn));
+        }
+
+        if (tagFilters) {
+            pageFunctions = pageFunctions.filter(f => arnsMatchingTags.has(f.FunctionArn));
+        }
+
+        if (pageFunctions.length > 0) {
+            yield pageFunctions;
+        }
+    }
 }
 
 const collectFunctionsArnsMatchingTagFilters = async () => {

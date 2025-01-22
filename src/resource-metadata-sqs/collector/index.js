@@ -10,9 +10,9 @@
 
 "use strict";
 
-import { collectLambdaResources } from 'lambda.js'
-import { collectEc2Resources } from 'ec2.js';
-import { sendToSqs } from 'sqs.js';
+import { collectLambdaResources } from './lambda.js'
+import { collectEc2Resources } from './ec2.js';
+import { sendToSqs } from './sqs.js';
 
 const validateAndExtractConfiguration = () => {
     const excludeEC2 = String(process.env.IS_EC2_RESOURCE_TYPE_EXCLUDED).toLowerCase() === "true"
@@ -45,18 +45,18 @@ export const handler = async (_, context) => {
 
 const collectAndSendLambdaResources = async () => {
     console.info("Collecting Lambda resources")
-    const lambdaResources = await collectLambdaResources()
-    console.debug(lambdaResources)
-    console.info("Sending Lambda resources to SQS")
-    await sendToSqs({ resources: lambdaResources })
-    console.info("Sent Lambda resources to SQS")
+    for await (const lambdaResourceBatch of collectLambdaResources()) {
+        console.info(`Sending Lambda resources batch to SQS`)
+        await sendToSqs({ type: "lambda", resources: lambdaResourceBatch })
+        console.info(`Sent Lambda resources batch to SQS`)
+    }
 }
 
 const collectAndSendEc2Resources = async () => {
     console.info("Collecting EC2 resources")
-    const ec2Resources = await collectEc2Resources()
-    console.debug(ec2Resources)
-    console.info("Sending EC2 resources to SQS")
-    await sendToSqs({ resources: ec2Resources })
-    console.info("Sent EC2 resources to SQS")
+    for await (const ec2ResourceBatch of collectEc2Resources()) {
+        console.info(`Sending EC2 resources batch to SQS`)
+        await sendToSqs({ type: "ec2", resources: ec2ResourceBatch })
+        console.info(`Sent EC2 resources batch to SQS`)
+    }
 }
