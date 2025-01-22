@@ -46,6 +46,7 @@ export const handler = async (_, context) => {
 const collectAndSendLambdaResources = async () => {
     console.info("Collecting Lambda resources")
     const lambdaResources = await collectLambdaResources()
+    console.debug(lambdaResources)
     console.info("Sending Lambda resources to SQS")
     await sendToSqs({ resources: lambdaResources })
     console.info("Sent Lambda resources to SQS")
@@ -54,6 +55,7 @@ const collectAndSendLambdaResources = async () => {
 const collectAndSendEc2Resources = async () => {
     console.info("Collecting EC2 resources")
     const ec2Resources = await collectEc2Resources()
+    console.debug(ec2Resources)
     console.info("Sending EC2 resources to SQS")
     await sendToSqs({ resources: ec2Resources })
     console.info("Sent EC2 resources to SQS")
