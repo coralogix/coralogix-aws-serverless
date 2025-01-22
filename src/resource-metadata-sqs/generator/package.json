@@ -1,8 +1,8 @@
 {
-  "name": "coralogix-resource-tags",
-  "title": "AWS Resource Tags Lambda function for Coralogix",
-  "version": "1.2.11",
-  "description": "AWS Lambda function to send AWS resource tags to Coralogix",
+  "name": "coralogix-resource-generator",
+  "title": "AWS Resource Generator Lambda function for Coralogix",
+  "version": "0.1.0",
+  "description": "AWS Lambda function to generate AWS EC2/Lambda resources for Coralogix",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",
   "type": "module",
@@ -36,7 +36,6 @@
     "@aws-sdk/client-ec2": "^3.502.0",
     "@aws-sdk/client-lambda": "^3.502.0",
     "@aws-sdk/client-resource-groups-tagging-api": "^3.502.0",
-    "@aws-sdk/client-sqs": "^3.502.0",
     "@grpc/grpc-js": "^1.10.0",
     "@grpc/proto-loader": "^0.7.10"
   },
