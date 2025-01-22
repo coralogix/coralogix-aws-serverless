@@ -20,17 +20,30 @@ const { latestVersionsPerFunction, resourceTtlMinutes, collectAliases, includeRe
 const lambdaClient = new LambdaClient();
 const resourceGroupsTaggingAPIClient = tagFilters ? new ResourceGroupsTaggingAPIClient() : null;
 
+// Helper function to normalize property access regardless of case
+const prop = (obj, key) => {
+    const upperKey = key.charAt(0).toUpperCase() + key.slice(1);
+    const lowerKey = key.charAt(0).toLowerCase() + key.slice(1);
+    return obj[upperKey] ?? obj[lowerKey];
+}
+
 export const generateLambdaResources = async (functions) => {
+    // Normalize function objects to handle both cases
+    functions = functions.map(f => ({
+        functionArn: prop(f, 'functionArn'),
+        functionName: prop(f, 'functionName'),
+        ...f
+    }));
 
     if (includeRegex) {
-        functions = functions.filter(f => includeRegex.test(f.FunctionArn))
+        functions = functions.filter(f => includeRegex.test(f.functionArn))
     }
     if (excludeRegex) {
-        functions = functions.filter(f => !excludeRegex.test(f.FunctionArn))
+        functions = functions.filter(f => !excludeRegex.test(f.functionArn))
     }
     if (tagFilters) {
         const arns = new Set(await generateFunctionsArnsMatchingTagFilters());
-        functions = functions.filter(f => arns.has(f.FunctionArn))
+        functions = functions.filter(f => arns.has(f.functionArn))
     }
 
     console.info("Generating function details")
@@ -46,14 +59,13 @@ export const generateLambdaResources = async (functions) => {
     return resources
 }
 
-
 const generateFunctionsArnsMatchingTagFilters = async () => {
     const input = {
         ResourceTypeFilters: ['lambda:function'],
         TagFilters: tagFilters,
     };
     const arns = [];
-    for await (const page of paginateGetResources({ client: resourceGroupsTaggingAPIClient }, input)) { // this uses the maximum page size of 100
+    for await (const page of paginateGetResources({ client: resourceGroupsTaggingAPIClient }, input)) {
         arns.push(...page.ResourceTagMappingList.map(r => r.ResourceARN));
     }
     return arns
@@ -61,7 +73,7 @@ const generateFunctionsArnsMatchingTagFilters = async () => {
 
 const generateFunctionAndAliasResources = async (listOfFunctions) => {
     const results = await flatTraverse(listOfFunctions, async (lambdaFunctionVersionLatest, index) => {
-        const functionName = lambdaFunctionVersionLatest.FunctionName
+        const functionName = prop(lambdaFunctionVersionLatest, 'functionName')
         try {
             const lambdaFunction = await lambdaClient.send(new GetFunctionCommand({ FunctionName: functionName }))
             const functionResource = makeLambdaFunctionResource(lambdaFunction)
@@ -76,8 +88,8 @@ const generateFunctionAndAliasResources = async (listOfFunctions) => {
                 : [lambdaFunctionVersionLatest]
 
             const versionsToCollect = versions.filter((version, index) => {
-                return (index <= latestVersionsPerFunction) // Is either $LATEST or one of the latestVersionsPerFunction latest released versions // This relies on the fact that AWS returns the functions in latest -> oldest order
-                    || (aliases.some(alias => version.Version === alias.FunctionVersion)) // has an alias
+                return (index <= latestVersionsPerFunction)
+                    || (aliases.some(alias => prop(version, 'version') === alias.FunctionVersion))
             })
 
             console.debug(`Function (${index + 1}/${listOfFunctions.length}): ${JSON.stringify(functionResource)}`)
@@ -103,9 +115,9 @@ const generateFunctionAndAliasResources = async (listOfFunctions) => {
 
 const generateFunctionVersionResources = async (versionsToCollect) =>
     await traverse(versionsToCollect, async (lambdaFunctionVersion, index) => {
-        const functionNameForRequests = lambdaFunctionVersion.Version === "$LATEST"
-            ? lambdaFunctionVersion.FunctionName
-            : `${lambdaFunctionVersion.FunctionName}:${lambdaFunctionVersion.Version}`
+        const functionNameForRequests = prop(lambdaFunctionVersion, 'version') === "$LATEST"
+            ? prop(lambdaFunctionVersion, 'functionName')
+            : `${prop(lambdaFunctionVersion, 'functionName')}:${prop(lambdaFunctionVersion, 'version')}`
 
         let eventSourceMappings = null
         try {
@@ -128,27 +140,27 @@ const generateFunctionVersionResources = async (versionsToCollect) =>
     })
 
 const makeLambdaFunctionResource = (f) => {
-    const arn = parseLambdaFunctionArn(f.Configuration.FunctionArn)
+    const arn = parseLambdaFunctionArn(prop(f.Configuration, 'functionArn'))
 
     const attributes = [
         stringAttr("cloud.provider", "aws"),
         stringAttr("cloud.platform", "aws_lambda"),
         stringAttr("cloud.account.id", arn.accountId),
         stringAttr("cloud.region", arn.region),
-        stringAttr("cloud.resource_id", f.Configuration.FunctionArn),
+        stringAttr("cloud.resource_id", prop(f.Configuration, 'functionArn')),
         stringAttr("faas.name", arn.functionName),
-        stringAttr("lambda.last_update_status", f.Configuration.LastUpdateStatus),
+        stringAttr("lambda.last_update_status", prop(f.Configuration, 'lastUpdateStatus')),
     ]
 
     attributes.push(...convertFunctionTagsToAttributes(f.Tags))
 
-    const reservedConcurrency = f.Concurrency?.ReservedConcurrentExecutions
+    const reservedConcurrency = f.Concurrency?.ReservedConcurrentExecutions || f.concurrency?.reservedConcurrentExecutions
     if (reservedConcurrency) {
         attributes.push(intAttr("lambda.reserved_concurrency", reservedConcurrency))
     }
 
     return {
-        resourceId: f.Configuration.FunctionArn,
+        resourceId: prop(f.Configuration, 'functionArn'),
         resourceType: "aws:lambda:function",
         attributes,
         schemaUrl,
@@ -159,7 +171,6 @@ const makeLambdaFunctionResource = (f) => {
     }
 }
 
-// WARNING the tags data structure is different in lambda and in ec2
 const convertFunctionTagsToAttributes = tags => {
     if (!tags) {
         return []
@@ -168,12 +179,12 @@ const convertFunctionTagsToAttributes = tags => {
 }
 
 const makeLambdaFunctionVersionResource = (fv, eventSourceMappings, maybePolicy) => {
-    const originalArn = fv.FunctionArn // this may be a function version arn or a function arn
+    const originalArn = prop(fv, 'functionArn')
     const arn = parseLambdaFunctionVersionArn(originalArn)
     const functionArn = `arn:aws:lambda:${arn.region}:${arn.accountId}:function:${arn.functionName}`
-    const functionVersionArn = `arn:aws:lambda:${arn.region}:${arn.accountId}:function:${arn.functionName}:${fv.Version}`
+    const functionVersionArn = `arn:aws:lambda:${arn.region}:${arn.accountId}:function:${arn.functionName}:${prop(fv, 'version')}`
     const resourceId = functionVersionArn
-    const arch = extractArchitecture(fv.Architectures)
+    const arch = extractArchitecture(prop(fv, 'architectures'))
 
     const attributes = [
         stringAttr("cloud.provider", "aws"),
@@ -182,28 +193,28 @@ const makeLambdaFunctionVersionResource = (fv, eventSourceMappings, maybePolicy)
         stringAttr("cloud.region", arn.region),
         stringAttr("cloud.resource_id", resourceId),
         stringAttr("faas.name", arn.functionName),
-        stringAttr("faas.version", fv.Version),
-        intAttr("faas.max_memory", fv.MemorySize),
+        stringAttr("faas.version", prop(fv, 'version')),
+        intAttr("faas.max_memory", prop(fv, 'memorySize')),
         stringAttr("host.arch", arch),
-        stringAttr("lambda.runtime.name", fv.Runtime),
-        intAttr("lambda.code_size", fv.CodeSize),
-        stringAttr("lambda.handler", fv.Handler),
-        stringAttr("lambda.ephemeral_storage.size", fv.EphemeralStorage.Size),
-        intAttr("lambda.timeout", fv.Timeout),
-        stringAttr("lambda.iam_role", fv.Role),
+        stringAttr("lambda.runtime.name", prop(fv, 'runtime')),
+        intAttr("lambda.code_size", prop(fv, 'codeSize')),
+        stringAttr("lambda.handler", prop(fv, 'handler')),
+        stringAttr("lambda.ephemeral_storage.size", prop(fv.EphemeralStorage, 'size')),
+        intAttr("lambda.timeout", prop(fv, 'timeout')),
+        stringAttr("lambda.iam_role", prop(fv, 'role')),
         stringAttr("lambda.function_arn", functionArn),
     ]
 
-    if (fv.Layers) {
-        fv.Layers.forEach((layer, index) => {
-            attributes.push(stringAttr(`lambda.layer.${index}.arn`, layer.Arn))
-            attributes.push(stringAttr(`lambda.layer.${index}.code_size`, layer.CodeSize))
+    if (prop(fv, 'layers')) {
+        prop(fv, 'layers').forEach((layer, index) => {
+            attributes.push(stringAttr(`lambda.layer.${index}.arn`, prop(layer, 'arn')))
+            attributes.push(stringAttr(`lambda.layer.${index}.code_size`, prop(layer, 'codeSize')))
         })
     }
 
     if (eventSourceMappings && eventSourceMappings.EventSourceMappings) {
         eventSourceMappings.EventSourceMappings.forEach((eventSource, index) => {
-            attributes.push(stringAttr(`lambda.event_source.${index}.arn`, eventSource.EventSourceArn))
+            attributes.push(stringAttr(`lambda.event_source.${index}.arn`, prop(eventSource, 'eventSourceArn')))
         })
     }
 

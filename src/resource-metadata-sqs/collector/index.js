@@ -47,7 +47,7 @@ const collectAndSendLambdaResources = async () => {
     console.info("Collecting Lambda resources")
     for await (const lambdaResourceBatch of collectLambdaResources()) {
         console.info(`Sending Lambda resources batch to SQS`)
-        await sendToSqs({ type: "lambda", resources: lambdaResourceBatch })
+        await sendToSqs({ source: "collector.lambda", resources: lambdaResourceBatch })
         console.info(`Sent Lambda resources batch to SQS`)
     }
 }
@@ -56,7 +56,7 @@ const collectAndSendEc2Resources = async () => {
     console.info("Collecting EC2 resources")
     for await (const ec2ResourceBatch of collectEc2Resources()) {
         console.info(`Sending EC2 resources batch to SQS`)
-        await sendToSqs({ type: "ec2", resources: ec2ResourceBatch })
+        await sendToSqs({ source: "collector.ec2", resources: ec2ResourceBatch })
         console.info(`Sent EC2 resources batch to SQS`)
     }
 }

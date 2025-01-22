@@ -43,23 +43,27 @@ export const handler = async (event, context) => {
 }
 
 const processMessage = async (event, context) => {
-    if (!event.type) {
-        throw new Error("Event type property is missing")
-    }
-    if (!event.resources) {
-        throw new Error("Event resources property is missing")
+    console.debug(event)
+    if (!event.source) {
+        throw new Error("Event source property is missing")
     }
 
     const invokedArn = parseLambdaFunctionArn(context.invokedFunctionArn)
     const collectorId = `arn:aws:lambda:${invokedArn.region}:${invokedArn.accountId}:function:${invokedArn.functionName}`
     console.info(`Collector ${collectorId} starting collection`)
 
-    switch (event.type.toLowerCase()) {
-        case "ec2":
+    switch (event.source.toLowerCase()) {
+        case "collector.ec2":
             await generateAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId, event.resources)
             break
-        case "lambda":
+        case "collector.lambda":
             await generateAndSendLambdaResources(collectorId, event.resources)
+            break
+        case "aws.ec2":
+            await generateAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId, event.detail.responseElements.instancesSet.items)
+            break
+        case "aws.lambda":
+            await generateAndSendLambdaResources(collectorId, event.detail.responseElements)
             break
         default:
             throw new Error(`Unsupported event type: ${event.type}`)

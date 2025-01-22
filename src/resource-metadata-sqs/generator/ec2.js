@@ -23,8 +23,8 @@ export const generateEc2Resources = async (region, accountId, instances) => {
 }
 
 const makeEc2InstanceResource = (i, region, accountId) => {
-
-    const instanceId = i.InstanceId
+    // Handle both EC2 API and EventBridge property casing
+    const instanceId = i.InstanceId || i.instanceId
     const arn = `arn:aws:ec2:${region}:${accountId}:instance/${instanceId}`
 
     const attributes = [
@@ -32,19 +32,21 @@ const makeEc2InstanceResource = (i, region, accountId) => {
         stringAttr("cloud.platform", "aws_ec2"),
         stringAttr("cloud.account.id", accountId),
         stringAttr("cloud.region", region),
-        stringAttr("cloud.availability_zone", i.Placement?.AvailabilityZone),
+        stringAttr("cloud.availability_zone", i.Placement?.AvailabilityZone || i.placement?.availabilityZone),
         stringAttr("cloud.resource_id", arn),
         stringAttr("host.id", instanceId),
-        stringAttr("host.image.id", i.ImageId),
-        stringAttr("host.type", i.InstanceType),
+        stringAttr("host.image.id", i.ImageId || i.imageId),
+        stringAttr("host.type", i.InstanceType || i.instanceType),
     ]
 
-    const name = i.Tags?.find(kv => kv.Key === "Name")?.Value
+    // Handle tags in both formats
+    const tags = i.Tags?.items || i.Tags || i.tagSet?.items || []
+    const name = tags.find(kv => (kv.Key || kv.key) === "Name")?.Value || tags.find(kv => (kv.Key || kv.key) === "Name")?.value
     if (name) {
-        stringAttr("host.name", name)
+        attributes.push(stringAttr("host.name", name))
     }
 
-    attributes.push(...convertEc2TagsToAttributes(i.Tags))
+    attributes.push(...convertEc2TagsToAttributes(tags))
 
     return {
         resourceId: arn,
