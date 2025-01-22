@@ -22,11 +22,20 @@ export const handler = async (event, context) => {
     // Handle SQS events which come in a Records array
     if (event.Records) {
         console.info(`Processing ${event.Records.length} SQS messages`)
+        const batchItemFailures = []
+
         for (const record of event.Records) {
-            const messageBody = JSON.parse(record.body)
-            await processMessage(messageBody, context)
+            // ensure partial batch processing
+            try {
+                const messageBody = JSON.parse(record.body)
+                await processMessage(messageBody, context)
+            } catch (error) {
+                console.error(`Failed to process message: ${error}`)
+                batchItemFailures.push({ itemIdentifier: record.messageId })
+            }
         }
-        return
+
+        return { batchItemFailures }
     }
 
     // Handle direct invocation
