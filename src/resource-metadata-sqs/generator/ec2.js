@@ -8,10 +8,16 @@ const validateAndExtractConfiguration = () => {
 };
 const { resourceTtlMinutes } = validateAndExtractConfiguration();
 
-export const generateEc2Resources = async (region, accountId, instances) => {
+export const generateEc2Resources = async (region, accountId, instances, mode = "create") => {
 
     console.info("Generating EC2 instances")
-    const instanceResources = instances.map(i => makeEc2InstanceResource(i, region, accountId))
+
+    let instanceResources = []
+    if (mode === "delete") {
+        instanceResources = instances.map(i => deleteEc2InstanceResource(i, region, accountId))
+    } else {
+        instanceResources = instances.map(i => makeEc2InstanceResource(i, region, accountId))
+    }
 
     instanceResources.forEach((f, index) =>
         console.debug(`Ec2Instance (${index + 1}/${instanceResources.length}): ${JSON.stringify(f)}`)
@@ -66,4 +72,20 @@ const convertEc2TagsToAttributes = tags => {
         return []
     }
     return tags.map(tag => stringAttr(`cloud.tag.${tag.Key}`, tag.Value));
+}
+
+export const deleteEc2InstanceResource = (i, region, accountId) => {
+    // Handle both EC2 API and EventBridge property casing
+    const instanceId = i.InstanceId || i.instanceId
+    const arn = `arn:aws:ec2:${region}:${accountId}:instance/${instanceId}`
+    return {
+        resourceId: arn,
+        resourceType: "aws:ec2:instance",
+        attributes: [],
+        schemaUrl,
+        resourceTtl: {
+            seconds: 0, // TTL=0 means delete immediately
+            nanos: 0,
+        },
+    }
 }

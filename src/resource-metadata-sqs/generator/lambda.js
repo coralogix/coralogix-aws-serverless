@@ -27,7 +27,12 @@ const prop = (obj, key) => {
     return obj[upperKey] ?? obj[lowerKey];
 }
 
-export const generateLambdaResources = async (functions) => {
+export const generateLambdaResources = async (region, accountId, functions, mode = "create") => {
+
+    if (mode === "delete") {
+        return functions.map(f => deleteLambdaFunctionResource(f, region, accountId))
+    }
+
     // Normalize function objects to handle both cases
     functions = functions.map(f => ({
         functionArn: prop(f, 'functionArn'),
@@ -270,5 +275,21 @@ const parseLambdaFunctionVersionArn = (lambdaFunctionVersionArn) => {
         accountId: arn[4],
         functionName: arn[6],
         functionVersion: arn[7],
+    }
+}
+
+const deleteLambdaFunctionResource = (f, region, accountId) => {
+    // Handle both Lambda API and EventBridge property casing
+    const functionName = prop(f, 'functionName')
+    const arn = `arn:aws:lambda:${region}:${accountId}:function:${functionName}`
+    return {
+        resourceId: arn,
+        resourceType: "aws:lambda:function",
+        attributes: [],
+        schemaUrl,
+        resourceTtl: {
+            seconds: 0, // TTL=0 means delete immediately
+            nanos: 0,
+        },
     }
 }
