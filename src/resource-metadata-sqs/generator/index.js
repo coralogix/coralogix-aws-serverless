@@ -63,7 +63,7 @@ const processMessage = async (event, context) => {
             await generateAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId, event.detail.responseElements.instancesSet.items)
             break
         case "aws.lambda":
-            await generateAndSendLambdaResources(collectorId, event.detail.responseElements)
+            await generateAndSendLambdaResources(collectorId, [event.detail.responseElements])
             break
         default:
             throw new Error(`Unsupported event type: ${event.type}`)

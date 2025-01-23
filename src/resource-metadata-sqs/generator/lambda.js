@@ -199,7 +199,7 @@ const makeLambdaFunctionVersionResource = (fv, eventSourceMappings, maybePolicy)
         stringAttr("lambda.runtime.name", prop(fv, 'runtime')),
         intAttr("lambda.code_size", prop(fv, 'codeSize')),
         stringAttr("lambda.handler", prop(fv, 'handler')),
-        stringAttr("lambda.ephemeral_storage.size", prop(fv.EphemeralStorage, 'size')),
+        stringAttr("lambda.ephemeral_storage.size", prop(prop(fv, 'ephemeralStorage'), 'size')),
         intAttr("lambda.timeout", prop(fv, 'timeout')),
         stringAttr("lambda.iam_role", prop(fv, 'role')),
         stringAttr("lambda.function_arn", functionArn),
