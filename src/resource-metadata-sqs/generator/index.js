@@ -54,19 +54,16 @@ const processMessage = async (event, context) => {
 
     switch (event.source.toLowerCase()) {
         case "collector.ec2":
-            await generateAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId, event.resources, "create")
+            await generateAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId, event.resources)
             break
         case "collector.lambda":
-            await generateAndSendLambdaResources(collectorId, invokedArn.region, invokedArn.accountId, event.resources, "create")
+            await generateAndSendLambdaResources(collectorId, event.resources)
             break
         case "aws.ec2":
-            const mode = event.detail.eventName === "TerminateInstances" ? "delete" : "create"
-            await generateAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId, event.detail.responseElements.instancesSet.items, mode)
+            await generateAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId, event.detail.responseElements.instancesSet.items)
             break
         case "aws.lambda":
-            const resource = event.detail.eventName === "DeleteFunction20150331" ? [event.detail.requestParameters] : [event.detail.responseElements]
-            const lambdaMode = event.detail.eventName === "DeleteFunction20150331" ? "delete" : "create"
-            await generateAndSendLambdaResources(collectorId, invokedArn.region, invokedArn.accountId, resource, lambdaMode)
+            await generateAndSendLambdaResources(collectorId, [event.detail.responseElements])
             break
         default:
             throw new Error(`Unsupported event type: ${event.type}`)
@@ -75,17 +72,17 @@ const processMessage = async (event, context) => {
     console.info("Collection done")
 }
 
-const generateAndSendLambdaResources = async (collectorId, region, accountId, resources, mode) => {
+const generateAndSendLambdaResources = async (collectorId, resources) => {
     console.info("Generating Lambda resources")
-    const lambdaResources = await generateLambdaResources(region, accountId, resources, mode)
+    const lambdaResources = await generateLambdaResources(resources)
     console.info("Sending Lambda resources to coralogix")
     await sendToCoralogix({ collectorId, resources: lambdaResources })
     console.info("Sent Lambda resources to coralogix")
 }
 
-const generateAndSendEc2Resources = async (collectorId, region, accountId, resources, mode) => {
+const generateAndSendEc2Resources = async (collectorId, region, accountId, resources) => {
     console.info("Generating EC2 resources")
-    const ec2Resources = await generateEc2Resources(region, accountId, resources, mode)
+    const ec2Resources = await generateEc2Resources(region, accountId, resources)
     console.info("Sending EC2 resources to coralogix")
     await sendToCoralogix({ collectorId, resources: ec2Resources })
     console.info("Sent EC2 resources to coralogix")
