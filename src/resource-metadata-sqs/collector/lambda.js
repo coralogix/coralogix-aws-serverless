@@ -20,7 +20,7 @@ export const collectLambdaResources = async function* () {
         arnsMatchingTags = new Set(await collectFunctionsArnsMatchingTagFilters());
     }
 
-    for await (const page of paginateListFunctions({ client: lambdaClient }, { MaxItems: 10 })) {
+    for await (const page of paginateListFunctions({ client: lambdaClient }, { MaxItems: 50 })) {
         let pageFunctions = page.Functions;
 
         if (includeRegex) {
