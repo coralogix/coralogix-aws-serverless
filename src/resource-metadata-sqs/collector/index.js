@@ -27,36 +27,45 @@ const { excludeEC2, excludeLambda } = validateAndExtractConfiguration();
 export const handler = async (_, context) => {
     console.info(`Starting a one-time collection of resources`)
 
-    let dataToCollect = []
+    let collectionPromises = []
 
     if (!excludeEC2) {
-        const ec2 = collectAndSendEc2Resources()
-        dataToCollect.push(ec2)
+        const ec2 = collectEc2ResourceBatches()
+        collectionPromises.push(ec2)
     }
 
     if (!excludeLambda) {
-        const lambda = collectAndSendLambdaResources()
-        dataToCollect.push(lambda)
+        const lambda = collectLambdaResourceBatches()
+        collectionPromises.push(lambda)
     }
-    await Promise.all(dataToCollect)
+
+    const collectedResources = await Promise.all(collectionPromises)
+
+    for (const { source, batches } of collectedResources) {
+        for (const batch of batches) {
+            console.info(`Sending ${source} resources batch to SQS`)
+            await sendToSqs({ source, resources: batch })
+            console.info(`Sent ${source} resources batch to SQS`)
+        }
+    }
 
     console.info("Collection done")
 }
 
-const collectAndSendLambdaResources = async () => {
+const collectLambdaResourceBatches = async () => {
     console.info("Collecting Lambda resources")
-    for await (const lambdaResourceBatch of collectLambdaResources()) {
-        console.info(`Sending Lambda resources batch to SQS`)
-        await sendToSqs({ source: "collector.lambda", resources: lambdaResourceBatch })
-        console.info(`Sent Lambda resources batch to SQS`)
+    const batches = []
+    for await (const batch of collectLambdaResources()) {
+        batches.push(batch)
     }
+    return { source: "collector.lambda", batches }
 }
 
-const collectAndSendEc2Resources = async () => {
+const collectEc2ResourceBatches = async () => {
     console.info("Collecting EC2 resources")
-    for await (const ec2ResourceBatch of collectEc2Resources()) {
-        console.info(`Sending EC2 resources batch to SQS`)
-        await sendToSqs({ source: "collector.ec2", resources: ec2ResourceBatch })
-        console.info(`Sent EC2 resources batch to SQS`)
+    const batches = []
+    for await (const batch of collectEc2Resources()) {
+        batches.push(batch)
     }
+    return { source: "collector.ec2", batches }
 }

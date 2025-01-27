@@ -20,23 +20,35 @@ export const collectLambdaResources = async function* () {
         arnsMatchingTags = new Set(await collectFunctionsArnsMatchingTagFilters());
     }
 
-    for await (const page of paginateListFunctions({ client: lambdaClient }, { MaxItems: 50 })) {
-        let pageFunctions = page.Functions;
+    while (true) {
+        try {
+            for await (const page of paginateListFunctions({ client: lambdaClient }, { MaxItems: 50 })) {
+                let pageFunctions = page.Functions;
 
-        if (includeRegex) {
-            pageFunctions = pageFunctions.filter(f => includeRegex.test(f.FunctionArn));
-        }
+                if (includeRegex) {
+                    pageFunctions = pageFunctions.filter(f => includeRegex.test(f.FunctionArn));
+                }
 
-        if (excludeRegex) {
-            pageFunctions = pageFunctions.filter(f => !excludeRegex.test(f.FunctionArn));
-        }
+                if (excludeRegex) {
+                    pageFunctions = pageFunctions.filter(f => !excludeRegex.test(f.FunctionArn));
+                }
 
-        if (tagFilters) {
-            pageFunctions = pageFunctions.filter(f => arnsMatchingTags.has(f.FunctionArn));
-        }
+                if (tagFilters) {
+                    pageFunctions = pageFunctions.filter(f => arnsMatchingTags.has(f.FunctionArn));
+                }
 
-        if (pageFunctions.length > 0) {
-            yield pageFunctions;
+                if (pageFunctions.length > 0) {
+                    yield pageFunctions;
+                }
+            }
+            break; // If we get here, pagination completed successfully
+        } catch (error) {
+            if (error.name === 'TooManyRequestsException') {
+                console.warn('Rate limit exceeded, waiting 30 seconds before retrying...');
+                await new Promise(resolve => setTimeout(resolve, 30000));
+                continue;
+            }
+            throw error; // Re-throw any other errors
         }
     }
 }
