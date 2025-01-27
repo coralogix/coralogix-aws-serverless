@@ -239,7 +239,7 @@ Resources:
       Description: Collect AWS resource metadata for Coralogix.
       CodeUri: ./collector
       Handler: index.handler
-      Runtime: nodejs20.x
+      Runtime: nodejs22.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
@@ -319,7 +319,7 @@ Resources:
       Description: Generate and send resource metadata to Coralogix.
       CodeUri: ./generator
       Handler: index.handler
-      Runtime: nodejs20.x
+      Runtime: nodejs22.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
@@ -406,7 +406,7 @@ Resources:
       Layers:
         - Ref: LayerARN
       Handler: index.handler
-      Runtime: nodejs20.x
+      Runtime: nodejs22.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:

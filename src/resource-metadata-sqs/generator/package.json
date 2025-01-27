@@ -13,7 +13,7 @@
     "url": "https://coralogix.com"
   },
   "engines": {
-    "node": "20.x"
+    "node": "22.x"
   },
   "contributors": [],
   "keywords": [
