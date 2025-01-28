@@ -1,9 +1,10 @@
 import { LambdaClient, paginateListFunctions } from '@aws-sdk/client-lambda'
 import { ResourceGroupsTaggingAPIClient, paginateGetResources } from '@aws-sdk/client-resource-groups-tagging-api';
+import _ from 'lodash';
 
 const validateAndExtractConfiguration = () => {
-    const includeRegex = process.env.LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER ? new RegExp(process.env.LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER) : null
-    const excludeRegex = process.env.LAMBDA_FUNCTION_EXCLUDE_REGEX_FILTER ? new RegExp(process.env.LAMBDA_FUNCTION_EXCLUDE_REGEX_FILTER) : null
+    const includeRegex = process.env.LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER ? new RegExp(_.escapeRegExp(process.env.LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER)) : null
+    const excludeRegex = process.env.LAMBDA_FUNCTION_EXCLUDE_REGEX_FILTER ? new RegExp(_.escapeRegExp(process.env.LAMBDA_FUNCTION_EXCLUDE_REGEX_FILTER)) : null
     const tagFilters = process.env.LAMBDA_FUNCTION_TAG_FILTERS ? JSON.parse(process.env.LAMBDA_FUNCTION_TAG_FILTERS) : null
     return { includeRegex, excludeRegex, tagFilters };
 }
