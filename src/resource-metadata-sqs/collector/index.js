@@ -39,6 +39,9 @@ export const handler = async (_, context) => {
         collectionPromises.push(lambda)
     }
 
+    // Wait for all resources to be collected
+    // Otherwise, if sent immediately, there may be an API rate limit exceeded error
+    // As the generator will start queueing the Lambda API before the collector is done
     const collectedResources = await Promise.all(collectionPromises)
 
     for (const { source, batches } of collectedResources) {

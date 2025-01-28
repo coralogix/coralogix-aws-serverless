@@ -3,7 +3,7 @@ Transform: AWS::Serverless-2016-10-31
 Description: Send resource metadata to Coralogix.
 Metadata:
   AWS::ServerlessRepo::Application:
-    Name: Coralogix-Resource-Metadata
+    Name: Coralogix-Resource-Metadata-Sqs
     Description: Send resource metadata to Coralogix.
     Author: Coralogix
     SpdxLicenseId: Apache-2.0
@@ -12,8 +12,9 @@ Metadata:
     Labels:
       - coralogix
       - metadata
+      - sqs
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.2.11
+    SemanticVersion: 0.1.0
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -27,7 +28,6 @@ Metadata:
           default: EventBridge configuration
         Parameters:
           - EventMode
-          - ExistingCloudTrailArn
       - Label:
           default: Integration configuration
         Parameters:
@@ -61,6 +61,8 @@ Metadata:
         default: In case you are using Secret Manager This is the ARN of the Coralogix Security lambda Layer.
       ApiKey:
         default: Api Key
+      EventMode:
+        default: Event Mode
       Schedule:
         default: Schedule
       LatestVersionsPerFunction:
@@ -87,8 +89,6 @@ Metadata:
         default: Is EC2 Resource Type Excluded?
       ExcludedLambdaResourceType:
         default: Is Lambda Resource Type Excluded?
-      EventMode:
-        default: Event Mode
 Parameters:
   CoralogixRegion:
     Type: String
@@ -111,6 +111,14 @@ Parameters:
     Type: String
     Description: Your Coralogix Send Your Data - API Key or incase you use pre created secret (created in AWS secret manager) put here the name of the secret that contains the Coralogix send your data key
     NoEcho: true
+  EventMode:
+    Type: String
+    Description: Enable real-time processing of CloudTrail events via EventBridge [Disabled, EnabledWithExistingTrail, EnabledCreateTrail]
+    AllowedValues:
+      - Disabled
+      - EnabledWithExistingTrail 
+      - EnabledCreateTrail
+    Default: Disabled
   LayerARN:
     Type: String
     Description: In case you are using Secret Manager This is the ARN of the Coralogix Security lambda Layer.
@@ -187,14 +195,6 @@ Parameters:
       - 'True'
       - 'False'
     Default: 'False'
-  EventMode:
-    Type: String
-    Description: Enable real-time processing of CloudTrail events via EventBridge [Disabled, EnabledWithExistingTrail, EnabledCreateTrail]
-    AllowedValues:
-      - Disabled
-      - EnabledWithExistingTrail 
-      - EnabledCreateTrail
-    Default: Disabled
 Mappings:
   CoralogixRegionMap:
     EU1:

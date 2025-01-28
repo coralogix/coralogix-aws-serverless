@@ -1,10 +1,12 @@
-# Coralogix Resource Metadata
+# Coralogix Resource Metadata (SQS mode)
 
 This application collect AWS resource metadata and sends them to your **Coralogix** account.
 
+This is a specific version of the [resource-metadata](../resource-metadata) application, which is designed to handle huge amount of Lambda functions in the target AWS Region (5000+).
+
 ## Prerequisites
 
-* Permissions to create lambda functions
+* Permissions to create required AWS resources (Lambda, SQS, SNS, Cloudtrail etc.)
 * An AWS account.
 * A coralogix account.
 * in case you use Secret Manager you should first deploy the [SM lambda layer](https://serverlessrepo.aws.amazon.com/applications/eu-central-1/597078901540/Coralogix-Lambda-SSMLayer), you should only deploy one layer per region.
@@ -18,6 +20,7 @@ This application collect AWS resource metadata and sends them to your **Coralogi
 | aplication name | The stack name of this application created via AWS CloudFormation. | | :heavy_check_mark: |
 | CreateSecret |  Set to False In case you want to use secrets manager with a predefine secret that was already created and contains Coralogix Send Your Data API key. | True | |
 | ApiKey | Your [Coralogix Send Your Data – API Key](https://coralogix.com/docs/send-your-data-api-key/) or incase you use pre created secret (created in AWS secret manager) put here the name of the secret that contains the Coralogix send your data key | | :heavy_check_mark: |
+| EventMode | Additionally to the regular schedule, enable real-time processing of CloudTrail events via EventBridge for immediate generation of new resources in Coralogix [Disabled, EnabledWithExistingTrail, EnabledCreateTrail]. | Disabled | |
 | ResourceTtlMinutes | Once a resource is collected, how long should it remain valid. | 60 | |
 | LatestVersionsPerFunction | How many latest published versions of each Lambda function should be collected. | 0 | |
 | CollectAliases | [True/False] | False | |
