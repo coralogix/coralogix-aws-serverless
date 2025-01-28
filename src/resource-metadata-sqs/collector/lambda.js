@@ -36,7 +36,7 @@ export const collectLambdaResources = async function* () {
         }
 
         if (pageFunctions.length > 0) {
-            yield pageFunctions;
+            yield pageFunctions; // Return each page as soon as it's collected
         }
     }
 }

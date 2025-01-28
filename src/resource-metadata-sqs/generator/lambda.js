@@ -38,6 +38,7 @@ export const generateLambdaResources = async (functions) => {
 
 const generateFunctionAndAliasResources = async (listOfFunctions) => {
     const results = await flatTraverse(listOfFunctions, async (lambdaFunctionVersionLatest, index) => {
+        // Handle both Lambda API and EventBridge property casing
         const functionName = lambdaFunctionVersionLatest.functionName ?? lambdaFunctionVersionLatest.FunctionName
         try {
             const lambdaFunction = await lambdaClient.send(new GetFunctionCommand({ FunctionName: functionName }))

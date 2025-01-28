@@ -38,7 +38,6 @@ export const handler = async (event, context) => {
         return { batchItemFailures }
     }
 
-    // Handle direct invocation
     await processMessage(event, context)
 }
 
