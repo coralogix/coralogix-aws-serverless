@@ -261,6 +261,12 @@ Conditions:
   ShouldCreateCloudTrail: !Equals [!Ref EventMode, EnabledCreateTrail]
   UseExistingCloudTrail: !Equals [!Ref EventMode, EnabledWithExistingTrail]
 Resources:
+  MetadataQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 900
+      MessageRetentionPeriod: 1209600
+
   CollectorLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -338,6 +344,15 @@ Resources:
                 - sqs:SendMessage
               Resource: !GetAtt MetadataQueue.Arn
 
+  CollectorLambdaFunctionNotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: IsNotificationEnabled
+    Properties:
+      Protocol: email
+      Endpoint:
+        Ref: NotificationEmail
+      TopicArn: !Ref CollectorLambdaFunction.DestinationTopic
+
   GeneratorLambdaFunction:
     Condition: IsNotSMEnabled
     Type: AWS::Serverless::Function
@@ -380,6 +395,10 @@ Resources:
             BatchSize: 1
             ScalingConfig:
               MaximumConcurrency: 5
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: SNS
       Policies:
         - !If
           - IsNotLambdaResourceTypeExcluded
@@ -404,12 +423,6 @@ Resources:
                 - sqs:DeleteMessage
                 - sqs:GetQueueAttributes
               Resource: !GetAtt MetadataQueue.Arn
-
-  MetadataQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      VisibilityTimeout: 900
-      MessageRetentionPeriod: 1209600
 
   GeneratorLambdaFunctionSM:
     Condition: IsSMEnabled
@@ -458,6 +471,10 @@ Resources:
             BatchSize: 1
             ScalingConfig:
               MaximumConcurrency: 5
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: SNS
       Policies:
         - !If
           - IsNotLambdaResourceTypeExcluded
@@ -491,10 +508,10 @@ Resources:
       Description: Coralogix Send Your Data key Secret
       Name: !Sub
         - 'lambda/coralogix/${AWS::Region}/${function}'
-        - function: !Ref LambdaFunctionSM
+        - function: !Ref GeneratorLambdaFunctionSM
       SecretString: !Ref ApiKey
 
-  LambdaFunctionNotificationSubscription:
+  GeneratorLambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
     Condition: IsNotificationEnabled
     Properties:
@@ -504,8 +521,8 @@ Resources:
       TopicArn:
         !If
           - IsSMEnabled
-          - !Ref LambdaFunctionSM.DestinationTopic
-          - !Ref LambdaFunction.DestinationTopic
+          - !Ref GeneratorLambdaFunctionSM.DestinationTopic
+          - !Ref GeneratorLambdaFunction.DestinationTopic
 
   CloudTrailBucket:
     Type: AWS::S3::Bucket
@@ -574,8 +591,10 @@ Resources:
           eventName:
             - RunInstances
             - CreateFunction20150331
+          errorCode:
+            - exists: false
       Targets:
-        - Arn: !Ref MetadataQueue
+        - Arn: !GetAtt MetadataQueue.Arn
           Id: "ResourceMetadataCollector"
           InputTransformer:
             InputPathsMap:
