@@ -112,7 +112,7 @@ Parameters:
     Type: String
     Description: Collect metadata on a specific schedule
     MaxLength: 256
-    Default: "rate(10 minutes)"
+    Default: "rate(30 minutes)"
   LatestVersionsPerFunction:
     Type: Number
     Description: How many latest published versions of each Lambda function should be collected
@@ -256,10 +256,6 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
-          LATEST_VERSIONS_PER_FUNCTION:
-            Ref: LatestVersionsPerFunction
-          COLLECT_ALIASES:
-            Ref: CollectAliases
           LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER:
             Ref: LambdaFunctionIncludeRegexFilter
           LAMBDA_FUNCTION_EXCLUDE_REGEX_FILTER:
@@ -343,6 +339,10 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
+          LATEST_VERSIONS_PER_FUNCTION:
+            Ref: LatestVersionsPerFunction
+          COLLECT_ALIASES:
+            Ref: CollectAliases
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
           CORALOGIX_METADATA_URL: !If
@@ -363,6 +363,8 @@ Resources:
           Properties:
             Queue: !GetAtt MetadataQueue.Arn
             BatchSize: 1
+            ScalingConfig:
+              MaximumConcurrency: 5
       Policies:
         - !If 
           - IsNotEC2ResourceTypeExcluded
@@ -409,8 +411,8 @@ Resources:
   MetadataQueue:
     Type: AWS::SQS::Queue
     Properties:
-      VisibilityTimeout: 900 # 15 minutes, matching lambda timeout
-      MessageRetentionPeriod: 1209600 # 14 days
+      VisibilityTimeout: 900
+      MessageRetentionPeriod: 1209600
 
   GeneratorLambdaFunctionSM:
     Condition: IsSMEnabled
@@ -430,6 +432,10 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
+          LATEST_VERSIONS_PER_FUNCTION:
+            Ref: LatestVersionsPerFunction
+          COLLECT_ALIASES:
+            Ref: CollectAliases
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
           CORALOGIX_METADATA_URL: !If
@@ -453,6 +459,8 @@ Resources:
           Properties:
             Queue: !GetAtt MetadataQueue.Arn
             BatchSize: 1
+            ScalingConfig:
+              MaximumConcurrency: 5
       Policies:
         - !If 
           - IsNotEC2ResourceTypeExcluded

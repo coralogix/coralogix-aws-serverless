@@ -15,18 +15,11 @@ const { latestVersionsPerFunction, resourceTtlMinutes, collectAliases } = valida
 
 const lambdaClient = new LambdaClient();
 
-// Helper function to normalize property access regardless of case
-const prop = (obj, key) => {
-    const upperKey = key.charAt(0).toUpperCase() + key.slice(1);
-    const lowerKey = key.charAt(0).toLowerCase() + key.slice(1);
-    return obj[upperKey] ?? obj[lowerKey];
-}
-
 export const generateLambdaResources = async (functions) => {
     // Normalize function objects to handle both cases
     functions = functions.map(f => ({
-        functionArn: prop(f, 'functionArn'),
-        functionName: prop(f, 'functionName'),
+        functionArn: f.functionArn ?? f.FunctionArn,
+        functionName: f.functionName ?? f.FunctionName,
         ...f
     }));
 
@@ -45,7 +38,7 @@ export const generateLambdaResources = async (functions) => {
 
 const generateFunctionAndAliasResources = async (listOfFunctions) => {
     const results = await flatTraverse(listOfFunctions, async (lambdaFunctionVersionLatest, index) => {
-        const functionName = prop(lambdaFunctionVersionLatest, 'functionName')
+        const functionName = lambdaFunctionVersionLatest.functionName ?? lambdaFunctionVersionLatest.FunctionName
         try {
             const lambdaFunction = await lambdaClient.send(new GetFunctionCommand({ FunctionName: functionName }))
             const functionResource = makeLambdaFunctionResource(lambdaFunction)
@@ -60,8 +53,9 @@ const generateFunctionAndAliasResources = async (listOfFunctions) => {
                 : [lambdaFunctionVersionLatest]
 
             const versionsToCollect = versions.filter((version, index) => {
+                const versionNumber = version.version ?? version.Version
                 return (index <= latestVersionsPerFunction)
-                    || (aliases.some(alias => prop(version, 'version') === alias.FunctionVersion))
+                    || (aliases.some(alias => versionNumber === alias.FunctionVersion))
             })
 
             console.debug(`Function (${index + 1}/${listOfFunctions.length}): ${JSON.stringify(functionResource)}`)
@@ -87,9 +81,11 @@ const generateFunctionAndAliasResources = async (listOfFunctions) => {
 
 const generateFunctionVersionResources = async (versionsToCollect) =>
     await traverse(versionsToCollect, async (lambdaFunctionVersion, index) => {
-        const functionNameForRequests = prop(lambdaFunctionVersion, 'version') === "$LATEST"
-            ? prop(lambdaFunctionVersion, 'functionName')
-            : `${prop(lambdaFunctionVersion, 'functionName')}:${prop(lambdaFunctionVersion, 'version')}`
+        const version = lambdaFunctionVersion.version ?? lambdaFunctionVersion.Version
+        const functionName = lambdaFunctionVersion.functionName ?? lambdaFunctionVersion.FunctionName
+        const functionNameForRequests = version === "$LATEST"
+            ? functionName
+            : `${functionName}:${version}`
 
         let eventSourceMappings = null
         try {
@@ -112,16 +108,17 @@ const generateFunctionVersionResources = async (versionsToCollect) =>
     })
 
 const makeLambdaFunctionResource = (f) => {
-    const arn = parseLambdaFunctionArn(prop(f.Configuration, 'functionArn'))
+    const functionArn = f.Configuration.functionArn ?? f.Configuration.FunctionArn
+    const arn = parseLambdaFunctionArn(functionArn)
 
     const attributes = [
         stringAttr("cloud.provider", "aws"),
         stringAttr("cloud.platform", "aws_lambda"),
         stringAttr("cloud.account.id", arn.accountId),
         stringAttr("cloud.region", arn.region),
-        stringAttr("cloud.resource_id", prop(f.Configuration, 'functionArn')),
+        stringAttr("cloud.resource_id", functionArn),
         stringAttr("faas.name", arn.functionName),
-        stringAttr("lambda.last_update_status", prop(f.Configuration, 'lastUpdateStatus')),
+        stringAttr("lambda.last_update_status", f.Configuration.lastUpdateStatus ?? f.Configuration.LastUpdateStatus),
     ]
 
     attributes.push(...convertFunctionTagsToAttributes(f.Tags))
@@ -132,7 +129,7 @@ const makeLambdaFunctionResource = (f) => {
     }
 
     return {
-        resourceId: prop(f.Configuration, 'functionArn'),
+        resourceId: functionArn,
         resourceType: "aws:lambda:function",
         attributes,
         schemaUrl,
@@ -151,12 +148,14 @@ const convertFunctionTagsToAttributes = tags => {
 }
 
 const makeLambdaFunctionVersionResource = (fv, eventSourceMappings, maybePolicy) => {
-    const originalArn = prop(fv, 'functionArn')
+    const originalArn = fv.functionArn ?? fv.FunctionArn
     const arn = parseLambdaFunctionVersionArn(originalArn)
     const functionArn = `arn:aws:lambda:${arn.region}:${arn.accountId}:function:${arn.functionName}`
-    const functionVersionArn = `arn:aws:lambda:${arn.region}:${arn.accountId}:function:${arn.functionName}:${prop(fv, 'version')}`
+    const version = fv.version ?? fv.Version
+    const functionVersionArn = `arn:aws:lambda:${arn.region}:${arn.accountId}:function:${arn.functionName}:${version}`
     const resourceId = functionVersionArn
-    const arch = extractArchitecture(prop(fv, 'architectures'))
+    const architectures = fv.architectures ?? fv.Architectures
+    const arch = extractArchitecture(architectures)
 
     const attributes = [
         stringAttr("cloud.provider", "aws"),
@@ -165,28 +164,29 @@ const makeLambdaFunctionVersionResource = (fv, eventSourceMappings, maybePolicy)
         stringAttr("cloud.region", arn.region),
         stringAttr("cloud.resource_id", resourceId),
         stringAttr("faas.name", arn.functionName),
-        stringAttr("faas.version", prop(fv, 'version')),
-        intAttr("faas.max_memory", prop(fv, 'memorySize')),
+        stringAttr("faas.version", version),
+        intAttr("faas.max_memory", fv.memorySize ?? fv.MemorySize),
         stringAttr("host.arch", arch),
-        stringAttr("lambda.runtime.name", prop(fv, 'runtime')),
-        intAttr("lambda.code_size", prop(fv, 'codeSize')),
-        stringAttr("lambda.handler", prop(fv, 'handler')),
-        stringAttr("lambda.ephemeral_storage.size", prop(prop(fv, 'ephemeralStorage'), 'size')),
-        intAttr("lambda.timeout", prop(fv, 'timeout')),
-        stringAttr("lambda.iam_role", prop(fv, 'role')),
+        stringAttr("lambda.runtime.name", fv.runtime ?? fv.Runtime),
+        intAttr("lambda.code_size", fv.codeSize ?? fv.CodeSize),
+        stringAttr("lambda.handler", fv.handler ?? fv.Handler),
+        stringAttr("lambda.ephemeral_storage.size", (fv.ephemeralStorage ?? fv.EphemeralStorage)?.size ?? (fv.ephemeralStorage ?? fv.EphemeralStorage)?.Size),
+        intAttr("lambda.timeout", fv.timeout ?? fv.Timeout),
+        stringAttr("lambda.iam_role", fv.role ?? fv.Role),
         stringAttr("lambda.function_arn", functionArn),
     ]
 
-    if (prop(fv, 'layers')) {
-        prop(fv, 'layers').forEach((layer, index) => {
-            attributes.push(stringAttr(`lambda.layer.${index}.arn`, prop(layer, 'arn')))
-            attributes.push(stringAttr(`lambda.layer.${index}.code_size`, prop(layer, 'codeSize')))
+    const layers = fv.layers ?? fv.Layers
+    if (layers) {
+        layers.forEach((layer, index) => {
+            attributes.push(stringAttr(`lambda.layer.${index}.arn`, layer.arn ?? layer.Arn))
+            attributes.push(stringAttr(`lambda.layer.${index}.code_size`, layer.codeSize ?? layer.CodeSize))
         })
     }
 
     if (eventSourceMappings && eventSourceMappings.EventSourceMappings) {
         eventSourceMappings.EventSourceMappings.forEach((eventSource, index) => {
-            attributes.push(stringAttr(`lambda.event_source.${index}.arn`, prop(eventSource, 'eventSourceArn')))
+            attributes.push(stringAttr(`lambda.event_source.${index}.arn`, eventSource.eventSourceArn ?? eventSource.EventSourceArn))
         })
     }
 
