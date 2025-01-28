@@ -24,6 +24,11 @@ Metadata:
           - ApiKey
           - CustomDomain
       - Label:
+          default: EventBridge configuration
+        Parameters:
+          - EventMode
+          - ExistingCloudTrailArn
+      - Label:
           default: Integration configuration
         Parameters:
           - Schedule
@@ -82,6 +87,8 @@ Metadata:
         default: Is EC2 Resource Type Excluded?
       ExcludedLambdaResourceType:
         default: Is Lambda Resource Type Excluded?
+      EventMode:
+        default: Event Mode
 Parameters:
   CoralogixRegion:
     Type: String
@@ -180,6 +187,14 @@ Parameters:
       - 'True'
       - 'False'
     Default: 'False'
+  EventMode:
+    Type: String
+    Description: Enable real-time processing of CloudTrail events via EventBridge [Disabled, EnabledWithExistingTrail, EnabledCreateTrail]
+    AllowedValues:
+      - Disabled
+      - EnabledWithExistingTrail 
+      - EnabledCreateTrail
+    Default: Disabled
 Mappings:
   CoralogixRegionMap:
     EU1:
@@ -240,6 +255,11 @@ Conditions:
     Fn::Equals:
       - Ref: ExcludedLambdaResourceType
       - 'False'
+  IsEventModeEnabled: !Or
+    - !Equals [!Ref EventMode, EnabledWithExistingTrail]
+    - !Equals [!Ref EventMode, EnabledCreateTrail]
+  ShouldCreateCloudTrail: !Equals [!Ref EventMode, EnabledCreateTrail]
+  UseExistingCloudTrail: !Equals [!Ref EventMode, EnabledWithExistingTrail]
 Resources:
   CollectorLambdaFunction:
     Type: AWS::Serverless::Function
@@ -303,11 +323,6 @@ Resources:
                 Effect: Allow
                 Action:
                   - lambda:ListFunctions
-                  - lambda:ListVersionsByFunction
-                  - lambda:GetFunction
-                  - lambda:ListAliases
-                  - lambda:ListEventSourceMappings
-                  - lambda:GetPolicy
                 Resource: "*"
           - !Ref 'AWS::NoValue' 
         - Version: "2012-10-17"
@@ -366,16 +381,6 @@ Resources:
             ScalingConfig:
               MaximumConcurrency: 5
       Policies:
-        - !If 
-          - IsNotEC2ResourceTypeExcluded
-          - Version: "2012-10-17"
-            Statement:
-              - Sid: GetEc2Metadata
-                Effect: Allow
-                Action:
-                  - ec2:DescribeInstances
-                Resource: "*"
-          - !Ref 'AWS::NoValue'
         - !If
           - IsNotLambdaResourceTypeExcluded
           - Version: "2012-10-17"
@@ -383,7 +388,6 @@ Resources:
               - Sid: GetLambdaMetadata
                 Effect: Allow
                 Action:
-                  - lambda:ListFunctions
                   - lambda:ListVersionsByFunction
                   - lambda:GetFunction
                   - lambda:ListAliases
@@ -391,13 +395,6 @@ Resources:
                   - lambda:GetPolicy
                 Resource: "*"
           - !Ref 'AWS::NoValue' 
-        - Version: "2012-10-17"
-          Statement:
-            - Sid: GetResourcesByTags
-              Effect: Allow
-              Action:
-                - tag:GetResources
-              Resource: "*"
         - Version: "2012-10-17"
           Statement:
             - Sid: ReadSQS
@@ -462,16 +459,6 @@ Resources:
             ScalingConfig:
               MaximumConcurrency: 5
       Policies:
-        - !If 
-          - IsNotEC2ResourceTypeExcluded
-          - Version: "2012-10-17"
-            Statement:
-              - Sid: GetEc2Metadata
-                Effect: Allow
-                Action:
-                  - ec2:DescribeInstances
-                Resource: "*"
-          - !Ref 'AWS::NoValue'
         - !If
           - IsNotLambdaResourceTypeExcluded
           - Version: "2012-10-17"
@@ -479,7 +466,6 @@ Resources:
               - Sid: GetLambdaMetadata
                 Effect: Allow
                 Action:
-                  - lambda:ListFunctions
                   - lambda:ListVersionsByFunction
                   - lambda:GetFunction
                   - lambda:ListAliases
@@ -487,13 +473,6 @@ Resources:
                   - lambda:GetPolicy
                 Resource: "*"
           - !Ref 'AWS::NoValue' 
-        - Version: "2012-10-17"
-          Statement:
-            - Sid: GetResourcesByTags
-              Effect: Allow
-              Action:
-                - tag:GetResources
-              Resource: "*"
         - Version: "2012-10-17"
           Statement:
             - Sid: ReadSQS
@@ -527,3 +506,101 @@ Resources:
           - IsSMEnabled
           - !Ref LambdaFunctionSM.DestinationTopic
           - !Ref LambdaFunction.DestinationTopic
+
+  CloudTrailBucket:
+    Type: AWS::S3::Bucket
+    Condition: ShouldCreateCloudTrail
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub ${AWS::StackName}-cloudtrail-${AWS::AccountId}-${AWS::Region}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  CloudTrailBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: ShouldCreateCloudTrail
+    Properties:
+      Bucket: !Ref CloudTrailBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AWSCloudTrailAclCheck
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource: !GetAtt CloudTrailBucket.Arn
+          - Sid: AWSCloudTrailWrite
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub ${CloudTrailBucket.Arn}/*
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: bucket-owner-full-control
+
+  CloudTrail:
+    Type: AWS::CloudTrail::Trail
+    Condition: ShouldCreateCloudTrail
+    DependsOn:
+      - CloudTrailBucketPolicy
+    Properties:
+      IsLogging: true
+      S3BucketName: !Ref CloudTrailBucket
+      EnableLogFileValidation: true
+      IncludeGlobalServiceEvents: true
+      IsMultiRegionTrail: true
+
+  EventBridgeRule:
+    Type: AWS::Events::Rule
+    Condition: IsEventModeEnabled
+    Properties:
+      Description: "Route CloudTrail events to resource metadata collector"
+      State: ENABLED
+      EventPattern:
+        detail-type:
+          - AWS API Call via CloudTrail
+        source:
+          - aws.ec2
+          - aws.lambda
+        detail:
+          eventSource:
+            - ec2.amazonaws.com
+            - lambda.amazonaws.com
+          eventName:
+            - RunInstances
+            - CreateFunction20150331
+      Targets:
+        - Arn: !Ref MetadataQueue
+          Id: "ResourceMetadataCollector"
+          InputTransformer:
+            InputPathsMap:
+              source: "$.source"
+              detail: "$.detail"
+            InputTemplate: |
+              {
+                "source": <source>,
+                "detail": <detail>
+              }
+
+  EventBridgeSQSPermission:
+    Type: AWS::SQS::QueuePolicy
+    Condition: IsEventModeEnabled
+    Properties:
+      Queues:
+        - !Ref MetadataQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt MetadataQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !GetAtt EventBridgeRule.Arn
