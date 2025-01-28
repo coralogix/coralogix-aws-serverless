@@ -47,6 +47,7 @@ Metadata:
           - FunctionArchitecture
           - FunctionMemorySize
           - FunctionTimeout
+          - MaximumConcurrency
       - Label:
           default: Security configuration
         Parameters:
@@ -83,6 +84,8 @@ Metadata:
         default: Memory
       FunctionTimeout:
         default: Timeout
+      MaximumConcurrency:
+        default: Maximum SQS Processing Concurrency
       NotificationEmail:
         default: Notification Email
       ExcludedEC2ResourceType:
@@ -172,6 +175,12 @@ Parameters:
     MinValue: 30
     MaxValue: 900
     Default: 300
+  MaximumConcurrency:
+    Type: Number
+    Description: Maximum number of concurrent SQS messages to process
+    MinValue: 1
+    MaxValue: 1000
+    Default: 5
   NotificationEmail:
     Type: String
     Description: Failure notification email address
@@ -394,7 +403,7 @@ Resources:
             Queue: !GetAtt MetadataQueue.Arn
             BatchSize: 1
             ScalingConfig:
-              MaximumConcurrency: 5
+              MaximumConcurrency: !Ref MaximumConcurrency
       EventInvokeConfig:
         DestinationConfig:
           OnFailure:
@@ -470,7 +479,7 @@ Resources:
             Queue: !GetAtt MetadataQueue.Arn
             BatchSize: 1
             ScalingConfig:
-              MaximumConcurrency: 5
+              MaximumConcurrency: !Ref MaximumConcurrency
       EventInvokeConfig:
         DestinationConfig:
           OnFailure:

@@ -36,6 +36,7 @@ This is a specific version of the [resource-metadata](../resource-metadata) appl
 | FunctionArchitecture | Lambda function architecture, possible options are [x86_64, arm64]. | x86_64 | |
 | FunctionMemorySize | The maximum allocated memory this lambda may consume. Default value is the minimum recommended setting please consult coralogix support before changing. | 256 | |
 | FunctionTimeout | The maximum time in seconds the function may be allowed to run. Default value is the minimum recommended setting please consult coralogix support before changing. | 300 | |
+| MaximumConcurrency | Maximum number of concurrent SQS messages to be processed by `generator` lambda after the collection has finished. | 5 | |
 
 **Note:** Both layers and lambda need to be in the same AWS Region.
 
