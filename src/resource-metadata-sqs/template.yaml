@@ -1,0 +1,634 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Send resource metadata to Coralogix.
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: Coralogix-Resource-Metadata-Sqs
+    Description: Send resource metadata to Coralogix.
+    Author: Coralogix
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE
+    ReadmeUrl: README.md
+    Labels:
+      - coralogix
+      - metadata
+      - sqs
+    HomePageUrl: https://coralogix.com
+    SemanticVersion: 0.1.0
+    SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Coralogix configuration
+        Parameters:
+          - CoralogixRegion
+          - ApiKey
+          - CustomDomain
+      - Label:
+          default: EventBridge configuration
+        Parameters:
+          - EventMode
+      - Label:
+          default: Integration configuration
+        Parameters:
+          - Schedule
+          - ResourceTtlMinutes
+          - LatestVersionsPerFunction
+          - CollectAliases
+          - LambdaFunctionIncludeRegexFilter
+          - LambdaFunctionExcludeRegexFilter
+          - LambdaFunctionTagFilters
+          - NotificationEmail
+          - ExcludedEC2ResourceType
+          - ExcludedLambdaResourceType
+      - Label:
+          default: Lambda Configuration
+        Parameters:
+          - FunctionArchitecture
+          - FunctionMemorySize
+          - FunctionTimeout
+          - MaximumConcurrency
+      - Label:
+          default: Security configuration
+        Parameters:
+          - LayerARN
+          - CreateSecret
+    ParameterLabels:
+      CoralogixRegion:
+        default: Region
+      CustomDomain:
+        default: CustomDomain
+      LayerARN:
+        default: In case you are using Secret Manager This is the ARN of the Coralogix Security lambda Layer.
+      ApiKey:
+        default: Api Key
+      EventMode:
+        default: Event Mode
+      Schedule:
+        default: Schedule
+      LatestVersionsPerFunction:
+        default: Latest Versions Per Function
+      CollectAliases:
+        default: Collect Aliases
+      LambdaFunctionIncludeRegexFilter:
+        default: Lambda Function Include Regex
+      LambdaFunctionExcludeRegexFilter:
+        default: Lambda Function Exclude Regex
+      LambdaFunctionTagFilters:
+        default: Lambda Function Tag Filters
+      ResourceTtlMinutes:
+        default: Resource Time-to-live (TTL) in Minutes
+      FunctionArchitecture:
+        default: Architecture
+      FunctionMemorySize:
+        default: Memory
+      FunctionTimeout:
+        default: Timeout
+      MaximumConcurrency:
+        default: Maximum SQS Processing Concurrency
+      NotificationEmail:
+        default: Notification Email
+      ExcludedEC2ResourceType:
+        default: Is EC2 Resource Type Excluded?
+      ExcludedLambdaResourceType:
+        default: Is Lambda Resource Type Excluded?
+Parameters:
+  CoralogixRegion:
+    Type: String
+    Description: The Coralogix location region [EU1, EU2, AP1, AP2, US1, US2, Custom]
+    AllowedValues:
+      - EU1
+      - EU2
+      - AP1
+      - AP2
+      - AP3
+      - US1
+      - US2
+      - Custom
+    Default: Custom
+  CustomDomain:
+    Type: String
+    Description: The Coralogix custom domain
+    Default: ''
+  ApiKey:
+    Type: String
+    Description: Your Coralogix Send Your Data - API Key or incase you use pre created secret (created in AWS secret manager) put here the name of the secret that contains the Coralogix send your data key
+    NoEcho: true
+  EventMode:
+    Type: String
+    Description: Enable real-time processing of CloudTrail events via EventBridge [Disabled, EnabledWithExistingTrail, EnabledCreateTrail]
+    AllowedValues:
+      - Disabled
+      - EnabledWithExistingTrail 
+      - EnabledCreateTrail
+    Default: Disabled
+  LayerARN:
+    Type: String
+    Description: In case you are using Secret Manager This is the ARN of the Coralogix Security lambda Layer.
+    Default: ''
+  Schedule:
+    Type: String
+    Description: Collect metadata on a specific schedule
+    MaxLength: 256
+    Default: "rate(30 minutes)"
+  LatestVersionsPerFunction:
+    Type: Number
+    Description: How many latest published versions of each Lambda function should be collected
+    MinValue: 0
+    Default: 0
+  CollectAliases:
+    Type: String
+    Description: '[True/False]'
+    Default: 'False'
+  LambdaFunctionIncludeRegexFilter:
+    Type: String
+    Description: 'If specified, only lambda functions with ARNs matching the regex will be included in the collected metadata'
+    Default: ""
+  LambdaFunctionExcludeRegexFilter:
+    Type: String
+    Description: 'If specified, only lambda functions with ARNs NOT matching the regex will be included in the collected metadata'
+    Default: ""
+  LambdaFunctionTagFilters:
+    Type: String
+    Description: 'If specified, only lambda functions with tags matching the filters will be included in the collected metadata. Values should follow the JSON syntax for --tag-filters as documented here: https://docs.aws.amazon.com/cli/latest/reference/resourcegroupstaggingapi/get-resources.html#options'
+    Default: ""
+  ResourceTtlMinutes:
+    Type: Number
+    Description: Once a resource is collected, how long should it remain valid?
+    Default: 60
+  FunctionArchitecture:
+    Type: String
+    Description: Lambda function architecture [x86_64, arm64]
+    AllowedValues:
+      - x86_64
+      - arm64
+    Default: x86_64
+  FunctionMemorySize:
+    Type: Number
+    Description: Lambda function memory limit
+    MinValue: 128
+    MaxValue: 10240
+    Default: 256
+  FunctionTimeout:
+    Type: Number
+    Description: Lambda function timeout limit
+    MinValue: 30
+    MaxValue: 900
+    Default: 300
+  MaximumConcurrency:
+    Type: Number
+    Description: Maximum number of concurrent SQS messages to process
+    MinValue: 1
+    MaxValue: 1000
+    Default: 5
+  NotificationEmail:
+    Type: String
+    Description: Failure notification email address
+    MaxLength: 320
+    Default: ""
+  CreateSecret:
+    Type: String
+    Description: Set to False In case you want to use secrets manager with a predefine secret that was already created and contains Coralogix Send Your Data API key.
+    Default: 'True'
+  ExcludedEC2ResourceType:
+    Type: String
+    Description: Is EC2 Resource Type Excluded?
+    AllowedValues:
+      - 'True'
+      - 'False'
+    Default: 'False'
+  ExcludedLambdaResourceType:
+    Type: String
+    Description: Is Lambda Resource Type Excluded?
+    AllowedValues:
+      - 'True'
+      - 'False'
+    Default: 'False'
+Mappings:
+  CoralogixRegionMap:
+    EU1:
+      MetadataUrl: coralogix.com
+    EU2:
+      MetadataUrl: eu2.coralogix.com
+    AP1:
+      MetadataUrl: app.coralogix.in
+    AP2:
+      MetadataUrl: coralogixsg.com
+    AP3:
+      MetadataUrl: ap3.coralogix.com
+    US1:
+      MetadataUrl: coralogix.us
+    US2:
+      MetadataUrl: cx498.coralogix.com
+    Custom:
+      MetadataUrl: ""
+
+Conditions:
+  IsNotificationEnabled:
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: NotificationEmail
+          - ""
+  IsSMEnabled:
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: LayerARN
+          - ""
+  IsNotSMEnabled:
+    Fn::Equals:
+      - Ref: LayerARN
+      - ''
+  IsRegionCustomUrlEmpty: !Not [!Equals [!Ref CustomDomain, ""]]
+  CreateSecret:
+    Fn::And:
+      - Fn::Not:
+        - Fn::Equals:
+          - Ref: LayerARN
+          - ""
+      - Fn::Equals:
+          - Ref: CreateSecret
+          - 'True'
+  IsEC2ResourceTypeExcluded:
+    Fn::Equals:
+      - Ref: ExcludedEC2ResourceType
+      - 'True'
+  IsLambdaResourceTypeExcluded:
+    Fn::Equals:
+      - Ref: ExcludedLambdaResourceType
+      - 'True'
+  IsNotEC2ResourceTypeExcluded:
+    Fn::Equals:
+      - Ref: ExcludedEC2ResourceType
+      - 'False'
+  IsNotLambdaResourceTypeExcluded:
+    Fn::Equals:
+      - Ref: ExcludedLambdaResourceType
+      - 'False'
+  IsEventModeEnabled: !Or
+    - !Equals [!Ref EventMode, EnabledWithExistingTrail]
+    - !Equals [!Ref EventMode, EnabledCreateTrail]
+  ShouldCreateCloudTrail: !Equals [!Ref EventMode, EnabledCreateTrail]
+  UseExistingCloudTrail: !Equals [!Ref EventMode, EnabledWithExistingTrail]
+Resources:
+  MetadataQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 900
+      MessageRetentionPeriod: !Multiply [!Ref ResourceTtlMinutes, 60]
+
+  CollectorLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Collect AWS resource metadata for Coralogix.
+      CodeUri: ./collector
+      Handler: index.handler
+      Runtime: nodejs22.x
+      Architectures:
+        - Ref: FunctionArchitecture
+      MemorySize:
+        Ref: FunctionMemorySize
+      Timeout:
+        Ref: FunctionTimeout
+      Environment:
+        Variables:
+          LAMBDA_FUNCTION_INCLUDE_REGEX_FILTER:
+            Ref: LambdaFunctionIncludeRegexFilter
+          LAMBDA_FUNCTION_EXCLUDE_REGEX_FILTER:
+            Ref: LambdaFunctionExcludeRegexFilter
+          LAMBDA_FUNCTION_TAG_FILTERS:
+            Ref: LambdaFunctionTagFilters
+          AWS_RETRY_MODE: adaptive
+          AWS_MAX_ATTEMPTS: 10
+          IS_EC2_RESOURCE_TYPE_EXCLUDED: !If
+              - IsEC2ResourceTypeExcluded
+              - 'True'
+              - 'False'
+          IS_LAMBDA_RESOURCE_TYPE_EXCLUDED: !If
+              - IsLambdaResourceTypeExcluded
+              - 'True'
+              - 'False'
+          METADATA_QUEUE_URL: !Ref MetadataQueue
+      Events:
+        ScheduledEvent:
+          Type: Schedule
+          Properties:
+            Schedule:
+              Ref: Schedule
+            Enabled: True
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: SNS
+      Policies:
+        - !If 
+          - IsNotEC2ResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetEc2Metadata
+                Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                Resource: "*"
+          - !Ref 'AWS::NoValue'
+        - !If
+          - IsNotLambdaResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetLambdaMetadata
+                Effect: Allow
+                Action:
+                  - lambda:ListFunctions
+                Resource: "*"
+          - !Ref 'AWS::NoValue' 
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: GetResourcesByTags
+              Effect: Allow
+              Action:
+                - tag:GetResources
+              Resource: "*"
+            - Sid: WriteSQS
+              Effect: Allow
+              Action:
+                - sqs:SendMessage
+              Resource: !GetAtt MetadataQueue.Arn
+
+  CollectorLambdaFunctionNotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: IsNotificationEnabled
+    Properties:
+      Protocol: email
+      Endpoint:
+        Ref: NotificationEmail
+      TopicArn: !Ref CollectorLambdaFunction.DestinationTopic
+
+  GeneratorLambdaFunction:
+    Condition: IsNotSMEnabled
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Generate and send resource metadata to Coralogix.
+      CodeUri: ./generator
+      Handler: index.handler
+      Runtime: nodejs22.x
+      Architectures:
+        - Ref: FunctionArchitecture
+      MemorySize:
+        Ref: FunctionMemorySize
+      Timeout:
+        Ref: FunctionTimeout
+      Environment:
+        Variables:
+          LATEST_VERSIONS_PER_FUNCTION:
+            Ref: LatestVersionsPerFunction
+          COLLECT_ALIASES:
+            Ref: CollectAliases
+          RESOURCE_TTL_MINUTES:
+            Ref: ResourceTtlMinutes
+          CORALOGIX_METADATA_URL: !If
+            - IsRegionCustomUrlEmpty
+            - !Sub  'ingress.${CustomDomain}:443'
+            - !Sub
+              - '${Prefix}${Domain}${Suffix}'
+              - Prefix: ingress.
+                Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, MetadataUrl]
+                Suffix: :443
+          private_key:
+            Ref: ApiKey
+          AWS_RETRY_MODE: adaptive
+          AWS_MAX_ATTEMPTS: 10
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MetadataQueue.Arn
+            BatchSize: 1
+            ScalingConfig:
+              MaximumConcurrency: !Ref MaximumConcurrency
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: SNS
+      Policies:
+        - !If
+          - IsNotLambdaResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetLambdaMetadata
+                Effect: Allow
+                Action:
+                  - lambda:ListVersionsByFunction
+                  - lambda:GetFunction
+                  - lambda:ListAliases
+                  - lambda:ListEventSourceMappings
+                  - lambda:GetPolicy
+                Resource: "*"
+          - !Ref 'AWS::NoValue' 
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: ReadSQS
+              Effect: Allow
+              Action:
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:GetQueueAttributes
+              Resource: !GetAtt MetadataQueue.Arn
+
+  GeneratorLambdaFunctionSM:
+    Condition: IsSMEnabled
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Generate and send resource metadata to Coralogix.
+      CodeUri: ./generator
+      Layers:
+        - Ref: LayerARN
+      Handler: index.handler
+      Runtime: nodejs22.x
+      Architectures:
+        - Ref: FunctionArchitecture
+      MemorySize:
+        Ref: FunctionMemorySize
+      Timeout:
+        Ref: FunctionTimeout
+      Environment:
+        Variables:
+          LATEST_VERSIONS_PER_FUNCTION:
+            Ref: LatestVersionsPerFunction
+          COLLECT_ALIASES:
+            Ref: CollectAliases
+          RESOURCE_TTL_MINUTES:
+            Ref: ResourceTtlMinutes
+          CORALOGIX_METADATA_URL: !If
+            - IsRegionCustomUrlEmpty
+            - !Sub  'ingress.${CustomDomain}:443'
+            - !Sub
+              - '${Prefix}${Domain}${Suffix}'
+              - Prefix: ingress.
+                Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, MetadataUrl]
+                Suffix: :443
+          AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
+          AWS_RETRY_MODE: adaptive
+          AWS_MAX_ATTEMPTS: 10
+          SECRET_NAME: !If
+              - CreateSecret
+              - ""
+              - Ref: ApiKey
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MetadataQueue.Arn
+            BatchSize: 1
+            ScalingConfig:
+              MaximumConcurrency: !Ref MaximumConcurrency
+      EventInvokeConfig:
+        DestinationConfig:
+          OnFailure:
+            Type: SNS
+      Policies:
+        - !If
+          - IsNotLambdaResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetLambdaMetadata
+                Effect: Allow
+                Action:
+                  - lambda:ListVersionsByFunction
+                  - lambda:GetFunction
+                  - lambda:ListAliases
+                  - lambda:ListEventSourceMappings
+                  - lambda:GetPolicy
+                Resource: "*"
+          - !Ref 'AWS::NoValue' 
+        - Version: "2012-10-17"
+          Statement:
+            - Sid: ReadSQS
+              Effect: Allow
+              Action:
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:GetQueueAttributes
+              Resource: !GetAtt MetadataQueue.Arn
+        - SecretsManagerReadWrite
+
+  PrivateKeySecret:
+    Condition: CreateSecret
+    Type: AWS::SecretsManager::Secret
+    Properties: 
+      Description: Coralogix Send Your Data key Secret
+      Name: !Sub
+        - 'lambda/coralogix/${AWS::Region}/${function}'
+        - function: !Ref GeneratorLambdaFunctionSM
+      SecretString: !Ref ApiKey
+
+  GeneratorLambdaFunctionNotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: IsNotificationEnabled
+    Properties:
+      Protocol: email
+      Endpoint:
+        Ref: NotificationEmail
+      TopicArn:
+        !If
+          - IsSMEnabled
+          - !Ref GeneratorLambdaFunctionSM.DestinationTopic
+          - !Ref GeneratorLambdaFunction.DestinationTopic
+
+  CloudTrailBucket:
+    Type: AWS::S3::Bucket
+    Condition: ShouldCreateCloudTrail
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub ${AWS::StackName}-cloudtrail-${AWS::AccountId}-${AWS::Region}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  CloudTrailBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: ShouldCreateCloudTrail
+    Properties:
+      Bucket: !Ref CloudTrailBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AWSCloudTrailAclCheck
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource: !GetAtt CloudTrailBucket.Arn
+          - Sid: AWSCloudTrailWrite
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub ${CloudTrailBucket.Arn}/*
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: bucket-owner-full-control
+
+  CloudTrail:
+    Type: AWS::CloudTrail::Trail
+    Condition: ShouldCreateCloudTrail
+    DependsOn:
+      - CloudTrailBucketPolicy
+    Properties:
+      IsLogging: true
+      S3BucketName: !Ref CloudTrailBucket
+      EnableLogFileValidation: true
+      IncludeGlobalServiceEvents: true
+      IsMultiRegionTrail: true
+
+  EventBridgeRule:
+    Type: AWS::Events::Rule
+    Condition: IsEventModeEnabled
+    Properties:
+      Description: "Route CloudTrail events to resource metadata collector"
+      State: ENABLED
+      EventPattern:
+        detail-type:
+          - AWS API Call via CloudTrail
+        source:
+          - aws.ec2
+          - aws.lambda
+        detail:
+          eventSource:
+            - ec2.amazonaws.com
+            - lambda.amazonaws.com
+          eventName:
+            - RunInstances
+            - CreateFunction20150331
+          errorCode:
+            - exists: false
+      Targets:
+        - Arn: !GetAtt MetadataQueue.Arn
+          Id: "ResourceMetadataCollector"
+          InputTransformer:
+            InputPathsMap:
+              source: "$.source"
+              detail: "$.detail"
+            InputTemplate: |
+              {
+                "source": <source>,
+                "detail": <detail>
+              }
+
+  EventBridgeSQSPermission:
+    Type: AWS::SQS::QueuePolicy
+    Condition: IsEventModeEnabled
+    Properties:
+      Queues:
+        - !Ref MetadataQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt MetadataQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !GetAtt EventBridgeRule.Arn

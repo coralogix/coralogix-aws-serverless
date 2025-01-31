@@ -1,0 +1,48 @@
+{
+  "name": "coralogix-resource-collector",
+  "title": "AWS Resource Collector Lambda function for Coralogix",
+  "version": "0.1.0",
+  "description": "AWS Lambda function to collect AWS EC2/Lambda resources for further processing",
+  "homepage": "https://coralogix.com",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "index.js",
+  "author": {
+    "name": "Coralogix",
+    "email": "info@coralogix.com",
+    "url": "https://coralogix.com"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "contributors": [],
+  "keywords": [
+    "aws",
+    "ec2",
+    "lambda",
+    "sqs",
+    "javascript",
+    "library"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coralogix/coralogix-aws-serverless.git"
+  },
+  "bugs": {
+    "email": "info@coralogix.com",
+    "url": "https://github.com/coralogix/coralogix-aws-serverless/issues"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ec2": "^3.502.0",
+    "@aws-sdk/client-lambda": "^3.502.0",
+    "@aws-sdk/client-resource-groups-tagging-api": "^3.502.0",
+    "@aws-sdk/client-sqs": "^3.502.0",
+    "lodash": "^4.17.21"
+  },
+  "files": [
+    "ec2.js",
+    "lambda.js",
+    "sqs.js",
+    "index.js"
+  ]
+}

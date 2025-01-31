@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package com.coralogix.metadata.gateway.v2;
+
+import "opentelemetry/proto/common/v1/common.proto";
+import "google/protobuf/duration.proto";
+
+message SubmitMetadataRequest {
+  string collector_id = 1;
+
+  repeated ResourceMetadata resources = 2;
+}
+
+message ResourceMetadata {
+  string resource_id = 1;
+  string resource_type = 2;
+  repeated opentelemetry.proto.common.v1.KeyValue attributes = 3;
+  string schema_url = 4;
+  google.protobuf.Duration resource_ttl = 5;
+}
+
+message SubmitMetadataResponse {}
+
+service MetadataGatewayService {
+  rpc Submit(SubmitMetadataRequest) returns (SubmitMetadataResponse) {}
+}

@@ -1,0 +1,51 @@
+{
+  "name": "coralogix-resource-generator",
+  "title": "AWS Resource Generator Lambda function for Coralogix",
+  "version": "0.1.0",
+  "description": "AWS Lambda function to generate AWS EC2/Lambda resources for Coralogix",
+  "homepage": "https://coralogix.com",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "index.js",
+  "author": {
+    "name": "Coralogix",
+    "email": "info@coralogix.com",
+    "url": "https://coralogix.com"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "contributors": [],
+  "keywords": [
+    "coralogix",
+    "logs",
+    "tags",
+    "aws",
+    "javascript",
+    "library"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coralogix/coralogix-aws-serverless.git"
+  },
+  "bugs": {
+    "email": "info@coralogix.com",
+    "url": "https://github.com/coralogix/coralogix-aws-serverless/issues"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ec2": "^3.502.0",
+    "@aws-sdk/client-lambda": "^3.502.0",
+    "@aws-sdk/client-resource-groups-tagging-api": "^3.502.0",
+    "@grpc/grpc-js": "^1.10.9",
+    "@grpc/proto-loader": "^0.7.10"
+  },
+  "files": [
+    "LICENSE",
+    "common.js",
+    "coralogix.js",
+    "ec2.js",
+    "lambda.js",
+    "proto/service.proto",
+    "proto/opentelemetry/proto/common/v1/common.proto"
+  ]
+}
