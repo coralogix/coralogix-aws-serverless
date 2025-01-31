@@ -274,7 +274,7 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       VisibilityTimeout: 900
-      MessageRetentionPeriod: !Multiply [!Ref ResourceTtlMinutes, 60]
+      MessageRetentionPeriod: 3600
 
   CollectorLambdaFunction:
     Type: AWS::Serverless::Function
