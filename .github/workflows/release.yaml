@@ -137,7 +137,17 @@ jobs:
         name: Publish
         run: sam publish --template packaged.yaml
 
-      - if: ${{ matrix.package != 'helper' }}
+      - if: ${{ matrix.package == 'resource-metadata-sqs' }}
+        name: StoreMultiFunction
+        run: |
+          aws s3 cp \
+            $(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "CollectorLambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml) \
+            s3://${{ env.AWS_SERVERLESS_BUCKET }}-${{ env.AWS_DEFAULT_REGION }}/${{ matrix.package }}-collector.zip
+          aws s3 cp \
+            $(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "GeneratorLambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml) \
+            s3://${{ env.AWS_SERVERLESS_BUCKET }}-${{ env.AWS_DEFAULT_REGION }}/${{ matrix.package }}-generator.zip
+
+      - if: ${{ !contains(fromJson('["helper", "resource-metadata-sqs"]'), matrix.package) }}
         name: Store
         run: |
           aws s3 cp \
