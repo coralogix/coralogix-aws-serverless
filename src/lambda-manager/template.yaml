@@ -46,10 +46,14 @@ Parameters:
   DestinationRole:
     Type: String
     Description: Coralogix Firehose stream / Lambda role ARN
+    Default: ''
   DestinationType:
     Type: String
     Description: firehose / lambda 
     Default: firehose
+    AllowedValues:
+      - firehose
+      - lambda
   ScanOldLogGroups:
     Type: String
     Description: Scan old log groups
@@ -84,6 +88,10 @@ Parameters:
     MaxLength: 320
     Default: ''
 Conditions:
+  IsDestinationLambda:
+    Fn::Equals:
+      - Ref: DestinationType
+      - lambda
   IsNotificationEnabled:
     Fn::Not:
       - Fn::Equals:
@@ -146,13 +154,16 @@ Resources:
             Ref: AWSApiRequestsLimit
       Policies:
         - Statement:
-            - Sid: CXLambdaUpdateConfig
-              Effect: Allow
-              Action:
-                - lambda:UpdateFunctionConfiguration
-                - lambda:GetFunctionConfiguration
-                - lambda:AddPermission
-              Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:*"
+            - !If
+              - IsDestinationLambda
+              - Sid: CXLambdaUpdateConfig
+                Effect: Allow
+                Action:
+                  - lambda:UpdateFunctionConfiguration
+                  - lambda:GetFunctionConfiguration
+                  - lambda:AddPermission
+                Resource: !Ref DestinationArn
+              - !Ref AWS::NoValue
             - Sid: CWSubscriptionPolicy
               Effect: Allow
               Action:
@@ -190,7 +201,6 @@ Resources:
 
   LambdaTrigger:
     Type: Custom::LambdaTrigger
-    DependsOn: LambdaFunction
     Properties:
       ServiceToken: !GetAtt LambdaFunction.Arn
 
