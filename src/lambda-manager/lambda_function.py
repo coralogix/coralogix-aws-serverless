@@ -36,7 +36,7 @@ def lambda_handler(event, context):
 
         if scan_all_log_groups == 'true' and "RequestType" in event and event['RequestType'] == 'Create':
             print(f"Scanning all log groups: {scan_all_log_groups}")
-            list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern_list, logs_filter, destination_arn, role_arn, filter_name, context,log_group_permission_prefix)
+            list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern_list, logs_filter, destination_arn, filter_name, context,log_group_permission_prefix)
             update_scan_all_log_groups_status(context, lambda_client)
 
         elif scan_all_log_groups == 'true':
@@ -89,7 +89,7 @@ def lambda_handler(event, context):
                 event.get('PhysicalResourceId', context.aws_request_id)
             )
 
-def list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern_list, logs_filter, destination_arn, role_arn, filter_name, context,log_group_permission_prefix):
+def list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern_list, logs_filter, destination_arn, filter_name, context,log_group_permission_prefix):
     '''Scan for all of the log groups in the region and add subscription to the log groups that match the regex pattern, this function will only run 1 time'''
     log_groups = []
     response = {'nextToken': None}  # Initialize with a dict containing nextToken as None
@@ -149,7 +149,7 @@ def list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern_list, logs_
 def add_subscription(filter_name: str, logs_filter: str, log_group_to_subscribe: str, destination_arn: str, role_arn: str = None) -> str:
     '''Add subscription to CloudWatch log group'''
     try:
-        if role_arn is None:
+        if role_arn is None or role_arn == '':
             cloudwatch_logs.put_subscription_filter(
                 destinationArn=destination_arn,
                 filterName= filter_name,
