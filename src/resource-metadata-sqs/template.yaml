@@ -538,7 +538,7 @@ Resources:
     Condition: ShouldCreateCloudTrail
     DeletionPolicy: Retain
     Properties:
-      BucketName: !Sub ${AWS::StackName}-cloudtrail-${AWS::AccountId}-${AWS::Region}
+      BucketName: !Sub metadata-cloudtrail-${AWS::AccountId}-${AWS::Region}
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
