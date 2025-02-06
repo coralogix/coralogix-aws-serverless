@@ -14,7 +14,7 @@ Metadata:
       - metadata
       - sqs
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 0.1.0
+    SemanticVersion: 0.1.2
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -538,7 +538,7 @@ Resources:
     Condition: ShouldCreateCloudTrail
     DeletionPolicy: Retain
     Properties:
-      BucketName: !Sub ${AWS::StackName}-cloudtrail-${AWS::AccountId}-${AWS::Region}
+      BucketName: !Sub metadata-cloudtrail-${AWS::AccountId}-${AWS::Region}
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
