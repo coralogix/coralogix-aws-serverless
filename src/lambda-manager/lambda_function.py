@@ -23,7 +23,6 @@ def lambda_handler(event, context):
         logs_filter         = os.environ.get('LOGS_FILTER', '')
         scan_all_log_groups = os.environ.get('SCAN_OLD_LOGGROUPS', 'false')
         destination_arn     = os.environ.get('DESTINATION_ARN')
-        role_arn            = os.environ.get('DESTINATION_ROLE')
         filter_name         = 'Coralogix_Filter_' + str(uuid.uuid4())
         log_group_permission_prefix = os.environ.get('LOG_GROUP_PERMISSION_PREFIX', '').split(',')
         region              = context.invoked_function_arn.split(":")[3]

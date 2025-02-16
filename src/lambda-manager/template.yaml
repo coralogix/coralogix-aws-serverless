@@ -126,6 +126,7 @@ Resources:
   LambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: !Sub '${AWS::StackName}-LambdaFunction'
       Description: Adds Coralogix firehose to Loggroups
       CodeUri: .
       Handler: lambda_function.lambda_handler
@@ -162,7 +163,9 @@ Resources:
                   - lambda:UpdateFunctionConfiguration
                   - lambda:GetFunctionConfiguration
                   - lambda:AddPermission
-                Resource: !Ref DestinationArn
+                Resource: 
+                  - !Ref DestinationArn
+                  - !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AWS::StackName}-LambdaFunction'
               - !Ref AWS::NoValue
             - Sid: CWSubscriptionPolicy
               Effect: Allow
