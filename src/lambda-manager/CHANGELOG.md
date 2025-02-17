@@ -2,6 +2,11 @@
 
 ## lambda-manager
 
+## 2.0.5  / 17-02-2025
+### 🧰 Bug fixes 🧰
+- Remove wildcard from the lambda permission policy.
+- Update lambda name to in format {{stack_name}}-LambdaFunction.
+
 ## 2.0.4  / 1-07-2024
 ### 🧰 Bug fixes 🧰
 - Add config to boto3, so the lambda could handle ThrottlingException, update error handling in the lambda.
