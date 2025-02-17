@@ -14,7 +14,7 @@ Metadata:
       - metadata
       - sqs
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 0.1.2
+    SemanticVersion: 0.1.3
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
