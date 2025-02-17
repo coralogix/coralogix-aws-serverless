@@ -6,7 +6,7 @@ export const collectEc2Resources = async function* () {
     console.info("Collecting list of EC2 instances");
     const CHUNK_SIZE = 50;
 
-    for await (const page of paginateDescribeInstances({ client: ec2Client })) {
+    for await (const page of paginateDescribeInstances({ client: ec2Client }, {})) {
         if (page.Reservations) {
             const pageInstances = page.Reservations.flatMap(r => r.Instances);
 
