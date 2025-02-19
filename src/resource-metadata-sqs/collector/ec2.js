@@ -4,7 +4,7 @@ const ec2Client = new EC2Client();
 
 export const collectEc2Resources = async function* () {
     console.info("Collecting list of EC2 instances");
-    const CHUNK_SIZE = 50;
+    const CHUNK_SIZE = 25;
 
     for await (const page of paginateDescribeInstances({ client: ec2Client }, {})) {
         if (page.Reservations) {
