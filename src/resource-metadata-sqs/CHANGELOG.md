@@ -2,6 +2,9 @@
 
 ## resource-metadata-sqs
 
+### 0.1.4 / 19.02.2025
+* [Fix] CDS-1876 Reduce EC2 batch size by half as default (50 --> 25) and let the user configure the chunk size
+
 ### 0.1.3 / 17.02.2025
 * [Fix] CDS-1876 rewrite batch collection of EC2 instances to avoid exceeding the SQS message size limit
 
