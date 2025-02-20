@@ -41,6 +41,7 @@ Metadata:
           - NotificationEmail
           - ExcludedEC2ResourceType
           - ExcludedLambdaResourceType
+          - EC2ChunkSize
       - Label:
           default: Lambda Configuration
         Parameters:
@@ -92,6 +93,8 @@ Metadata:
         default: Is EC2 Resource Type Excluded?
       ExcludedLambdaResourceType:
         default: Is Lambda Resource Type Excluded?
+      EC2ChunkSize:
+        default: EC2 Chunk Size
 Parameters:
   CoralogixRegion:
     Type: String
@@ -156,6 +159,12 @@ Parameters:
     Type: Number
     Description: Once a resource is collected, how long should it remain valid?
     Default: 60
+  EC2ChunkSize:
+    Type: Number
+    Description: Number of EC2 instances to process in each batch
+    Default: 25
+    MinValue: 1
+    MaxValue: 40
   FunctionArchitecture:
     Type: String
     Description: Lambda function architecture [x86_64, arm64]
@@ -308,6 +317,8 @@ Resources:
               - 'True'
               - 'False'
           METADATA_QUEUE_URL: !Ref MetadataQueue
+          EC2_CHUNK_SIZE:
+            Ref: EC2ChunkSize
       Events:
         ScheduledEvent:
           Type: Schedule
