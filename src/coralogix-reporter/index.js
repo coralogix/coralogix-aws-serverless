@@ -27,7 +27,7 @@ assert(process.env.template, "No report template!");
 assert(process.env.sender, "No report sender!");
 assert(process.env.recipient, "No recipient sender!");
 const query = JSON.parse(process.env.query);
-const coralogixUrl = process.env.CORALOGIX_URL || "https://coralogix-esapi.coralogix.com:9443";
+const coralogixUrl = process.env.CORALOGIX_URL || "https://api.coralogix.com/data/os-api";
 const requestTimeout = process.env.request_timeout ? parseInt(process.env.request_timeout) : 30000;
 const subject = process.env.subject || "Coralogix OpenSearch Report";
 
@@ -35,53 +35,105 @@ const subject = process.env.subject || "Coralogix OpenSearch Report";
  * @description Lambda function handler
  * @param {object} event - Event data
  * @param {object} context - Function context
- * @param {object} callback - Function callback
+ * @returns {Promise<string>} Function result
  */
-function handler(event, context, callback) {
+async function handler(event, context) {
+    console.log('Handler started');
     const reportTime = new Date().toISOString();
 
-    // Initialize OpenSearch API client
+    console.log('Initializing OpenSearch client');
     const searchClient = new opensearch.Client({
         node: coralogixUrl,
         maxRetries: 3,
-        requestTimeout: requestTimeout
-    });
-
-    searchClient.search({
-        index: "*",
-        body: query
-    }, {headers: { "token": process.env.logs_query_key} }, (error, result) => {
-        if (error) {
-            callback(error);
-        } else {
-            jsonexport(jmespath.search(result.body, process.env.template), (error, csv) => {
-                if (error) {
-                    callback(error);
-                } else {
-                    const ses = new sesClientModule.SESClient({});
-                    nodemailer.createTransport({
-                        SES: { ses, aws: sesClientModule },
-                     }).sendMail({
-                        from: process.env.sender,
-                        to: process.env.recipient,
-                        subject: subject,
-                        attachments: [
-                            {
-                                filename: `report_${reportTime}.csv`,
-                                content: csv
-                            }
-                        ]
-                    }, (error, info) => {
-                        if (error) {
-                            callback(error);
-                        } else {
-                            callback(null, `Report sent successfully: ${info}`);
-                        }
-                    });
-                }
-            });
+        requestTimeout: requestTimeout,
+        headers: {
+            'Authorization': `Bearer ${process.env.logs_query_key}`
         }
     });
+
+    try {
+        console.log('Configuration:', {
+            coralogixUrl,
+            requestTimeout,
+            sender: process.env.sender,
+            recipient: process.env.recipient,
+            region: process.env.AWS_REGION
+        });
+
+        console.log('Executing OpenSearch query');
+        const result = await searchClient.search({
+            index: "*",
+            body: query
+        });
+
+        let responseBody;
+        if (typeof result.body === 'string') {
+            try {
+                responseBody = JSON.parse(result.body);
+                console.log('Parsed response body aggregations');
+            } catch (e) {
+                console.error('Failed to parse response body:', e);
+                throw e;
+            }
+        } else {
+            responseBody = result.body;
+        }
+
+        // Debug the complete response
+        // console.log('Full OpenSearch response:', JSON.stringify(result));
+
+        console.log('Converting results to CSV');
+        const csv = await new Promise((resolve, reject) => {
+            const templateResult = jmespath.search(responseBody, process.env.template);
+            console.log('Data after JMESPath template:', JSON.stringify(templateResult));
+
+            // If response is empty – exit function before attempting to convert to CSV and send email
+            if (!templateResult || (Array.isArray(templateResult) && templateResult.length === 0)) {
+                console.log('No results found after template application');
+                resolve('No data found\n');
+                return;
+            }
+
+            jsonexport(templateResult, (error, csv) => {
+                if (error) {
+                    console.error('CSV conversion error:', error);
+                    reject(error);
+                } else {
+                    console.log('CSV generated, size:', csv.length);
+                    resolve(csv);
+                }
+            });
+        });
+
+        console.log('Initializing SES client');
+        const ses = new sesClientModule.SESClient({
+            region: process.env.AWS_REGION
+        });
+        const transporter = nodemailer.createTransport({
+            SES: { ses, aws: sesClientModule }
+        });
+
+        console.log('Sending email');
+        const info = await transporter.sendMail({
+            from: process.env.sender,
+            to: process.env.recipient,
+            subject: subject,
+            text: 'Please find the attached report.',
+            attachments: [
+                {
+                    filename: `report_${reportTime}.csv`,
+                    content: csv
+                }
+            ]
+        });
+
+        console.log('Email sent successfully:');
+        return `Report sent successfully: ${JSON.stringify(info)}`;
+    } catch (error) {
+        console.error('Error in handler:', error);
+        console.error('Error stack:', error.stack);
+        throw error;
+    }
 }
 
 exports.handler = handler;
