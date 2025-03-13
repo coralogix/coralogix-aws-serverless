@@ -23,13 +23,13 @@ Metadata:
 Parameters:
   CoralogixRegion:
     Type: String
-    Description: The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US, US2]
+    Description: The Coralogix location region, possible options are [EU1, EU2, AP1, AP2, US1, US2]
     AllowedValues:
-      - Europe
-      - Europe2
-      - India
-      - Singapore
-      - US
+      - EU1
+      - EU2
+      - AP1
+      - AP2
+      - US1
       - US2
     Default: Europe
   LogsQueryKey:
