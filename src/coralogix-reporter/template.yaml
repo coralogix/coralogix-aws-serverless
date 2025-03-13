@@ -18,7 +18,7 @@ Metadata:
       - ses
       - email
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 2.0.2
+    SemanticVersion: 3.0.0
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -134,7 +134,7 @@ Resources:
       Description: Generate report from Coralogix OpenSearch API and send it by email.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs20.x
+      Runtime: nodejs22.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:

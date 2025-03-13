@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     2.0.2
+ * @version     3.0.0
  * @since       1.0.0
  */
 
