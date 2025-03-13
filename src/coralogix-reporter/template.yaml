@@ -172,9 +172,6 @@ Resources:
                 - 'ses:SendEmail'
                 - 'ses:SendRawEmail'
               Resource: '*'
-        - SESCrudPolicy:
-            IdentityName:
-              Ref: Sender
       EventInvokeConfig:
         DestinationConfig:
           OnFailure:
