@@ -26,8 +26,8 @@ assert(process.env.query, "No OpenSearch query!");
 assert(process.env.template, "No report template!");
 assert(process.env.sender, "No report sender!");
 assert(process.env.recipient, "No recipient sender!");
+assert(process.env.coralogix_endpoint, "No Coralogix endpoint!");
 const query = JSON.parse(process.env.query);
-const coralogixUrl = process.env.CORALOGIX_URL || "https://api.coralogix.com/data/os-api";
 const requestTimeout = process.env.request_timeout ? parseInt(process.env.request_timeout) : 30000;
 const subject = process.env.subject || "Coralogix OpenSearch Report";
 
@@ -43,7 +43,7 @@ async function handler(event, context) {
 
     console.log('Initializing OpenSearch client');
     const searchClient = new opensearch.Client({
-        node: coralogixUrl,
+        node: process.env.coralogix_endpoint,
         maxRetries: 3,
         requestTimeout: requestTimeout,
         headers: {
@@ -53,7 +53,7 @@ async function handler(event, context) {
 
     try {
         console.log('Configuration:', {
-            coralogixUrl,
+            coralogixEndpoint: process.env.coralogix_endpoint,
             requestTimeout,
             sender: process.env.sender,
             recipient: process.env.recipient,
@@ -127,7 +127,7 @@ async function handler(event, context) {
             ]
         });
 
-        console.log('Email sent successfully:');
+        console.log('Email sent successfully');
         return `Report sent successfully: ${JSON.stringify(info)}`;
     } catch (error) {
         console.error('Error in handler:', error);

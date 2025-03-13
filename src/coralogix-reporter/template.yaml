@@ -106,18 +106,18 @@ Parameters:
     Default: ''
 Mappings:
   CoralogixRegionMap:
-    Europe:
-      LogUrl: https://coralogix-esapi.coralogix.com:9443
-    Europe2:
-      LogUrl: https://es-api.eu2.coralogix.com:9443
-    India:
-      LogUrl: https://es-api.app.coralogix.in:9443
-    Singapore:
-      LogUrl: https://es-api.coralogixsg.com:9443
-    US:
-      LogUrl: https://esapi.coralogix.us:9443
+    EU1:
+      LogUrl: https://api.coralogix.com/data/os-api
+    EU2:
+      LogUrl: https://api.eu2.coralogix.com/data/os-api
+    AP1:
+      LogUrl: https://api.app.coralogix.in/data/os-api
+    AP2:
+      LogUrl: https://api.coralogixsg.com/data/os-api
+    US1:
+      LogUrl: https://api.coralogix.us/data/os-api
     US2:
-      LogUrl: https://es-api.cx498.coralogix.com:9443
+      LogUrl: https://api.cx498.coralogix.com/data/os-api
 Conditions:
   IsNotificationEnabled: !Not [!Equals [!Ref NotificationEmail, '']]
   IsScheduleEnabled: !Not [!Equals [!Ref ScheduleEnable, 'false']] 
@@ -138,7 +138,7 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
-          CORALOGIX_URL:
+          coralogix_endpoint:
             Fn::FindInMap:
               - CoralogixRegionMap
               - Ref: CoralogixRegion
