@@ -155,7 +155,7 @@ Resources:
             Ref: Recipient
           subject:
             Ref: Subject
-          requestTimeout:
+          request_timeout:
             Ref: RequestTimeout
       Policies:
         - Version: '2012-10-17'
