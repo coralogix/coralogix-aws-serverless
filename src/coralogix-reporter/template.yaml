@@ -31,7 +31,7 @@ Parameters:
       - AP2
       - US1
       - US2
-    Default: Europe
+    Default: EU1
   ApiKey:
     Type: String
     Description: The Coralogix API Key found under Data Flow > API Keys > Personal Keys.
