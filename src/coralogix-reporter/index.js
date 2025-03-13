@@ -28,9 +28,8 @@ assert(process.env.template, "No report template!");
 assert(process.env.sender, "No report sender!");
 assert(process.env.recipient, "No recipient sender!");
 assert(process.env.coralogix_endpoint, "No Coralogix endpoint!");
-const query = JSON.parse(process.env.query);
-const requestTimeout = process.env.request_timeout ? parseInt(process.env.request_timeout) : 30000;
-const subject = process.env.subject || "Coralogix OpenSearch Report";
+assert(process.env.subject, "No subject!");
+assert(process.env.request_timeout, "No request timeout!");
 
 /**
  * @description Lambda function handler
@@ -46,7 +45,7 @@ async function handler(event, context) {
     const searchClient = new opensearch.Client({
         node: process.env.coralogix_endpoint,
         maxRetries: 3,
-        requestTimeout: requestTimeout,
+        requestTimeout: process.env.request_timeout,
         headers: {
             'Authorization': `Bearer ${process.env.api_key}`
         }
@@ -55,7 +54,7 @@ async function handler(event, context) {
     try {
         console.log('Configuration:', {
             coralogixEndpoint: process.env.coralogix_endpoint,
-            requestTimeout,
+            requestTimeout: process.env.request_timeout,
             sender: process.env.sender,
             recipient: process.env.recipient,
             region: process.env.AWS_REGION
@@ -64,7 +63,7 @@ async function handler(event, context) {
         console.log('Executing OpenSearch query');
         const result = await searchClient.search({
             index: process.env.index,
-            body: query
+            body: JSON.parse(process.env.query)
         });
 
         let responseBody;
@@ -118,7 +117,7 @@ async function handler(event, context) {
         const info = await transporter.sendMail({
             from: process.env.sender,
             to: process.env.recipient,
-            subject: subject,
+            subject: process.env.subject,
             text: 'Please find the attached report.',
             attachments: [
                 {
