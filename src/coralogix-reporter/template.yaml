@@ -18,23 +18,23 @@ Metadata:
       - ses
       - email
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 2.0.2
+    SemanticVersion: 3.0.0
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
     Type: String
-    Description: The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US, US2]
+    Description: The Coralogix location region, possible options are [EU1, EU2, AP1, AP2, US1, US2]
     AllowedValues:
-      - Europe
-      - Europe2
-      - India
-      - Singapore
-      - US
+      - EU1
+      - EU2
+      - AP1
+      - AP2
+      - US1
       - US2
     Default: Europe
-  LogsQueryKey:
+  ApiKey:
     Type: String
-    Description: The Coralogix Logs Query Key found under Data Flow > API Keys > Logs Query Key.
+    Description: The Coralogix API Key found under Data Flow > API Keys > Personal Keys.
     NoEcho: true
   FunctionArchitecture:
     Type: String
@@ -86,6 +86,11 @@ Parameters:
     MinLength: 1
     MaxLength: 78
     Default: Coralogix Report
+  Index:
+    Type: String
+    Description: OpenSearch index
+    MinLength: 1
+    Default: '*'
   Query:
     Type: String
     Description: OpenSearch query
@@ -106,18 +111,18 @@ Parameters:
     Default: ''
 Mappings:
   CoralogixRegionMap:
-    Europe:
-      LogUrl: https://coralogix-esapi.coralogix.com:9443
-    Europe2:
-      LogUrl: https://es-api.eu2.coralogix.com:9443
-    India:
-      LogUrl: https://es-api.app.coralogix.in:9443
-    Singapore:
-      LogUrl: https://es-api.coralogixsg.com:9443
-    US:
-      LogUrl: https://esapi.coralogix.us:9443
+    EU1:
+      LogUrl: https://api.coralogix.com/data/os-api
+    EU2:
+      LogUrl: https://api.eu2.coralogix.com/data/os-api
+    AP1:
+      LogUrl: https://api.app.coralogix.in/data/os-api
+    AP2:
+      LogUrl: https://api.coralogixsg.com/data/os-api
+    US1:
+      LogUrl: https://api.coralogix.us/data/os-api
     US2:
-      LogUrl: https://es-api.cx498.coralogix.com:9443
+      LogUrl: https://api.cx498.coralogix.com/data/os-api
 Conditions:
   IsNotificationEnabled: !Not [!Equals [!Ref NotificationEmail, '']]
   IsScheduleEnabled: !Not [!Equals [!Ref ScheduleEnable, 'false']] 
@@ -129,7 +134,7 @@ Resources:
       Description: Generate report from Coralogix OpenSearch API and send it by email.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs20.x
+      Runtime: nodejs22.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
@@ -138,13 +143,15 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
-          CORALOGIX_URL:
+          coralogix_endpoint:
             Fn::FindInMap:
               - CoralogixRegionMap
               - Ref: CoralogixRegion
               - LogUrl
-          logs_query_key:
-            Ref: LogsQueryKey
+          api_key:
+            Ref: ApiKey
+          index:
+            Ref: Index
           query:
             Ref: Query
           template:
@@ -155,7 +162,7 @@ Resources:
             Ref: Recipient
           subject:
             Ref: Subject
-          requestTimeout:
+          request_timeout:
             Ref: RequestTimeout
       Policies:
         - Version: '2012-10-17'
@@ -165,9 +172,6 @@ Resources:
                 - 'ses:SendEmail'
                 - 'ses:SendRawEmail'
               Resource: '*'
-        - SESCrudPolicy:
-            IdentityName:
-              Ref: Sender
       EventInvokeConfig:
         DestinationConfig:
           OnFailure:

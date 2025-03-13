@@ -1,7 +1,7 @@
 {
   "name": "coralogix-reporter",
   "title": "AWS Lambda function for Coralogix Reporting",
-  "version": "2.0.2",
+  "version": "3.0.0",
   "description": "AWS Lambda function for reports generated from Coralogix OpenSearch API sending",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",
@@ -12,13 +12,18 @@
     "url": "https://coralogix.com"
   },
   "engines": {
-    "node": "20.x"
+    "node": "22.x"
   },
   "contributors": [
     {
       "name": "Ryan Tan",
       "email": "ryan.tan@coralogix.com",
       "url": "https://github.com/ryantanjunming"
+    },
+    {
+      "name": "Mikhail Chinkov",
+      "email": "mikhail.chinkov@coralogix.com",
+      "url": "https://github.com/cazorla19"
     }
   ],
   "keywords": [
@@ -39,14 +44,15 @@
     "url": "https://github.com/coralogix/coralogix-aws-serverless/issues"
   },
   "dependencies": {
-    "@aws-sdk/client-ses": "^3.470.0",
-    "@opensearch-project/opensearch": "^2.4.0",
+    "@aws-sdk/client-ses": "^3.758.0",
+    "@opensearch-project/opensearch": "^3.4.0",
     "jmespath-plus": "^0.1.7",
     "jsonexport": "^3.2.0",
-    "nodemailer": "^6.9.7"
+    "nodemailer": "^6.10.0"
   },
   "files": [
     "LICENSE",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ]
 }
