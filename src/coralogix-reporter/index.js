@@ -21,7 +21,7 @@ const jsonexport = require("jsonexport");
 const nodemailer = require("nodemailer");
 
 // Check Lambda function parameters
-assert(process.env.logs_query_key, "No Logs Query key!");
+assert(process.env.api_key, "No API key!");
 assert(process.env.query, "No OpenSearch query!");
 assert(process.env.template, "No report template!");
 assert(process.env.sender, "No report sender!");
@@ -47,7 +47,7 @@ async function handler(event, context) {
         maxRetries: 3,
         requestTimeout: requestTimeout,
         headers: {
-            'Authorization': `Bearer ${process.env.logs_query_key}`
+            'Authorization': `Bearer ${process.env.api_key}`
         }
     });
 

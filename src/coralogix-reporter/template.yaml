@@ -32,9 +32,9 @@ Parameters:
       - US1
       - US2
     Default: Europe
-  LogsQueryKey:
+  ApiKey:
     Type: String
-    Description: The Coralogix Logs Query Key found under Data Flow > API Keys > Logs Query Key.
+    Description: The Coralogix API Key found under Data Flow > API Keys > Personal Keys.
     NoEcho: true
   FunctionArchitecture:
     Type: String
@@ -143,8 +143,8 @@ Resources:
               - CoralogixRegionMap
               - Ref: CoralogixRegion
               - LogUrl
-          logs_query_key:
-            Ref: LogsQueryKey
+          api_key:
+            Ref: ApiKey
           query:
             Ref: Query
           template:
