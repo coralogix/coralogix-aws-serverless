@@ -86,6 +86,11 @@ Parameters:
     MinLength: 1
     MaxLength: 78
     Default: Coralogix Report
+  Index:
+    Type: String
+    Description: OpenSearch index
+    MinLength: 1
+    Default: '*'
   Query:
     Type: String
     Description: OpenSearch query
@@ -145,6 +150,8 @@ Resources:
               - LogUrl
           api_key:
             Ref: ApiKey
+          index:
+            Ref: Index
           query:
             Ref: Query
           template:

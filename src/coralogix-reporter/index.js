@@ -22,6 +22,7 @@ const nodemailer = require("nodemailer");
 
 // Check Lambda function parameters
 assert(process.env.api_key, "No API key!");
+assert(process.env.index, "No OpenSearch index!");
 assert(process.env.query, "No OpenSearch query!");
 assert(process.env.template, "No report template!");
 assert(process.env.sender, "No report sender!");
@@ -62,7 +63,7 @@ async function handler(event, context) {
 
         console.log('Executing OpenSearch query');
         const result = await searchClient.search({
-            index: "*",
+            index: process.env.index,
             body: query
         });
 
