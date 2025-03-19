@@ -40,9 +40,8 @@ jobs:
       - name: 'Checkout'
         uses: actions/checkout@main
 
-      - uses: aws-actions/setup-sam@v2
-        with:
-          use-installer: true
+      - name: install-aws-cli
+        uses: unfor19/install-aws-cli-action@v1
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -66,9 +65,8 @@ jobs:
       - name: 'Checkout'
         uses: actions/checkout@main
 
-      - uses: aws-actions/setup-sam@v2
-        with:
-          use-installer: true
+      - name: install-aws-cli
+        uses: unfor19/install-aws-cli-action@v1
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
