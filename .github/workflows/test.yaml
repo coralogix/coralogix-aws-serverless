@@ -2,8 +2,6 @@ name: OpenTelemetry
 
 on:
   push:
-    branches:
-      t - '**' 
 #   workflow_run:
 #     workflows: ['*']
 #     types: [completed]
