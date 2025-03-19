@@ -8,6 +8,8 @@ on:
     paths:
       - 'infra/**'
   pull_request:
+    paths:
+      - 'infra/**'
 
 env:
   AWS_DEFAULT_REGION: eu-central-1
