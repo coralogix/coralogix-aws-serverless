@@ -13,7 +13,7 @@ on:
 
 env:
   AWS_DEFAULT_REGION: eu-central-1
-  TF_VAR_s3_bucket_name_prefix: coralogix-serverless-repo
+  AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
   tf_version: '1.11.2'
   tg_version: '0.76.1'
   working_dir: 'infra'

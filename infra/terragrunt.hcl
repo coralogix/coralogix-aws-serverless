@@ -49,18 +49,6 @@ provider "aws" {
 EOF
 }
 
-generate "variables" {
-  path      = "_variables.tf"
-  if_exists = "overwrite"
-  contents  = <<EOF
-variable "s3_bucket_name_prefix" {
-  description = "The prefix of S3 bucket name"
-  type        = string
-  default     = "coralogix-serverless-repo"
-}
-EOF
-}
-
 generate "iam" {
   path      = "_iam.tf"
   if_exists = "overwrite"
@@ -78,7 +66,7 @@ resource "aws_iam_role_policy" "this" {
           "s3:ListBucket"
         ]
         Effect   = "Allow"
-        Resource = "arn:aws:s3:::$${var.s3_bucket_name_prefix}-${get_env("AWS_DEFAULT_REGION")}"
+        Resource = "arn:aws:s3:::${get_env("AWS_SERVERLESS_BUCKET")}-${get_env("AWS_DEFAULT_REGION")}"
       },
       {
         Action = [
@@ -88,7 +76,7 @@ resource "aws_iam_role_policy" "this" {
           "s3:GetObjectVersionTagging"
         ]
         Effect   = "Allow"
-        Resource = "arn:aws:s3:::$${var.s3_bucket_name_prefix}-${get_env("AWS_DEFAULT_REGION")}/*"
+        Resource = "arn:aws:s3:::${get_env("AWS_SERVERLESS_BUCKET")}-${get_env("AWS_DEFAULT_REGION")}/*"
       },
       {
         Action = [
@@ -100,7 +88,7 @@ resource "aws_iam_role_policy" "this" {
         Resource = [
 %{for region in local.aws_regions~}
 %{if region != get_env("AWS_DEFAULT_REGION")~}
-          "arn:aws:s3:::$${var.s3_bucket_name_prefix}-${region}/*",
+          "arn:aws:s3:::${get_env("AWS_SERVERLESS_BUCKET")}-${region}/*",
 %{endif~}
 %{endfor~}
         ]
@@ -125,7 +113,7 @@ module "${region}" {
     aws = aws.${region}
   }
 
-  bucket = "$${var.s3_bucket_name_prefix}-${region}"
+  bucket = "${get_env("AWS_SERVERLESS_BUCKET")}-${region}"
   acl    = "public-read"
 
   block_public_acls       = false
@@ -145,7 +133,7 @@ module "${region}" {
         Principal = "*"
         Action    = ["s3:GetObject"]
         Effect    = "Allow"
-        Resource  = "arn:aws:s3:::$${var.s3_bucket_name_prefix}-${region}/*"
+        Resource  = "arn:aws:s3:::${get_env("AWS_SERVERLESS_BUCKET")}-${region}/*"
       }
     ]
   })
@@ -157,12 +145,12 @@ module "${region}" {
 %{for priority, replication_region in local.aws_regions~}
 %{if replication_region != get_env("AWS_DEFAULT_REGION")~}
       {
-        id                        = "$${var.s3_bucket_name_prefix}-${replication_region}"
+        id                        = "${get_env("AWS_SERVERLESS_BUCKET")}-${replication_region}"
         priority                  = ${priority}
         status                    = "Enabled"
         delete_marker_replication = true
         destination = {
-          bucket = "arn:aws:s3:::$${var.s3_bucket_name_prefix}-${replication_region}"
+          bucket = "arn:aws:s3:::${get_env("AWS_SERVERLESS_BUCKET")}-${replication_region}"
         }
       },
 %{endif~}
