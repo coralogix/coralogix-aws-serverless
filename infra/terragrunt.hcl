@@ -1,11 +1,6 @@
 locals {
-  aws_regions = [
-    "eu-central-1", "eu-west-1", "eu-west-2", "eu-west-3", "eu-north-1",
-    "us-east-1", "us-east-2", "us-west-1", "us-west-2",
-    "ap-south-1", "ap-southeast-1", "ap-southeast-2", "ap-northeast-1", "ap-northeast-2", "ap-northeast-3", "ap-east-1",
-    "ca-central-1", "eu-south-1",
-    "mx-central-1"
-  ]
+  aws_regions_raw = run_cmd("aws", "ec2", "describe-regions", "--all-regions", "--query", "Regions[].RegionName", "--output", "text")
+  aws_regions = split("\t", local.aws_regions_raw)
 }
 
 terraform {
@@ -42,7 +37,6 @@ generate "provider" {
   path      = "_providers.tf"
   if_exists = "overwrite"
   contents  = <<EOF
-provider "aws" {}
 %{ for region in local.aws_regions }
 provider "aws" {
   region = "${region}"
@@ -59,6 +53,7 @@ generate "variables" {
 variable "s3_bucket_name_prefix" {
   description = "The prefix of S3 bucket name"
   type        = string
+  default     = "coralogix-serverless-repo"
 }
 EOF
 }
@@ -127,6 +122,11 @@ module "${region}" {
 
   bucket    = "$${var.s3_bucket_name_prefix}-${region}"
   acl       = "public-read"
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
 
   versioning = {
     enabled = true
