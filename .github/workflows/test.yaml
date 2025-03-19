@@ -10,8 +10,8 @@ permissions: read-all
 
 env:
   ACTION_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  OTEL_EXPORTER_OTLP_ENDPOINT: https://ingress.eu2.coralogix.com/
-  OTLP_PROTOCOL: HTTP
+  OTEL_EXPORTER_OTLP_ENDPOINT: https://ingress.eu2.coralogix.com:443/
+  OTLP_PROTOCOL: GRPC
   WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
   WORKFLOW_RUN_NAME: ${{ github.event.workflow_run.name }}
   OTEL_EXPORTER_OTLP_HEADERS: Authorization=Bearer ${{ secrets.CORALOGIX_OTEL_API_TOKEN }}
