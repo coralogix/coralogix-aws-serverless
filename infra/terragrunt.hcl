@@ -115,7 +115,7 @@ generate "buckets" {
 # Bucket in ${region} AWS region
 module "${region}" {
   source    = "terraform-aws-modules/s3-bucket/aws"
-  version   = "3.3.0"
+  version   = "4.6.0"
   providers = {
     aws = aws.${region}
   }
