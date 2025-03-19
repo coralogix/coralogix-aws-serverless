@@ -1,37 +1,85 @@
 name: Infrastructure
 
 on:
+  schedule:
+    - cron: '0 10 * * 1'  # Every Monday at 10:00 UTC
   push:
     branches: [master]
     paths:
       - 'infra/**'
   pull_request:
-    types: [closed]
-    branches: [master]
     paths:
       - 'infra/**'
 
 env:
+  AWS_CLI_INSTALL: |
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    unzip awscliv2.zip
+    ./aws/install
   AWS_DEFAULT_REGION: eu-central-1
+  AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
+  tf_version: '1.11.2'
+  tg_version: '0.76.1'
+  working_dir: 'infra'
 
 jobs:
-  infrastructure:
-    name: Infrastructure
-    runs-on: aws-sam
-    env:
-      AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
+  checks:
+    runs-on: ubuntu-latest
     steps:
-      - name: Init
-        working-directory: infra/
-        run: terragrunt init
+      - name: 'Checkout'
+        uses: actions/checkout@main
 
-      - name: Validate
-        working-directory: infra/
-        run: terragrunt validate
+      - name: Check terragrunt HCL
+        uses: gruntwork-io/terragrunt-action@v2
+        with:
+          tf_version: ${{ env.tf_version }}
+          tg_version: ${{ env.tg_version }}
+          tg_dir: ${{ env.working_dir }}
+          tg_command: 'hclfmt --check --diff'
 
-      - name: Apply
-        working-directory: infra/
-        run: |
-          terragrunt apply \
-            -var="s3_bucket_name_prefix=${{ env.AWS_SERVERLESS_BUCKET }}" \
-            -auto-approve
+  plan:
+    runs-on: ubuntu-latest
+    needs: [ checks ]
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@main
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Plan
+        uses: gruntwork-io/terragrunt-action@v2
+        env:
+          INPUT_PRE_EXEC_1: ${{ env.AWS_CLI_INSTALL }}
+        with:
+          tf_version: ${{ env.tf_version }}
+          tg_version: ${{ env.tg_version }}
+          tg_dir: ${{ env.working_dir }}
+          tg_command: 'plan'
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [ plan ]
+    if: github.ref == 'refs/heads/master' || github.event_name == 'schedule'
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@main
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Deploy
+        uses: gruntwork-io/terragrunt-action@v2
+        env:
+          INPUT_PRE_EXEC_1: ${{ env.AWS_CLI_INSTALL }}
+        with:
+          tf_version: ${{ env.tf_version }}
+          tg_version: ${{ env.tg_version }}
+          tg_dir: ${{ env.working_dir }}
+          tg_command: 'apply'
