@@ -1,6 +1,6 @@
 locals {
   aws_regions_raw = run_cmd("aws", "ec2", "describe-regions", "--all-regions", "--query", "Regions[].RegionName", "--output", "text")
-  aws_regions = split("\t", local.aws_regions_raw)
+  aws_regions     = split("\t", local.aws_regions_raw)
 }
 
 terraform {
@@ -13,6 +13,7 @@ inputs = {
   create_role           = true
   trusted_role_services = ["s3.amazonaws.com"]
   role_requires_mfa     = false
+  
   tags = {
     Provider = "Coralogix"
     Purpose  = "SAM"
@@ -20,11 +21,13 @@ inputs = {
 }
 
 remote_state {
-  backend  = "s3"
+  backend = "s3"
+  
   generate = {
     path      = "_backend.tf"
     if_exists = "overwrite"
   }
+  
   config = {
     bucket                = get_env("AWS_SERVERLESS_BUCKET")
     key                   = "infra/terraform.tfstate"
@@ -65,11 +68,12 @@ generate "iam" {
 resource "aws_iam_role_policy" "this" {
   name = "S3ReplicationPolicy"
   role = aws_iam_role.this[0].id
+  
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Action   = [
+        Action = [
           "s3:GetReplicationConfiguration",
           "s3:ListBucket"
         ]
@@ -77,9 +81,9 @@ resource "aws_iam_role_policy" "this" {
         Resource = "arn:aws:s3:::$${var.s3_bucket_name_prefix}-${get_env("AWS_DEFAULT_REGION")}"
       },
       {
-        Action   = [
+        Action = [
           "s3:GetObjectVersionForReplication",
-          "s3:GetObjectVersionAcl",
+          "s3:GetObjectVersionAcl", 
           "s3:GetObjectVersion",
           "s3:GetObjectVersionTagging"
         ]
@@ -87,7 +91,7 @@ resource "aws_iam_role_policy" "this" {
         Resource = "arn:aws:s3:::$${var.s3_bucket_name_prefix}-${get_env("AWS_DEFAULT_REGION")}/*"
       },
       {
-        Action   = [
+        Action = [
           "s3:ReplicateObject",
           "s3:ReplicateDelete",
           "s3:ReplicateTags"
@@ -114,14 +118,15 @@ generate "buckets" {
 %{ for region in local.aws_regions }
 # Bucket in ${region} AWS region
 module "${region}" {
-  source    = "terraform-aws-modules/s3-bucket/aws"
-  version   = "4.6.0"
+  source  = "terraform-aws-modules/s3-bucket/aws"
+  version = "4.6.0"
+  
   providers = {
     aws = aws.${region}
   }
 
-  bucket    = "$${var.s3_bucket_name_prefix}-${region}"
-  acl       = "public-read"
+  bucket = "$${var.s3_bucket_name_prefix}-${region}"
+  acl    = "public-read"
 
   block_public_acls       = false
   block_public_policy     = false
@@ -134,19 +139,20 @@ module "${region}" {
 
   attach_policy = true
   policy = jsonencode({
-    Version = "2012-10-17"
+    Version   = "2012-10-17"
     Statement = [
       {
         Principal = "*"
-        Action = ["s3:GetObject"]
-        Effect = "Allow"
-        Resource = "arn:aws:s3:::$${var.s3_bucket_name_prefix}-${region}/*"
+        Action    = ["s3:GetObject"]
+        Effect    = "Allow"
+        Resource  = "arn:aws:s3:::$${var.s3_bucket_name_prefix}-${region}/*"
       }
     ]
   })
+
 %{ if region == get_env("AWS_DEFAULT_REGION") }
   replication_configuration = {
-    role = aws_iam_role.this[0].arn
+    role  = aws_iam_role.this[0].arn
     rules = [
 %{ for priority, replication_region in local.aws_regions ~}
 %{ if replication_region != get_env("AWS_DEFAULT_REGION") ~}
@@ -172,6 +178,7 @@ module "${region}" {
 %{ endfor ~}
   ]
 %{ endif }
+
   tags = {
     Provider = "Coralogix"
     Purpose  = "SAM"
@@ -180,4 +187,3 @@ module "${region}" {
 %{ endfor }
 EOF
 }
-
