@@ -50,7 +50,9 @@ jobs:
         uses: gruntwork-io/terragrunt-action@v2
         env:
           INPUT_PRE_EXEC_1: |
-            snap install aws-cli --classic
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            ./aws/install
         with:
           tf_version: ${{ env.tf_version }}
           tg_version: ${{ env.tg_version }}
