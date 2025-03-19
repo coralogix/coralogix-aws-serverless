@@ -1,0 +1,31 @@
+name: OpenTelemetry - Export OTel Traces and Logs to Dynatrace
+
+on:
+  push:
+    branches:
+      t - '**' 
+#   workflow_run:
+#     workflows: ['*']
+#     types: [completed]
+
+permissions: read-all
+
+env:
+  ACTION_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: https://ingress.eu2.coralogix.com/
+  OTLP_PROTOCOL: HTTP
+  WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+  WORKFLOW_RUN_NAME: ${{ github.event.workflow_run.name }}
+  OTEL_EXPORTER_OTLP_HEADERS: Authorization=Bearer ${{ secrets.CORALOGIX_OTEL_API_TOKEN }}
+  GITHUB_DEBUG: false
+
+jobs:
+  OTLP-GitHubAction-Exporter :
+    name: OTLP GitHubAction Exporter
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run OTLP GitHubAction Exporter
+        uses: StephenGoodall/OTLP-GitHubAction-Exporter@v3
