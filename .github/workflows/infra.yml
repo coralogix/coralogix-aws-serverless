@@ -49,6 +49,9 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
+      - run: aws --version
+        shell: bash
+
       - name: Plan
         uses: gruntwork-io/terragrunt-action@v2
         with:
