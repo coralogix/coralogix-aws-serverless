@@ -1,4 +1,4 @@
-name: OpenTelemetry - Export OTel Traces and Logs to Dynatrace
+name: OpenTelemetry
 
 on:
   push:
