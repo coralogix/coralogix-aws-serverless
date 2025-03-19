@@ -12,6 +12,10 @@ on:
       - 'infra/**'
 
 env:
+  AWS_CLI_INSTALL: |
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    unzip awscliv2.zip
+    ./aws/install
   AWS_DEFAULT_REGION: eu-central-1
   AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
   tf_version: '1.11.2'
@@ -49,10 +53,7 @@ jobs:
       - name: Plan
         uses: gruntwork-io/terragrunt-action@v2
         env:
-          INPUT_PRE_EXEC_1: |
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip awscliv2.zip
-            ./aws/install
+          INPUT_PRE_EXEC_1: ${{ env.AWS_CLI_INSTALL }}
         with:
           tf_version: ${{ env.tf_version }}
           tg_version: ${{ env.tg_version }}
@@ -75,6 +76,8 @@ jobs:
 
       - name: Deploy
         uses: gruntwork-io/terragrunt-action@v2
+        env:
+          INPUT_PRE_EXEC_1: ${{ env.AWS_CLI_INSTALL }}
         with:
           tf_version: ${{ env.tf_version }}
           tg_version: ${{ env.tg_version }}
