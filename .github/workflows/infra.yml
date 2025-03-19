@@ -1,6 +1,8 @@
 name: Infrastructure
 
 on:
+  schedule:
+    - cron: '0 10 * * 1'  # Every Monday at 10:00 UTC
   push:
     branches: [master]
     paths:
@@ -17,10 +19,23 @@ env:
 jobs:
   infrastructure:
     name: Infrastructure
-    runs-on: aws-sam
+    runs-on: ubuntu-latest
     env:
       AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
       - name: Init
         working-directory: infra/
         run: terragrunt init

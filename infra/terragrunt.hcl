@@ -13,7 +13,7 @@ inputs = {
   create_role           = true
   trusted_role_services = ["s3.amazonaws.com"]
   role_requires_mfa     = false
-  
+
   tags = {
     Provider = "Coralogix"
     Purpose  = "SAM"
@@ -22,12 +22,12 @@ inputs = {
 
 remote_state {
   backend = "s3"
-  
+
   generate = {
     path      = "_backend.tf"
     if_exists = "overwrite"
   }
-  
+
   config = {
     bucket                = get_env("AWS_SERVERLESS_BUCKET")
     key                   = "infra/terraform.tfstate"
@@ -40,12 +40,12 @@ generate "provider" {
   path      = "_providers.tf"
   if_exists = "overwrite"
   contents  = <<EOF
-%{ for region in local.aws_regions }
+%{for region in local.aws_regions}
 provider "aws" {
   region = "${region}"
   alias  = "${region}"
 }
-%{ endfor }
+%{endfor}
 EOF
 }
 
@@ -98,11 +98,11 @@ resource "aws_iam_role_policy" "this" {
         ]
         Effect   = "Allow"
         Resource = [
-%{ for region in local.aws_regions ~}
-%{ if region != get_env("AWS_DEFAULT_REGION") ~}
+%{for region in local.aws_regions~}
+%{if region != get_env("AWS_DEFAULT_REGION")~}
           "arn:aws:s3:::$${var.s3_bucket_name_prefix}-${region}/*",
-%{ endif ~}
-%{ endfor ~}
+%{endif~}
+%{endfor~}
         ]
       }
     ]
@@ -115,7 +115,7 @@ generate "buckets" {
   path      = "_buckets.tf"
   if_exists = "overwrite"
   contents  = <<EOF
-%{ for region in local.aws_regions }
+%{for region in local.aws_regions}
 # Bucket in ${region} AWS region
 module "${region}" {
   source  = "terraform-aws-modules/s3-bucket/aws"
@@ -150,12 +150,12 @@ module "${region}" {
     ]
   })
 
-%{ if region == get_env("AWS_DEFAULT_REGION") }
+%{if region == get_env("AWS_DEFAULT_REGION")}
   replication_configuration = {
     role  = aws_iam_role.this[0].arn
     rules = [
-%{ for priority, replication_region in local.aws_regions ~}
-%{ if replication_region != get_env("AWS_DEFAULT_REGION") ~}
+%{for priority, replication_region in local.aws_regions~}
+%{if replication_region != get_env("AWS_DEFAULT_REGION")~}
       {
         id                        = "$${var.s3_bucket_name_prefix}-${replication_region}"
         priority                  = ${priority}
@@ -165,25 +165,25 @@ module "${region}" {
           bucket = "arn:aws:s3:::$${var.s3_bucket_name_prefix}-${replication_region}"
         }
       },
-%{ endif ~}
-%{ endfor ~}
+%{endif~}
+%{endfor~}
     ]
   }
 
   depends_on = [
-%{ for replication_region in local.aws_regions ~}
-%{ if replication_region != get_env("AWS_DEFAULT_REGION") ~}
+%{for replication_region in local.aws_regions~}
+%{if replication_region != get_env("AWS_DEFAULT_REGION")~}
     module.${replication_region},
-%{ endif ~}
-%{ endfor ~}
+%{endif~}
+%{endfor~}
   ]
-%{ endif }
+%{endif}
 
   tags = {
     Provider = "Coralogix"
     Purpose  = "SAM"
   }
 }
-%{ endfor }
+%{endfor}
 EOF
 }
