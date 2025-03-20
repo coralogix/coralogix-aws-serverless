@@ -13,12 +13,12 @@ permissions:
 env:
   ACTION_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   OTEL_EXPORTER_OTLP_ENDPOINT: https://ingress.eu2.coralogix.com/
-  OTLP_PROTOCOL: GRPC
+  OTLP_PROTOCOL: HTTP
   # WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
   # WORKFLOW_RUN_NAME: ${{ github.event.workflow_run.name }}
   WORKFLOW_RUN_ID: ${{ github.run_id }}        # Changed: use current run ID
   WORKFLOW_RUN_NAME: ${{ github.workflow }}     # Changed: use current workflow name`
-  OTEL_EXPORTER_OTLP_HEADERS: Authorization=Bearer
+  OTEL_EXPORTER_OTLP_HEADERS: Authorization=Bearer ${{ secrets.CORALOGIX_OTEL_API_TOKEN }}
   GITHUB_CUSTOM_ATTS: '{"service.name":"ghapp", "application.name":"cds1974", "cx.application.name":"cds1974", "cx.subsystem.name":"ghactions"}'
   GITHUB_DEBUG: false
 
