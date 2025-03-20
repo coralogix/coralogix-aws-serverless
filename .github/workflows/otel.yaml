@@ -20,7 +20,7 @@ env:
   WORKFLOW_RUN_NAME: ${{ github.workflow }}     # Changed: use current workflow name`
   OTEL_EXPORTER_OTLP_HEADERS: Authorization=Bearer ${{ secrets.CORALOGIX_OTEL_API_TOKEN }}
   GITHUB_CUSTOM_ATTS: '{"service.name":"ghapp", "application.name":"cds1974", "cx.application.name":"cds1974", "cx.subsystem.name":"ghactions"}'
-  GITHUB_DEBUG: false
+  GITHUB_DEBUG: true
 
 jobs:
   OTLP-GitHubAction-Exporter:
