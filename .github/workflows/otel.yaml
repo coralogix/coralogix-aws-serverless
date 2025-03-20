@@ -18,7 +18,7 @@ env:
   # WORKFLOW_RUN_NAME: ${{ github.event.workflow_run.name }}
   WORKFLOW_RUN_ID: ${{ github.run_id }}        # Changed: use current run ID
   WORKFLOW_RUN_NAME: ${{ github.workflow }}     # Changed: use current workflow name`
-  OTEL_EXPORTER_OTLP_HEADERS: Authorization=Bearer ${{ secrets.CORALOGIX_OTEL_API_TOKEN }}
+  OTEL_EXPORTER_OTLP_HEADERS: Authorization=Bearer
   GITHUB_CUSTOM_ATTS: '{"service.name":"ghapp", "application.name":"cds1974", "cx.application.name":"cds1974", "cx.subsystem.name":"ghactions"}'
   GITHUB_DEBUG: false
 
