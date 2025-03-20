@@ -6,7 +6,9 @@ on:
 #     workflows: ['*']
 #     types: [completed]
 
-permissions: read-all
+permissions:
+  actions: read
+  contents: read
 
 env:
   ACTION_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -21,11 +23,6 @@ env:
   GITHUB_DEBUG: false
 
 jobs:
-  checks:
-    runs-on: ubuntu-latest
-    steps:
-      - name: 'Checkout'
-        uses: actions/checkout@main
   OTLP-GitHubAction-Exporter:
     name: OTLP GitHubAction Exporter
     runs-on: ubuntu-latest
