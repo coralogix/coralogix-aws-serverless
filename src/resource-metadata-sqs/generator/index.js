@@ -18,6 +18,7 @@ import { generateEc2Resources } from './ec2.js';
  * @description Lambda function handler
  */
 
+// Test
 export const handler = async (event, context) => {
     // Handle SQS events which come in a Records array
     if (event.Records) {
