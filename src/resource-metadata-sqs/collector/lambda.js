@@ -10,17 +10,17 @@ const validateAndExtractConfiguration = () => {
 }
 const { includeRegex, excludeRegex, tagFilters } = validateAndExtractConfiguration();
 
-const lambdaClient = new LambdaClient();
 const resourceGroupsTaggingAPIClient = tagFilters ? new ResourceGroupsTaggingAPIClient() : null;
 
-export const collectLambdaResources = async function* () {
-    console.info("Collecting list of functions")
+export const collectLambdaResources = async function* (region) {
+    console.info(`Collecting list of functions in ${region}`)
 
     let arnsMatchingTags;
     if (tagFilters) {
         arnsMatchingTags = new Set(await collectFunctionsArnsMatchingTagFilters());
     }
 
+    const lambdaClient = new LambdaClient({ region });
     for await (const page of paginateListFunctions({ client: lambdaClient }, { MaxItems: 50 })) {
         let pageFunctions = page.Functions;
 

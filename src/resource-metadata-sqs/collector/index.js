@@ -10,6 +10,7 @@
 
 "use strict";
 
+import assert from 'assert'
 import { collectLambdaResources } from './lambda.js'
 import { collectEc2Resources } from './ec2.js';
 import { sendToSqs } from './sqs.js';
@@ -17,9 +18,11 @@ import { sendToSqs } from './sqs.js';
 const validateAndExtractConfiguration = () => {
     const excludeEC2 = String(process.env.IS_EC2_RESOURCE_TYPE_EXCLUDED).toLowerCase() === "true"
     const excludeLambda = String(process.env.IS_LAMBDA_RESOURCE_TYPE_EXCLUDED).toLowerCase() === "true"
-    return { excludeEC2, excludeLambda };
+    const regions = process.env.REGIONS?.split(',') || [process.env.AWS_REGION];
+
+    return { excludeEC2, excludeLambda, regions };
 }
-const { excludeEC2, excludeLambda } = validateAndExtractConfiguration();
+const { excludeEC2, excludeLambda, regions } = validateAndExtractConfiguration();
 
 /**
  * @description Lambda function handler
@@ -29,14 +32,16 @@ export const handler = async (_, context) => {
 
     let collectionPromises = []
 
-    if (!excludeEC2) {
-        const ec2 = collectEc2ResourceBatches()
-        collectionPromises.push(ec2)
-    }
+    for (const region of regions) {
+        if (!excludeEC2) {
+            let ec2 = collectEc2ResourceBatches(region)
+            collectionPromises.push(ec2)
+        }
 
-    if (!excludeLambda) {
-        const lambda = collectLambdaResourceBatches()
-        collectionPromises.push(lambda)
+        if (!excludeLambda) {
+            let lambda = collectLambdaResourceBatches(region)
+            collectionPromises.push(lambda)
+        }
     }
 
     // Wait for all resources to be collected
@@ -44,31 +49,31 @@ export const handler = async (_, context) => {
     // As the generator will start queueing the Lambda API before the collector is done
     const collectedResources = await Promise.all(collectionPromises)
 
-    for (const { source, batches } of collectedResources) {
+    for (const { source, region, batches } of collectedResources) {
         for (const batch of batches) {
-            console.info(`Sending ${source} resources batch to SQS`)
-            await sendToSqs({ source, resources: batch })
-            console.info(`Sent ${source} resources batch to SQS`)
+            console.info(`Sending ${source}-${region} resources batch to SQS`)
+            await sendToSqs({ source, region, resources: batch })
+            console.info(`Sent ${source}-${region} resources batch to SQS`)
         }
     }
 
     console.info("Collection done")
 }
 
-const collectLambdaResourceBatches = async () => {
-    console.info("Collecting Lambda resources")
+const collectLambdaResourceBatches = async (region) => {
+    console.info(`Collecting Lambda resources in ${region}`)
     const batches = []
-    for await (const batch of collectLambdaResources()) {
+    for await (const batch of collectLambdaResources(region)) {
         batches.push(batch)
     }
-    return { source: "collector.lambda", batches }
+    return { source: "collector.lambda", region: region, batches }
 }
 
-const collectEc2ResourceBatches = async () => {
-    console.info("Collecting EC2 resources")
+const collectEc2ResourceBatches = async (region) => {
+    console.info(`Collecting EC2 resources in ${region}`)
     const batches = []
-    for await (const batch of collectEc2Resources()) {
+    for await (const batch of collectEc2Resources(region)) {
         batches.push(batch)
     }
-    return { source: "collector.ec2", batches }
+    return { source: "collector.ec2", region: region, batches }
 }

@@ -13,9 +13,7 @@ const validateAndExtractConfiguration = () => {
 }
 const { latestVersionsPerFunction, resourceTtlMinutes, collectAliases } = validateAndExtractConfiguration();
 
-const lambdaClient = new LambdaClient();
-
-export const generateLambdaResources = async (functions) => {
+export const generateLambdaResources = async (region, functions) => {
     // Normalize function objects to handle both cases
     functions = functions.map(f => ({
         functionArn: f.functionArn ?? f.FunctionArn,
@@ -23,11 +21,13 @@ export const generateLambdaResources = async (functions) => {
         ...f
     }));
 
+    const lambdaClient = new LambdaClient({ region });
+
     console.info("Generating function details")
-    const { functionResources, aliasResources, versionsToCollect } = await generateFunctionAndAliasResources(functions)
+    const { functionResources, aliasResources, versionsToCollect } = await generateFunctionAndAliasResources(lambdaClient, functions)
 
     console.info("Generating function version details")
-    const functionVersionResources = await generateFunctionVersionResources(versionsToCollect)
+    const functionVersionResources = await generateFunctionVersionResources(lambdaClient, versionsToCollect)
 
     const resources = [...functionResources, ...functionVersionResources, ...aliasResources]
 
@@ -36,7 +36,7 @@ export const generateLambdaResources = async (functions) => {
     return resources
 }
 
-const generateFunctionAndAliasResources = async (listOfFunctions) => {
+const generateFunctionAndAliasResources = async (lambdaClient, listOfFunctions) => {
     const results = await flatTraverse(listOfFunctions, async (lambdaFunctionVersionLatest, index) => {
         // Handle both Lambda API and EventBridge property casing
         const functionName = lambdaFunctionVersionLatest.functionName ?? lambdaFunctionVersionLatest.FunctionName
@@ -80,7 +80,7 @@ const generateFunctionAndAliasResources = async (listOfFunctions) => {
     }
 }
 
-const generateFunctionVersionResources = async (versionsToCollect) =>
+const generateFunctionVersionResources = async (lambdaClient, versionsToCollect) =>
     await traverse(versionsToCollect, async (lambdaFunctionVersion, index) => {
         const version = lambdaFunctionVersion.version ?? lambdaFunctionVersion.Version
         const functionName = lambdaFunctionVersion.functionName ?? lambdaFunctionVersion.FunctionName

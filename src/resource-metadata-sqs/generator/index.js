@@ -53,16 +53,16 @@ const processMessage = async (event, context) => {
 
     switch (event.source.toLowerCase()) {
         case "collector.ec2":
-            await generateAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId, event.resources)
+            await generateAndSendEc2Resources(collectorId, event.region, invokedArn.accountId, event.resources)
             break
         case "collector.lambda":
-            await generateAndSendLambdaResources(collectorId, event.resources)
+            await generateAndSendLambdaResources(collectorId, event.region, event.resources)
             break
         case "aws.ec2":
             await generateAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId, event.detail.responseElements.instancesSet.items)
             break
         case "aws.lambda":
-            await generateAndSendLambdaResources(collectorId, [event.detail.responseElements])
+            await generateAndSendLambdaResources(collectorId, invokedArn.region, [event.detail.responseElements])
             break
         default:
             throw new Error(`Unsupported event type: ${event.type}`)
@@ -71,16 +71,16 @@ const processMessage = async (event, context) => {
     console.info("Collection done")
 }
 
-const generateAndSendLambdaResources = async (collectorId, resources) => {
-    console.info("Generating Lambda resources")
-    const lambdaResources = await generateLambdaResources(resources)
+const generateAndSendLambdaResources = async (collectorId, region, resources) => {
+    console.info(`Generating Lambda resources from ${region}`)
+    const lambdaResources = await generateLambdaResources(region, resources)
     console.info("Sending Lambda resources to coralogix")
     await sendToCoralogix({ collectorId, resources: lambdaResources })
     console.info("Sent Lambda resources to coralogix")
 }
 
 const generateAndSendEc2Resources = async (collectorId, region, accountId, resources) => {
-    console.info("Generating EC2 resources")
+    console.info(`Generating EC2 resources from ${region}`)
     const ec2Resources = await generateEc2Resources(region, accountId, resources)
     console.info("Sending EC2 resources to coralogix")
     await sendToCoralogix({ collectorId, resources: ec2Resources })

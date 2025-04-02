@@ -10,9 +10,10 @@ const { queueUrl } = validateAndExtractConfiguration();
 
 const sqsClient = new SQSClient();
 
-export const sendToSqs = async ({ source, resources }) => {
+export const sendToSqs = async ({ source, region, resources }) => {
     const message = {
         source,
+        region,
         resources,
         timestamp: new Date().toISOString()
     };
