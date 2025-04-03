@@ -1,7 +1,7 @@
 {
   "name": "coralogix-resource-collector",
   "title": "AWS Resource Collector Lambda function for Coralogix",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "AWS Lambda function to collect AWS EC2/Lambda resources for further processing",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",
@@ -36,6 +36,7 @@
     "@aws-sdk/client-ec2": "^3.502.0",
     "@aws-sdk/client-lambda": "^3.502.0",
     "@aws-sdk/client-resource-groups-tagging-api": "^3.502.0",
+    "@aws-sdk/client-sts": "^3.502.0",
     "@aws-sdk/client-sqs": "^3.502.0",
     "lodash": "^4.17.21"
   },

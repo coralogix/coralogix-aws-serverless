@@ -2,7 +2,10 @@
 
 This application collect AWS resource metadata and sends them to your **Coralogix** account.
 
-This is a specific version of the [resource-metadata](../resource-metadata) application, which is designed to handle huge amount of Lambda functions in the target AWS Region (5000+).
+This is a specific version of the [resource-metadata](../resource-metadata) application, which is designed to:
+
+1. Handle huge amount of Lambda functions in the target AWS Region (5000+).
+2. Support cross-account and multi-region collection of metadata from multiple AWS accounts.
 
 ## Prerequisites
 
@@ -10,6 +13,7 @@ This is a specific version of the [resource-metadata](../resource-metadata) appl
 * An AWS account.
 * A coralogix account.
 * in case you use Secret Manager you should first deploy the [SM lambda layer](https://serverlessrepo.aws.amazon.com/applications/eu-central-1/597078901540/Coralogix-Lambda-SSMLayer), you should only deploy one layer per region.
+* in case you want to collect metadata from multiple AWS accounts, you need to create the IAM roles in the target accounts (see [Cross-Account Collection](#cross-account-collection) for more details).
 
 ## Fields
 
@@ -21,6 +25,8 @@ This is a specific version of the [resource-metadata](../resource-metadata) appl
 | CreateSecret |  Set to False In case you want to use secrets manager with a predefine secret that was already created and contains Coralogix Send Your Data API key. | True | |
 | ApiKey | Your [Coralogix Send Your Data – API Key](https://coralogix.com/docs/send-your-data-api-key/) or incase you use pre created secret (created in AWS secret manager) put here the name of the secret that contains the Coralogix send your data key | | :heavy_check_mark: |
 | EventMode | Additionally to the regular schedule, enable real-time processing of CloudTrail events via EventBridge for immediate generation of new resources in Coralogix [Disabled, EnabledWithExistingTrail, EnabledCreateTrail]. | Disabled | |
+| SourceRegions | The regions to collect metadata from, separated by commas (e.g. eu-north-1,eu-west-1,us-east-1). Leave empty if you want to collect metadata from the current region only. | | |
+| CrossAccountIAMRoleArns | The IAM role ARNs to collect metadata from, separated by commas (e.g. arn:aws:iam::123456789012:role/CrossAccountRole,arn:aws:iam::123456789012:role/AnotherCrossAccountRole). Leave empty if you want to collect metadata from the current account only. | | |
 | ResourceTtlMinutes | Once a resource is collected, how long should it remain valid. See "Notes" for more details. | 60 | |
 | LatestVersionsPerFunction | How many latest published versions of each Lambda function should be collected. | 0 | |
 | CollectAliases | [True/False] | False | |
@@ -36,6 +42,60 @@ This is a specific version of the [resource-metadata](../resource-metadata) appl
 | FunctionMemorySize | The maximum allocated memory this lambda may consume. Default value is the minimum recommended setting please consult coralogix support before changing. | 256 | |
 | FunctionTimeout | The maximum time in seconds the function may be allowed to run. Default value is the minimum recommended setting please consult coralogix support before changing. | 300 | |
 | MaximumConcurrency | Maximum number of concurrent SQS messages to be processed by `generator` lambda after the collection has finished. | 5 | |
+
+
+## Cross-Account Collection
+
+This function supports cross-account collection of metadata from multiple AWS accounts. To enable this feature, you need to specify the `CrossAccountIAMRoleArns` parameter with the IAM role ARNs of the accounts you want to collect metadata from. Here is the set of required IAM permissions that should be set on the target roles:
+
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+            "ec2:DescribeInstances",
+            "lambda:ListFunctions",
+            "lambda:ListVersionsByFunction", 
+            "lambda:GetFunction",
+            "lambda:ListAliases",
+            "lambda:ListEventSourceMappings",
+            "lambda:GetPolicy",
+            "tag:GetResources"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+
+As you will know the exact functions' role ARNs only after the template is deployed, you need to follow these steps to make it work:
+
+1. Create the roles in the target accounts, setting necessary IAM permissions, but without setting the trust relationship to the source account, since we don't know Lambda functions role ARNs yet.
+2. Deploy the template with the `CrossAccountIAMRoleArns` parameter, mentioning the target roles' ARNs.
+3. After the template is deployed, set the trust relationship to the source account, using the Lambda functions' role ARNs. Make sure to include both `collector` and `generator` functions' role ARNs. Here is an example of a trust relationship policy:
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": [
+                    "arn:aws:iam::123456789012:role/mystackname-GeneratorLambdaFunctionRole-randomid",
+                    "arn:aws:iam::123456789012:role/mystackname-CollectorLambdaFunctionRole-randomid"
+                ]
+            },
+            "Action": "sts:AssumeRole"
+        }
+    ]
+}
+```
+
+After setting the trust relationship, the `generator` and `collector` functions will be able to assume the target roles and collect metadata from those accounts.
 
 ## Notes
 

@@ -1,8 +1,8 @@
-import assert from 'assert'
-import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs'
+import assert from 'assert';
+import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 
 const validateAndExtractConfiguration = () => {
-    assert(process.env.METADATA_QUEUE_URL, "METADATA_QUEUE_URL env var missing!")
+    assert(process.env.METADATA_QUEUE_URL, "METADATA_QUEUE_URL env var missing!");
     return { queueUrl: process.env.METADATA_QUEUE_URL };
 };
 
@@ -10,9 +10,11 @@ const { queueUrl } = validateAndExtractConfiguration();
 
 const sqsClient = new SQSClient();
 
-export const sendToSqs = async ({ source, resources }) => {
+export const sendToSqs = async ({ source, region, account, resources }) => {
     const message = {
         source,
+        region,
+        account,
         resources,
         timestamp: new Date().toISOString()
     };
