@@ -1,10 +1,10 @@
-import assert from 'assert'
-import { EC2Client, paginateDescribeInstances } from '@aws-sdk/client-ec2'
+import assert from 'assert';
+import { EC2Client, paginateDescribeInstances } from '@aws-sdk/client-ec2';
 
 
 const validateAndExtractConfiguration = () => {
-    assert(process.env.EC2_CHUNK_SIZE, "EC2_CHUNK_SIZE env var missing!")
-    const chunkSize = parseInt(process.env.EC2_CHUNK_SIZE, 10)
+    assert(process.env.EC2_CHUNK_SIZE, "EC2_CHUNK_SIZE env var missing!");
+    const chunkSize = parseInt(process.env.EC2_CHUNK_SIZE, 10);
     return { chunkSize };
 };
 const { chunkSize } = validateAndExtractConfiguration();

@@ -1,13 +1,13 @@
-import assert from 'assert'
-import protoLoader from '@grpc/proto-loader'
-import grpc from '@grpc/grpc-js'
+import assert from 'assert';
+import protoLoader from '@grpc/proto-loader';
+import grpc from '@grpc/grpc-js';
 import util from 'util';
 
 const validateAndExtractConfiguration = () => {
-    assert(process.env.private_key, "No private key!")
-    const privateKey = process.env.private_key
-    assert(process.env.CORALOGIX_METADATA_URL, "No Coralogix metadata URL key!")
-    const coralogixMetadataUrl = process.env.CORALOGIX_METADATA_URL
+    assert(process.env.private_key, "No private key!");
+    const privateKey = process.env.private_key;
+    assert(process.env.CORALOGIX_METADATA_URL, "No Coralogix metadata URL key!");
+    const coralogixMetadataUrl = process.env.CORALOGIX_METADATA_URL;
     return { privateKey, coralogixMetadataUrl };
 };
 const { privateKey, coralogixMetadataUrl } = validateAndExtractConfiguration();
@@ -26,7 +26,7 @@ const createCredentials = () => {
             return callback(null, metadata);
         })
     );
-}
+};
 
 const credentials = createCredentials();
 const metadataClient = new metadataService.com.coralogix.metadata.gateway.v2.MetadataGatewayService(
@@ -37,9 +37,9 @@ metadataClient.submit[util.promisify.custom] = (input) => {
     return new Promise((resolve, reject) => {
         metadataClient.submit(input, function (err, response) {
             if (err) {
-                reject(err)
+                reject(err);
             } else {
-                resolve(response)
+                resolve(response);
             }
         });
     });

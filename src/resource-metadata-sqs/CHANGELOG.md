@@ -4,6 +4,7 @@
 
 ### 0.2.0 / 02.04.2025
 * [Feature] CDS-1996 Add support for multiple regions and accounts
+* [Fix] Align line endings in js files to always add with semicolon (`;`)
 
 ### 0.1.4 / 19.02.2025
 * [Fix] CDS-1876 Reduce EC2 batch size by half as default (50 --> 25) and let the user configure the chunk size
