@@ -10,17 +10,15 @@ const validateAndExtractConfiguration = () => {
 }
 const { includeRegex, excludeRegex, tagFilters } = validateAndExtractConfiguration();
 
-const resourceGroupsTaggingAPIClient = tagFilters ? new ResourceGroupsTaggingAPIClient() : null;
-
-export const collectLambdaResources = async function* (region) {
+export const collectLambdaResources = async function* (region, clientConfig = {}) {
     console.info(`Collecting list of functions in ${region}`)
 
     let arnsMatchingTags;
     if (tagFilters) {
-        arnsMatchingTags = new Set(await collectFunctionsArnsMatchingTagFilters());
+        arnsMatchingTags = new Set(await collectFunctionsArnsMatchingTagFilters(region, clientConfig));
     }
 
-    const lambdaClient = new LambdaClient({ region });
+    const lambdaClient = new LambdaClient({ region, ...clientConfig });
     for await (const page of paginateListFunctions({ client: lambdaClient }, { MaxItems: 50 })) {
         let pageFunctions = page.Functions;
 
@@ -42,12 +40,13 @@ export const collectLambdaResources = async function* (region) {
     }
 }
 
-const collectFunctionsArnsMatchingTagFilters = async () => {
+const collectFunctionsArnsMatchingTagFilters = async (region, clientConfig) => {
     const input = {
         ResourceTypeFilters: ['lambda:function'],
         TagFilters: tagFilters,
     };
     const arns = [];
+    const resourceGroupsTaggingAPIClient = new ResourceGroupsTaggingAPIClient({ region, ...clientConfig });
     for await (const page of paginateGetResources({ client: resourceGroupsTaggingAPIClient }, input)) { // this uses the maximum page size of 100
         arns.push(...page.ResourceTagMappingList.map(r => r.ResourceARN));
     }

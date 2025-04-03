@@ -33,6 +33,7 @@ Metadata:
         Parameters:
           - Schedule
           - SourceRegions
+          - CrossAccountIAMRoleArns
           - ResourceTtlMinutes
           - LatestVersionsPerFunction
           - CollectAliases
@@ -66,6 +67,10 @@ Metadata:
         default: Api Key
       EventMode:
         default: Event Mode
+      CrossAccountIAMRoleArns:
+        default: Cross Account IAM Role ARNs
+      SourceRegions:
+        default: Source AWS Regions
       Schedule:
         default: Schedule
       LatestVersionsPerFunction:
@@ -121,6 +126,10 @@ Parameters:
   SourceRegions:
     Type: String
     Description: The regions to collect metadata from, separated by commas (e.g. eu-north-1,eu-west-1,us-east-1). Leave empty if you want to collect metadata from the current region only.
+    Default: ""
+  CrossAccountIAMRoleArns:
+    Type: String
+    Description: The IAM role ARNs to collect metadata from, separated by commas (e.g. arn:aws:iam::123456789012:role/CrossAccountRole,arn:aws:iam::123456789012:role/AnotherCrossAccountRole). Leave empty if you want to collect metadata from the current account only.
     Default: ""
   EventMode:
     Type: String
@@ -283,7 +292,8 @@ Conditions:
     - !Equals [!Ref EventMode, EnabledCreateTrail]
   ShouldCreateCloudTrail: !Equals [!Ref EventMode, EnabledCreateTrail]
   UseExistingCloudTrail: !Equals [!Ref EventMode, EnabledWithExistingTrail]
-  ShouldCreateRegionsEnv: !Not [!Equals [!Ref SourceRegions, ""]]
+  MultiRegionEnabled: !Not [!Equals [!Ref SourceRegions, ""]]
+  MultiAccountEnabled: !Not [!Equals [!Ref CrossAccountIAMRoleArns, ""]]
 Resources:
   MetadataQueue:
     Type: AWS::SQS::Queue
@@ -313,8 +323,12 @@ Resources:
           LAMBDA_FUNCTION_TAG_FILTERS:
             Ref: LambdaFunctionTagFilters
           REGIONS: !If
-            - ShouldCreateRegionsEnv
+            - MultiRegionEnabled
             - Ref: SourceRegions
+            - !Ref 'AWS::NoValue'
+          CROSSACCOUNT_IAM_ROLE_ARNS: !If
+            - MultiAccountEnabled
+            - Ref: CrossAccountIAMRoleArns
             - !Ref 'AWS::NoValue'
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
@@ -373,6 +387,15 @@ Resources:
               Action:
                 - sqs:SendMessage
               Resource: !GetAtt MetadataQueue.Arn
+        - !If
+          - MultiAccountEnabled
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: AssumeCrossAccountRoles
+                Effect: Allow
+                Action: sts:AssumeRole
+                Resource: !Split [",", !Ref CrossAccountIAMRoleArns]
+          - !Ref 'AWS::NoValue'
 
   CollectorLambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
@@ -405,6 +428,10 @@ Resources:
             Ref: CollectAliases
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
+          CROSSACCOUNT_IAM_ROLE_ARNS: !If
+            - MultiAccountEnabled
+            - Ref: CrossAccountIAMRoleArns
+            - !Ref 'AWS::NoValue'
           CORALOGIX_METADATA_URL: !If
             - IsRegionCustomUrlEmpty
             - !Sub  'ingress.${CustomDomain}:443'
@@ -453,6 +480,15 @@ Resources:
                 - sqs:DeleteMessage
                 - sqs:GetQueueAttributes
               Resource: !GetAtt MetadataQueue.Arn
+        - !If
+          - MultiAccountEnabled
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: AssumeCrossAccountRoles
+                Effect: Allow
+                Action: sts:AssumeRole
+                Resource: !Split [",", !Ref CrossAccountIAMRoleArns]
+          - !Ref 'AWS::NoValue'
 
   GeneratorLambdaFunctionSM:
     Condition: IsSMEnabled
@@ -486,6 +522,10 @@ Resources:
               - Prefix: ingress.
                 Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, MetadataUrl]
                 Suffix: :443
+          CROSSACCOUNT_IAM_ROLE_ARNS: !If
+            - MultiAccountEnabled
+            - Ref: CrossAccountIAMRoleArns
+            - !Ref 'AWS::NoValue'
           AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
@@ -529,6 +569,15 @@ Resources:
                 - sqs:DeleteMessage
                 - sqs:GetQueueAttributes
               Resource: !GetAtt MetadataQueue.Arn
+        - !If
+          - MultiAccountEnabled
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: AssumeCrossAccountRoles
+                Effect: Allow
+                Action: sts:AssumeRole
+                Resource: !Split [",", !Ref CrossAccountIAMRoleArns]
+          - !Ref 'AWS::NoValue'
         - SecretsManagerReadWrite
 
   PrivateKeySecret:

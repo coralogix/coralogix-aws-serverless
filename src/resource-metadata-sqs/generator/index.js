@@ -53,16 +53,16 @@ const processMessage = async (event, context) => {
 
     switch (event.source.toLowerCase()) {
         case "collector.ec2":
-            await generateAndSendEc2Resources(collectorId, event.region, invokedArn.accountId, event.resources)
+            await generateAndSendEc2Resources(collectorId, event.region, event.account, event.resources)
             break
         case "collector.lambda":
-            await generateAndSendLambdaResources(collectorId, event.region, event.resources)
+            await generateAndSendLambdaResources(collectorId, event.region, event.account, event.resources)
             break
         case "aws.ec2":
             await generateAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId, event.detail.responseElements.instancesSet.items)
             break
         case "aws.lambda":
-            await generateAndSendLambdaResources(collectorId, invokedArn.region, [event.detail.responseElements])
+            await generateAndSendLambdaResources(collectorId, invokedArn.region, invokedArn.accountId, [event.detail.responseElements])
             break
         default:
             throw new Error(`Unsupported event type: ${event.type}`)
@@ -71,9 +71,9 @@ const processMessage = async (event, context) => {
     console.info("Collection done")
 }
 
-const generateAndSendLambdaResources = async (collectorId, region, resources) => {
+const generateAndSendLambdaResources = async (collectorId, region, accountId, resources) => {
     console.info(`Generating Lambda resources from ${region}`)
-    const lambdaResources = await generateLambdaResources(region, resources)
+    const lambdaResources = await generateLambdaResources(region, accountId, resources)
     console.info("Sending Lambda resources to coralogix")
     await sendToCoralogix({ collectorId, resources: lambdaResources })
     console.info("Sent Lambda resources to coralogix")

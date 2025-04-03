@@ -36,6 +36,7 @@
     "@aws-sdk/client-ec2": "^3.502.0",
     "@aws-sdk/client-lambda": "^3.502.0",
     "@aws-sdk/client-resource-groups-tagging-api": "^3.502.0",
+    "@aws-sdk/client-sts": "^3.502.0",
     "@grpc/grpc-js": "^1.10.9",
     "@grpc/proto-loader": "^0.7.10"
   },

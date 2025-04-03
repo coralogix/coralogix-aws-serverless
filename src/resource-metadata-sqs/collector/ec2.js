@@ -9,10 +9,10 @@ const validateAndExtractConfiguration = () => {
 };
 const { chunkSize } = validateAndExtractConfiguration();
 
-export const collectEc2Resources = async function* (region) {
+export const collectEc2Resources = async function* (region, clientConfig = {}) {
     console.info("Collecting list of EC2 instances");
 
-    const ec2Client = new EC2Client({ region });
+    const ec2Client = new EC2Client({ region, ...clientConfig });
     for await (const page of paginateDescribeInstances({ client: ec2Client }, {})) {
         if (page.Reservations) {
             const pageInstances = page.Reservations.flatMap(r => r.Instances);

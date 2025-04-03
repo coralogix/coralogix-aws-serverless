@@ -1,5 +1,6 @@
 import assert from 'assert'
 import { LambdaClient, GetFunctionCommand, ListAliasesCommand, GetPolicyCommand, ListVersionsByFunctionCommand, ListEventSourceMappingsCommand } from '@aws-sdk/client-lambda'
+import { STSClient, AssumeRoleCommand, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
 import { schemaUrl, extractArchitecture, intAttr, stringAttr, traverse, flatTraverse } from './common.js'
 
 const validateAndExtractConfiguration = () => {
@@ -9,11 +10,35 @@ const validateAndExtractConfiguration = () => {
     const resourceTtlMinutes = parseInt(process.env.RESOURCE_TTL_MINUTES, 10)
     assert(process.env.COLLECT_ALIASES, "COLLECT_ALIASES env var missing!")
     const collectAliases = String(process.env.COLLECT_ALIASES).toLowerCase() === "true"
-    return { latestVersionsPerFunction, resourceTtlMinutes, collectAliases };
+    const roleArns = process.env.CROSSACCOUNT_IAM_ROLE_ARNS ? process.env.CROSSACCOUNT_IAM_ROLE_ARNS.split(',') : [];
+    return { latestVersionsPerFunction, resourceTtlMinutes, collectAliases, roleArns };
 }
-const { latestVersionsPerFunction, resourceTtlMinutes, collectAliases } = validateAndExtractConfiguration();
+const { latestVersionsPerFunction, resourceTtlMinutes, collectAliases, roleArns } = validateAndExtractConfiguration();
 
-export const generateLambdaResources = async (region, functions) => {
+// Function to assume a role using AWS SDK v3
+const assumeRole = async (roleArn) => {
+    const stsClient = new STSClient({});
+    const command = new AssumeRoleCommand({
+        RoleArn: roleArn,
+        RoleSessionName: 'CrossAccountLambdaSession'
+    });
+    const data = await stsClient.send(command);
+    return {
+        accessKeyId: data.Credentials.AccessKeyId,
+        secretAccessKey: data.Credentials.SecretAccessKey,
+        sessionToken: data.Credentials.SessionToken
+    };
+};
+
+const getAccountId = async () => {
+    const stsClient = new STSClient({});
+    const command = new GetCallerIdentityCommand({});
+    const data = await stsClient.send(command);
+    return data.Account;
+};
+
+
+export const generateLambdaResources = async (region, accountId, functions) => {
     // Normalize function objects to handle both cases
     functions = functions.map(f => ({
         functionArn: f.functionArn ?? f.FunctionArn,
@@ -21,7 +46,23 @@ export const generateLambdaResources = async (region, functions) => {
         ...f
     }));
 
-    const lambdaClient = new LambdaClient({ region });
+    const currentAccountId = await getAccountId();
+    let lambdaClient;
+
+    if (accountId === currentAccountId) {
+        // Create normal LambdaClient for the current account
+        lambdaClient = new LambdaClient({ region });
+    } else {
+        // Find the appropriate role ARN for the different account
+        const roleArn = roleArns.find(arn => arn.includes(accountId));
+        if (!roleArn) {
+            throw new Error(`No role ARN found for account ID: ${accountId}`);
+        }
+
+        // Assume role and create LambdaClient with assumed credentials
+        const credentials = await assumeRole(roleArn);
+        lambdaClient = new LambdaClient({ region, credentials });
+    }
 
     console.info("Generating function details")
     const { functionResources, aliasResources, versionsToCollect } = await generateFunctionAndAliasResources(lambdaClient, functions)
