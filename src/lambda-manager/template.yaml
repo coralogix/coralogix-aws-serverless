@@ -16,7 +16,7 @@ Metadata:
       - cloudwatch
       - lambda
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 2.0.5
+    SemanticVersion: 2.0.6
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -61,7 +61,7 @@ Parameters:
   RegexPattern:
     Type: String
     Description: Comma-separated list of Loggroup name regex pattern
-    Default: \/aws\/lambda\/.*
+    Default: /aws/lambda/.*
   LogGroupPermissionPreFix:
     Type: String
     Description: instead creating one permission for each log group in the destination lambda, the code will take the prefix that you set in the parameter and create 1 permission for all of the log groups that match the prefix
