@@ -78,7 +78,7 @@ def lambda_handler(event, context):
         print(f"Failed with exception: {e}")
         status = cfnresponse.FAILED
     finally:
-        if "RequestType" in event:
+        if "RequestType" in event and "ResponseURL" in event:
             print("Sending response to custom resource")
             cfnresponse.send(
                 event,
@@ -87,6 +87,8 @@ def lambda_handler(event, context):
                 {},
                 event.get('PhysicalResourceId', context.aws_request_id)
             )
+        else:
+            print("Skipping cfnresponse.send — not a CloudFormation event")
 
 def list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern_list, logs_filter, destination_arn, filter_name, context,log_group_permission_prefix):
     '''Scan for all of the log groups in the region and add subscription to the log groups that match the regex pattern, this function will only run 1 time'''

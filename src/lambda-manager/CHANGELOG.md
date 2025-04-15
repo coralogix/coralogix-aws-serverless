@@ -2,6 +2,11 @@
 
 ## lambda-manager
 
+## 2.0.6  / 15-04-2025
+### 🧰 Bug fixes 🧰
+- Remove from the default value of RegexPattern the backslash.
+- Update the lambda code so it will be compatible with requests from Terraform.
+
 ## 2.0.5  / 17-02-2025
 ### 🧰 Bug fixes 🧰
 - Remove wildcard from the lambda permission policy.
