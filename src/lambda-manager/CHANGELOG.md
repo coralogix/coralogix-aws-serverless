@@ -2,6 +2,10 @@
 
 ## lambda-manager
 
+## 2.0.7  / 20-04-2025
+### 🧰 Bug fixes 🧰
+- Add a check if the log group is a standard log group, and if not, it will be excluded.
+
 ## 2.0.6  / 15-04-2025
 ### 🧰 Bug fixes 🧰
 - Remove from the default value of RegexPattern the backslash.

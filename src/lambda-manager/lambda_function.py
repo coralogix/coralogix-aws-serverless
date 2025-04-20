@@ -44,10 +44,13 @@ def lambda_handler(event, context):
 
         if scan_all_log_groups != 'true' and "RequestType" not in event:
             log_group_to_subscribe = event['detail']['requestParameters']['logGroupName']
+            describe_log_group = cloudwatch_logs.describe_log_groups(logGroupNamePattern=log_group_to_subscribe)
+            log_group_type = describe_log_group["logGroups"][0]["logGroupClass"]
             print(f"Log Group: {log_group_to_subscribe}")
-            for regex_pattern in regex_pattern_list:
-                if regex_pattern and re.match(regex_pattern, log_group_to_subscribe):
-                    log_exist_in_regex_pattern = True
+            if log_group_type == "STANDARD":
+                for regex_pattern in regex_pattern_list:
+                    if regex_pattern and re.match(regex_pattern, log_group_to_subscribe):
+                        log_exist_in_regex_pattern = True
                     if destination_type == 'firehose':
                         print(f"Adding subscription filter for {log_group_to_subscribe}")
                         status = add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn)
@@ -71,6 +74,8 @@ def lambda_handler(event, context):
                     else:
                         print(f"Invalid destination type {destination_type}")
                         status = cfnresponse.FAILED
+            else:
+                print(f"Log Group {log_group_to_subscribe} is not a standard log group, so it will be excluded")
 
             if not log_exist_in_regex_pattern:
                 print(f"Loggroup {log_group_to_subscribe} excluded")
@@ -99,7 +104,7 @@ def list_log_groups_and_subscriptions(cloudwatch_logs, regex_pattern_list, logs_
         kwargs = {}
         if 'nextToken' in response and response['nextToken'] is not None:
             kwargs['nextToken'] = response['nextToken']
-        response = cloudwatch_logs.describe_log_groups(**kwargs)
+        response = cloudwatch_logs.describe_log_groups(**kwargs,logGroupClass="STANDARD")
         log_groups.extend(response['logGroups'])
     region = context.invoked_function_arn.split(":")[3]
     account_id = context.invoked_function_arn.split(":")[4]
