@@ -33,6 +33,7 @@ Metadata:
         Parameters:
           - Schedule
           - SourceRegions
+          - OrganizationId
           - CrossAccountIAMRoleArns
           - ResourceTtlMinutes
           - LatestVersionsPerFunction
@@ -69,6 +70,8 @@ Metadata:
         default: Event Mode
       CrossAccountIAMRoleArns:
         default: Cross Account IAM Role ARNs
+      OrganizationId:
+        default: AWS Organization ID
       SourceRegions:
         default: Source AWS Regions
       Schedule:
@@ -131,6 +134,16 @@ Parameters:
     Type: String
     Description: The IAM role ARNs to collect metadata from, separated by commas (e.g. arn:aws:iam::123456789012:role/CrossAccountRole,arn:aws:iam::123456789012:role/AnotherCrossAccountRole). Leave empty if you want to collect metadata from the current account only.
     Default: ""
+  # to get this value, run the following command:
+  # aws organizations describe-organization --query 'Organization.Id' --output text
+  # TODO! Follow this ticket to check whether it becomes native in CF:
+  # https://github.com/aws-cloudformation/cfn-language-discussion/issues/57
+  OrganizationId:
+    Type: String
+    Description: "AWS Organization ID (starts with 'o-'). Leave empty to disable cross-account access."
+    Default: ""
+    AllowedPattern: "^$|^o-[a-z0-9]{10,32}$"
+    ConstraintDescription: "Must be empty or a valid Organization ID starting with 'o-' followed by 10-32 alphanumeric characters"
   EventMode:
     Type: String
     Description: Enable real-time processing of CloudTrail events via EventBridge [Disabled, EnabledWithExistingTrail, EnabledCreateTrail]. Note that it will be created in the current region only.
@@ -294,12 +307,26 @@ Conditions:
   UseExistingCloudTrail: !Equals [!Ref EventMode, EnabledWithExistingTrail]
   MultiRegionEnabled: !Not [!Equals [!Ref SourceRegions, ""]]
   MultiAccountEnabled: !Not [!Equals [!Ref CrossAccountIAMRoleArns, ""]]
+  HasOrgId: !Not [!Equals [!Ref OrganizationId, ""]]
+
 Resources:
   MetadataQueue:
     Type: AWS::SQS::Queue
     Properties:
       VisibilityTimeout: 900
       MessageRetentionPeriod: 3600
+      QueuePolicy: !If 
+        - HasOrgId
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal: "*"
+              Action: sqs:SendMessage
+              Resource: !GetAtt MetadataQueue.Arn
+              Condition:
+                StringEquals:
+                  "aws:PrincipalOrgID": !Ref OrganizationId
+        - !Ref AWS::NoValue
 
   CollectorLambdaFunction:
     Type: AWS::Serverless::Function

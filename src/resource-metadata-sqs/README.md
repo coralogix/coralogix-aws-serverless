@@ -27,6 +27,7 @@ This is a specific version of the [resource-metadata](../resource-metadata) appl
 | EventMode | Additionally to the regular schedule, enable real-time processing of CloudTrail events via EventBridge for immediate generation of new resources in Coralogix [Disabled, EnabledWithExistingTrail, EnabledCreateTrail]. | Disabled | |
 | SourceRegions | The regions to collect metadata from, separated by commas (e.g. eu-north-1,eu-west-1,us-east-1). Leave empty if you want to collect metadata from the current region only. | | |
 | CrossAccountIAMRoleArns | The IAM role ARNs to collect metadata from, separated by commas (e.g. arn:aws:iam::123456789012:role/CrossAccountRole,arn:aws:iam::123456789012:role/AnotherCrossAccountRole). Leave empty if you want to collect metadata from the current account only. | | |
+| OrganizationId | AWS Organization ID (starts with 'o-'). Leave empty if you want to collect metadata from the current account only. | | |
 | ResourceTtlMinutes | Once a resource is collected, how long should it remain valid. See "Notes" for more details. | 60 | |
 | LatestVersionsPerFunction | How many latest published versions of each Lambda function should be collected. | 0 | |
 | CollectAliases | [True/False] | False | |
@@ -58,7 +59,9 @@ This function supports cross-account collection of metadata from multiple AWS ac
             "ec2:DescribeInstances",
             "lambda:ListFunctions",
             "lambda:ListVersionsByFunction", 
-            "lambda:GetFunction",
+            "lambda:GetFunctionConfiguration",
+            "lambda:GetFunctionConcurrency",
+            "lambda:ListTags",
             "lambda:ListAliases",
             "lambda:ListEventSourceMappings",
             "lambda:GetPolicy",
@@ -96,6 +99,109 @@ As you will know the exact functions' role ARNs only after the template is deplo
 ```
 
 After setting the trust relationship, the `generator` and `collector` functions will be able to assume the target roles and collect metadata from those accounts.
+
+## Event Mode
+
+Apart from running a central collector, you can enable the `EventMode` in order to get the near-real-time events from CloudTrail to the SQS queue by using EventBridge. As soon as the event appears in the queue, it gets processed by `generator` function.
+
+### Events from the function account/region
+
+You can enable it in two formats:
+
+* `EnabledCreateTrail` – creates CloudTrail Trail and EventBridge Rule
+* `EnabledWithExistingTrail` – creates EventBridge Rule only
+
+### Events from other accounts/regions
+
+You can route CloudTrail events from other accounts and regions to the function's SQS queue.
+
+To make it work:
+
+1. cross-account mode needs to be enabled
+2. `OrganizationId` parameter has to be set
+2. the function needs to have access to the source account by using IAM Assume Role
+3. the Eventbridge rules have to use the following event pattern:
+
+Lambda + EC2:
+
+```json
+{
+  "detail-type": [
+    "AWS API Call via CloudTrail"
+  ],
+  "source": [
+    "aws.ec2",
+    "aws.lambda"
+  ],
+  "detail": {
+    "eventSource": [
+      "ec2.amazonaws.com",
+      "lambda.amazonaws.com"
+    ],
+    "eventName": [
+      "RunInstances",
+      "CreateFunction20150331"
+    ],
+    "errorCode": [
+      {
+        "exists": false
+      }
+    ]
+  }
+}
+```
+
+Lambda only:
+
+```json
+{
+  "detail-type": [
+    "AWS API Call via CloudTrail"
+  ],
+  "source": [
+    "aws.lambda"
+  ],
+  "detail": {
+    "eventSource": [
+      "lambda.amazonaws.com"
+    ],
+    "eventName": [
+      "CreateFunction20150331"
+    ],
+    "errorCode": [
+      {
+        "exists": false
+      }
+    ]
+  }
+}
+```
+
+EC2 only:
+
+```json
+{
+  "detail-type": [
+    "AWS API Call via CloudTrail"
+  ],
+  "source": [
+    "aws.ec2"
+  ],
+  "detail": {
+    "eventSource": [
+      "ec2.amazonaws.com"
+    ],
+    "eventName": [
+      "RunInstances"
+    ],
+    "errorCode": [
+      {
+        "exists": false
+      }
+    ]
+  }
+}
+```
 
 ## Notes
 
