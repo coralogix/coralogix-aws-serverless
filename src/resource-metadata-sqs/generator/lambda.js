@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { LambdaClient, GetFunctionCommand, ListAliasesCommand, GetPolicyCommand, ListVersionsByFunctionCommand, ListEventSourceMappingsCommand } from '@aws-sdk/client-lambda';
+import { LambdaClient, GetFunctionConfigurationCommand, GetFunctionConcurrencyCommand, ListTagsCommand, ListAliasesCommand, GetPolicyCommand, ListVersionsByFunctionCommand, ListEventSourceMappingsCommand } from '@aws-sdk/client-lambda';
 import { STSClient, AssumeRoleCommand, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
 import { schemaUrl, extractArchitecture, intAttr, stringAttr, traverse, flatTraverse } from './common.js';
 
@@ -82,8 +82,8 @@ const generateFunctionAndAliasResources = async (lambdaClient, listOfFunctions) 
         // Handle both Lambda API and EventBridge property casing
         const functionName = lambdaFunctionVersionLatest.functionName ?? lambdaFunctionVersionLatest.FunctionName;
         try {
-            const lambdaFunction = await lambdaClient.send(new GetFunctionCommand({ FunctionName: functionName }));
-            const functionResource = makeLambdaFunctionResource(lambdaFunction);
+            const lambdaFunction = await lambdaClient.send(new GetFunctionConfigurationCommand({ FunctionName: functionName }));
+            const functionResource = await makeLambdaFunctionResource(lambdaFunction, lambdaClient);
 
             const aliases = collectAliases
                 ? (await lambdaClient.send(new ListAliasesCommand({ FunctionName: functionName })))?.Aliases
@@ -149,8 +149,8 @@ const generateFunctionVersionResources = async (lambdaClient, versionsToCollect)
         return functionVersionResource;
     });
 
-const makeLambdaFunctionResource = (f) => {
-    const functionArn = f.Configuration.functionArn ?? f.Configuration.FunctionArn;
+const makeLambdaFunctionResource = async (f, lambdaClient) => {
+    const functionArn = f.functionArn ?? f.FunctionArn;
     const arn = parseLambdaFunctionArn(functionArn);
 
     const attributes = [
@@ -160,12 +160,14 @@ const makeLambdaFunctionResource = (f) => {
         stringAttr("cloud.region", arn.region),
         stringAttr("cloud.resource_id", functionArn),
         stringAttr("faas.name", arn.functionName),
-        stringAttr("lambda.last_update_status", f.Configuration.lastUpdateStatus ?? f.Configuration.LastUpdateStatus),
+        stringAttr("lambda.last_update_status", f.lastUpdateStatus ?? f.LastUpdateStatus),
     ];
 
-    attributes.push(...convertFunctionTagsToAttributes(f.Tags));
+    const tags = await lambdaClient.send(new ListTagsCommand({ Resource: functionArn }));
+    attributes.push(...convertFunctionTagsToAttributes(tags.Tags));
 
-    const reservedConcurrency = f.Concurrency?.ReservedConcurrentExecutions || f.concurrency?.reservedConcurrentExecutions;
+    const concurrency = await lambdaClient.send(new GetFunctionConcurrencyCommand({ FunctionName: functionArn }));
+    const reservedConcurrency = concurrency.ReservedConcurrentExecutions;
     if (reservedConcurrency) {
         attributes.push(intAttr("lambda.reserved_concurrency", reservedConcurrency));
     }

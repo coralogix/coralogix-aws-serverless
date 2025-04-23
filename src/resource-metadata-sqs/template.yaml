@@ -14,7 +14,7 @@ Metadata:
       - metadata
       - sqs
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 0.2.0
+    SemanticVersion: 0.2.1
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -465,7 +465,9 @@ Resources:
                 Effect: Allow
                 Action:
                   - lambda:ListVersionsByFunction
-                  - lambda:GetFunction
+                  - lambda:GetFunctionConfiguration
+                  - lambda:GetFunctionConcurrency
+                  - lambda:ListTags
                   - lambda:ListAliases
                   - lambda:ListEventSourceMappings
                   - lambda:GetPolicy
@@ -554,7 +556,9 @@ Resources:
                 Effect: Allow
                 Action:
                   - lambda:ListVersionsByFunction
-                  - lambda:GetFunction
+                  - lambda:GetFunctionConfiguration
+                  - lambda:GetFunctionConcurrency
+                  - lambda:ListTags
                   - lambda:ListAliases
                   - lambda:ListEventSourceMappings
                   - lambda:GetPolicy

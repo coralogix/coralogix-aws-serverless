@@ -1,7 +1,7 @@
 {
   "name": "coralogix-resource-collector",
   "title": "AWS Resource Collector Lambda function for Coralogix",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "AWS Lambda function to collect AWS EC2/Lambda resources for further processing",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",
