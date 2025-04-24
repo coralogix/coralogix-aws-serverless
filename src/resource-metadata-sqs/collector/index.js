@@ -10,11 +10,16 @@
 
 "use strict";
 
-import assert from 'assert';
 import { collectLambdaResources } from './lambda.js';
 import { collectEc2Resources } from './ec2.js';
 import { sendToSqs } from './sqs.js';
-import { STSClient, AssumeRoleCommand, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
+import { getAccountId, collectLambdaResourcesViaConfig, collectViaStaticIAM } from './crossaccount.js';
+
+const CROSS_ACCOUNT_MODE = {
+    DISABLED: 'Disabled',
+    STATIC_IAM: 'StaticIAM',
+    CONFIG: 'Config'
+};
 
 const validateAndExtractConfiguration = () => {
     const excludeEC2 = String(process.env.IS_EC2_RESOURCE_TYPE_EXCLUDED).toLowerCase() === "true";
@@ -22,42 +27,27 @@ const validateAndExtractConfiguration = () => {
     const regions = process.env.REGIONS?.split(',') || [process.env.AWS_REGION];
     const roleArns = process.env.CROSSACCOUNT_IAM_ROLE_ARNS ? process.env.CROSSACCOUNT_IAM_ROLE_ARNS.split(',') : [];
 
-    return { excludeEC2, excludeLambda, regions, roleArns };
-};
-const { excludeEC2, excludeLambda, regions, roleArns } = validateAndExtractConfiguration();
+    // Extract cross-account mode from environment variable
+    const crossAccountMode = process.env.CROSS_ACCOUNT_MODE || CROSS_ACCOUNT_MODE.DISABLED;
 
-// Function to assume a role using AWS SDK v3
-const assumeRole = async (roleArn) => {
-    const stsClient = new STSClient({});
-    const command = new AssumeRoleCommand({
-        RoleArn: roleArn,
-        RoleSessionName: 'CrossAccountLambdaSession'
-    });
-    const data = await stsClient.send(command);
-    return {
-        accessKeyId: data.Credentials.AccessKeyId,
-        secretAccessKey: data.Credentials.SecretAccessKey,
-        sessionToken: data.Credentials.SessionToken
-    };
+    // Config aggregator name (only used when crossAccountMode is CONFIG)
+    const configAggregatorName = process.env.CONFIG_AGGREGATOR_NAME || 'OrganizationAggregator';
+
+    return { excludeEC2, excludeLambda, regions, roleArns, crossAccountMode, configAggregatorName };
 };
 
-// Function to get the current account ID
-const getAccountId = async (clientConfig = {}) => {
-    const stsClient = new STSClient(clientConfig);
-    const command = new GetCallerIdentityCommand({});
-    const data = await stsClient.send(command);
-    return data.Account;
-};
+const { excludeEC2, excludeLambda, regions, roleArns, crossAccountMode, configAggregatorName } = validateAndExtractConfiguration();
 
 /**
  * @description Lambda function handler
  */
 export const handler = async (_, context) => {
     console.info(`Starting a one-time collection of resources`);
+    console.info(`Cross account mode: ${crossAccountMode}`);
 
     let collectionPromises = [];
 
-    // Collect resources from the current account
+    // Collect resources from the current account - always happens regardless of cross-account mode
     const currentAccountId = await getAccountId();
     for (const region of regions) {
         if (!excludeEC2) {
@@ -71,23 +61,65 @@ export const handler = async (_, context) => {
         }
     }
 
-    // Collect resources from other accounts if role ARNs are provided
-    for (const roleArn of roleArns) {
-        const credentials = await assumeRole(roleArn);
-        const clientConfig = { credentials };
-        const accountId = await getAccountId(clientConfig);
+    // Handle cross-account collection based on the selected mode
+    if (crossAccountMode === CROSS_ACCOUNT_MODE.CONFIG) {
+        try {
+            // Try to collect via Config first
+            const configResults = await collectLambdaResourcesViaConfig(configAggregatorName);
 
-        for (const region of regions) {
-            if (!excludeEC2) {
-                let ec2 = collectEc2ResourceBatches(region, accountId, clientConfig);
-                collectionPromises.push(ec2);
+            if (configResults) {
+                // Successfully collected via Config, add to our collection promises
+                collectionPromises = [...collectionPromises, ...configResults];
+                console.info("Successfully collected cross-account resources via AWS Config");
+            } else {
+                // Config collection failed, fall back to StaticIAM if roleArns are provided
+                console.warn("AWS Config collection failed, checking for fallback options");
+                if (roleArns.length > 0) {
+                    console.info("Falling back to Static IAM approach");
+                    await collectViaStaticIAM(
+                        collectionPromises,
+                        roleArns,
+                        regions,
+                        excludeEC2,
+                        excludeLambda,
+                        collectEc2ResourceBatches,
+                        collectLambdaResourceBatches
+                    );
+                } else {
+                    console.warn("No fallback options available, continuing with current account only");
+                }
             }
-
-            if (!excludeLambda) {
-                let lambda = collectLambdaResourceBatches(region, accountId, clientConfig);
-                collectionPromises.push(lambda);
+        } catch (error) {
+            console.error("Error in Config collection:", error);
+            // Fall back to StaticIAM if available
+            if (roleArns.length > 0) {
+                console.info("Falling back to Static IAM approach");
+                await collectViaStaticIAM(
+                    collectionPromises,
+                    roleArns,
+                    regions,
+                    excludeEC2,
+                    excludeLambda,
+                    collectEc2ResourceBatches,
+                    collectLambdaResourceBatches
+                );
+            } else {
+                console.warn("No fallback options available, continuing with current account only");
             }
         }
+    } else if (crossAccountMode === CROSS_ACCOUNT_MODE.STATIC_IAM) {
+        // Use the existing Static IAM approach
+        await collectViaStaticIAM(
+            collectionPromises,
+            roleArns,
+            regions,
+            excludeEC2,
+            excludeLambda,
+            collectEc2ResourceBatches,
+            collectLambdaResourceBatches
+        );
+    } else {
+        console.info("Cross-account collection is disabled");
     }
 
     // Wait for all resources to be collected
