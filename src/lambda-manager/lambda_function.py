@@ -23,6 +23,7 @@ def lambda_handler(event, context):
         logs_filter         = os.environ.get('LOGS_FILTER', '')
         scan_all_log_groups = os.environ.get('SCAN_OLD_LOGGROUPS', 'false')
         destination_arn     = os.environ.get('DESTINATION_ARN')
+        disable_add_permission = os.environ.get('DISABLE_ADD_PERMISSION', 'false')
         filter_name         = 'Coralogix_Filter_' + str(uuid.uuid4())
         log_group_permission_prefix = os.environ.get('LOG_GROUP_PERMISSION_PREFIX', '').split(',')
         region              = context.invoked_function_arn.split(":")[3]
@@ -61,12 +62,18 @@ def lambda_handler(event, context):
                         try:
                             if not check_if_log_group_exist_in_log_group_permission_prefix(log_group_to_subscribe, log_group_permission_prefix):
                                 print("Adding permission to lambda")
-                                add_permission_to_lambda(destination_arn, log_group_to_subscribe, region, account_id)
+                                if disable_add_permission == 'true':
+                                    print("Skipping adding permission to lambda")
+                                else:
+                                    add_permission_to_lambda(destination_arn, log_group_to_subscribe, region, account_id)
                             print(f"Adding subscription filter for {log_group_to_subscribe}")
                             status = add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn)
                             if status == cfnresponse.FAILED:
                                 print(f"retrying to add subscription filter for {log_group_to_subscribe}")
-                                add_permission_to_lambda(destination_arn, log_group_to_subscribe, region, account_id)
+                                if disable_add_permission == 'true':
+                                    print("Skipping adding permission to lambda")
+                                else:
+                                    add_permission_to_lambda(destination_arn, log_group_to_subscribe, region, account_id)
                                 add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn)
                         except Exception as e:
                             print(f"Failed to put subscription filter for {log_group_to_subscribe}: {e}")
