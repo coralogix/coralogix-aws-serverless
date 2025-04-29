@@ -11,7 +11,7 @@
 "use strict";
 
 import { STSClient, AssumeRoleCommand, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
-import { ConfigServiceClient, SelectResourceConfigCommand } from "@aws-sdk/client-config-service";
+import { ConfigServiceClient, SelectAggregateResourceConfigCommand } from "@aws-sdk/client-config-service";
 import { collectLambdaResources } from './lambda.js';
 import { collectEc2Resources } from './ec2.js';
 
@@ -49,29 +49,29 @@ export const collectResourcesViaConfig = async (configAggregatorName, resourceTy
 
         let nextToken;
         let allBatches = [];
+        let resources = [];
         let totalResources = 0;
+
+        const command = new SelectAggregateResourceConfigCommand({
+            Expression: baseQuery,
+            ConfigurationAggregatorName: configAggregatorName,
+            Limit: batchSize,
+            NextToken: nextToken
+        });
 
         // Paginate through all results
         do {
-            const command = new SelectResourceConfigCommand({
-                Expression: baseQuery,
-                ConfigurationAggregator: configAggregatorName,
-                Limit: batchSize,
-                NextToken: nextToken
-            });
-
             const response = await configClient.send(command);
             nextToken = response.NextToken;
 
             // Process results
             if (response.Results && response.Results.length > 0) {
-                const batch = [];
 
                 for (const resultString of response.Results) {
                     const result = JSON.parse(resultString);
 
                     // Format function data to match the expected structure
-                    batch.push({
+                    resources.push({
                         FunctionArn: result.arn,
                         FunctionName: result.resourceId,
                         Region: result.awsRegion,
@@ -83,8 +83,8 @@ export const collectResourcesViaConfig = async (configAggregatorName, resourceTy
         } while (nextToken);
 
         // Group resources by region and account
-        const groupedResources = batch.reduce((acc, resource) => {
-            const key = `${resource.Region}-${resource.Account}`;
+        const groupedResources = resources.reduce((acc, resource) => {
+            const key = `${resource.Region}:${resource.Account}`;
             if (!acc[key]) {
                 acc[key] = [];
             }
@@ -94,8 +94,8 @@ export const collectResourcesViaConfig = async (configAggregatorName, resourceTy
 
         // Create batches for each region-account pair
         for (const [key, resources] of Object.entries(groupedResources)) {
-            const [region, account] = key.split('-');
-            const resourceTypeKey = resourceType.split('::')[2].toLowerCase();
+            const [region, account] = key.split(':');
+            const resourceTypeKey = resourceType.split('::')[1].toLowerCase();
             allBatches.push({ source: `collector.${resourceTypeKey}.config`, region, account, batches: [resources] });
         }
 
@@ -109,7 +109,7 @@ export const collectResourcesViaConfig = async (configAggregatorName, resourceTy
 
 // Helper function to collect via Static IAM roles
 export const collectViaStaticIAM = async (roleArns, regions, resourceType) => {
-    const resourceTypeKey = resourceType.split('::')[2].toLowerCase();
+    const resourceTypeKey = resourceType.split('::')[1].toLowerCase();
     let allBatches = [];
     for (const roleArn of roleArns) {
         try {
