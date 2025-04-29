@@ -12,6 +12,8 @@
 
 import { STSClient, AssumeRoleCommand, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
 import { ConfigServiceClient, SelectResourceConfigCommand } from "@aws-sdk/client-config-service";
+import { collectLambdaResources } from './lambda.js';
+import { collectEc2Resources } from './ec2.js';
 
 // Function to assume a role using AWS SDK v3
 const assumeRole = async (roleArn) => {
@@ -37,18 +39,17 @@ export const getAccountId = async (clientConfig = {}) => {
 };
 
 // Function to collect Lambda resources using AWS Config
-export const collectLambdaResourcesViaConfig = async (configAggregatorName) => {
+export const collectResourcesViaConfig = async (configAggregatorName, resourceType) => {
     console.info("Collecting Lambda resources via AWS Config");
     try {
         const configClient = new ConfigServiceClient({ region: process.env.AWS_REGION });
         const batchSize = 100;
 
-        // Query to find all Lambda functions across accounts and regions
-        const baseQuery = "SELECT resourceId, resourceName, resourceType, awsRegion, accountId WHERE resourceType = 'AWS::Lambda::Function'";
+        const baseQuery = `SELECT arn, resourceId, awsRegion, accountId WHERE resourceType = '${resourceType}'`;
 
         let nextToken;
         let allBatches = [];
-        let totalFunctions = 0;
+        let totalResources = 0;
 
         // Paginate through all results
         do {
@@ -71,58 +72,45 @@ export const collectLambdaResourcesViaConfig = async (configAggregatorName) => {
 
                     // Format function data to match the expected structure
                     batch.push({
-                        functionArn: result.resourceId,
-                        functionName: result.resourceName,
-                        // Add other needed properties that your generator expects
+                        FunctionArn: result.arn,
+                        FunctionName: result.resourceId,
+                        Region: result.awsRegion,
+                        Account: result.accountId
                     });
-                }
-
-                // Organize results by account and region to match the expected output format
-                const batchesByAccountAndRegion = {};
-
-                for (const func of batch) {
-                    // Extract account and region from ARN
-                    // ARN format: arn:aws:lambda:region:account-id:function:function-name
-                    const arnParts = func.functionArn.split(':');
-                    const region = arnParts[3];
-                    const account = arnParts[4];
-
-                    const key = `${account}:${region}`;
-                    if (!batchesByAccountAndRegion[key]) {
-                        batchesByAccountAndRegion[key] = {
-                            source: "collector.lambda",
-                            region,
-                            account,
-                            batches: []
-                        };
-                    }
-
-                    // Add batch if it reaches reasonable size or is the last batch
-                    if (!batchesByAccountAndRegion[key].batches[0]) {
-                        batchesByAccountAndRegion[key].batches.push([]);
-                    }
-
-                    batchesByAccountAndRegion[key].batches[0].push(func);
-                    totalFunctions++;
-                }
-
-                // Add organized batches to the result
-                for (const key in batchesByAccountAndRegion) {
-                    allBatches.push(batchesByAccountAndRegion[key]);
+                    totalResources += 1;
                 }
             }
         } while (nextToken);
 
-        console.info(`Collected ${totalFunctions} Lambda functions via AWS Config`);
+        // Group resources by region and account
+        const groupedResources = batch.reduce((acc, resource) => {
+            const key = `${resource.Region}-${resource.Account}`;
+            if (!acc[key]) {
+                acc[key] = [];
+            }
+            acc[key].push(resource);
+            return acc;
+        }, {});
+
+        // Create batches for each region-account pair
+        for (const [key, resources] of Object.entries(groupedResources)) {
+            const [region, account] = key.split('-');
+            const resourceTypeKey = resourceType.split('::')[2].toLowerCase();
+            allBatches.push({ source: `collector.${resourceTypeKey}.config`, region, account, batches: [resources] });
+        }
+
+        console.info(`Collected ${totalResources} ${resourceType} cross-account resources via AWS Config`);
         return allBatches;
     } catch (error) {
-        console.error("Error collecting Lambda functions via AWS Config:", error);
-        return null; // Return null to indicate failure
+        console.error(`Error collecting ${resourceType} cross-account resources via AWS Config:`, error);
+        return null;
     }
 };
 
 // Helper function to collect via Static IAM roles
-export const collectViaStaticIAM = async (collectionPromises, roleArns, regions, excludeEC2, excludeLambda, collectEc2ResourceBatches, collectLambdaResourceBatches) => {
+export const collectViaStaticIAM = async (roleArns, regions, resourceType) => {
+    const resourceTypeKey = resourceType.split('::')[2].toLowerCase();
+    let allBatches = [];
     for (const roleArn of roleArns) {
         try {
             const credentials = await assumeRole(roleArn);
@@ -130,19 +118,29 @@ export const collectViaStaticIAM = async (collectionPromises, roleArns, regions,
             const accountId = await getAccountId(clientConfig);
 
             for (const region of regions) {
-                if (!excludeEC2) {
-                    let ec2 = collectEc2ResourceBatches(region, accountId, clientConfig);
-                    collectionPromises.push(ec2);
-                }
+                const batches = [];
 
-                if (!excludeLambda) {
-                    let lambda = collectLambdaResourceBatches(region, accountId, clientConfig);
-                    collectionPromises.push(lambda);
+                switch (resourceType) {
+                    case 'AWS::Lambda::Function':
+                        for await (const batch of collectLambdaResources(region, clientConfig)) {
+                            batches.push(batch);
+                        }
+                        break;
+                    case 'AWS::EC2::Instance':
+                        for await (const batch of collectEc2Resources(region, clientConfig)) {
+                            batches.push(batch);
+                        }
+                        break;
+                    default:
+                        throw new Error(`Unsupported resource type: ${resourceType}`);
                 }
+                allBatches.push({ source: `collector.${resourceTypeKey}.api`, region: region, account: accountId, batches });
             }
         } catch (error) {
             console.error(`Error assuming role ${roleArn}:`, error);
             console.warn(`Skipping collection for role ${roleArn}`);
         }
     }
+    console.info(`Collected ${resourceType} cross-account resources via Static IAM`);
+    return allBatches;
 };

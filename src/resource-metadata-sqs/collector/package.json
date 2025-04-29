@@ -33,6 +33,7 @@
     "url": "https://github.com/coralogix/coralogix-aws-serverless/issues"
   },
   "dependencies": {
+    "@aws-sdk/client-config-service": "^3.502.0",
     "@aws-sdk/client-ec2": "^3.502.0",
     "@aws-sdk/client-lambda": "^3.502.0",
     "@aws-sdk/client-organizations": "^3.502.0",

@@ -13,7 +13,7 @@
 import { collectLambdaResources } from './lambda.js';
 import { collectEc2Resources } from './ec2.js';
 import { sendToSqs } from './sqs.js';
-import { getAccountId, collectLambdaResourcesViaConfig, collectViaStaticIAM } from './crossaccount.js';
+import { getAccountId, collectResourcesViaConfig, collectViaStaticIAM } from './crossaccount.js';
 
 const CROSS_ACCOUNT_MODE = {
     DISABLED: 'Disabled',
@@ -26,11 +26,7 @@ const validateAndExtractConfiguration = () => {
     const excludeLambda = String(process.env.IS_LAMBDA_RESOURCE_TYPE_EXCLUDED).toLowerCase() === "true";
     const regions = process.env.REGIONS?.split(',') || [process.env.AWS_REGION];
     const roleArns = process.env.CROSSACCOUNT_IAM_ROLE_ARNS ? process.env.CROSSACCOUNT_IAM_ROLE_ARNS.split(',') : [];
-
-    // Extract cross-account mode from environment variable
     const crossAccountMode = process.env.CROSS_ACCOUNT_MODE || CROSS_ACCOUNT_MODE.DISABLED;
-
-    // Config aggregator name (only used when crossAccountMode is CONFIG)
     const configAggregatorName = process.env.CONFIG_AGGREGATOR_NAME || 'OrganizationAggregator';
 
     return { excludeEC2, excludeLambda, regions, roleArns, crossAccountMode, configAggregatorName };
@@ -62,64 +58,43 @@ export const handler = async (_, context) => {
     }
 
     // Handle cross-account collection based on the selected mode
-    if (crossAccountMode === CROSS_ACCOUNT_MODE.CONFIG) {
-        try {
-            // Try to collect via Config first
-            const configResults = await collectLambdaResourcesViaConfig(configAggregatorName);
-
-            if (configResults) {
-                // Successfully collected via Config, add to our collection promises
-                collectionPromises = [...collectionPromises, ...configResults];
-                console.info("Successfully collected cross-account resources via AWS Config");
-            } else {
-                // Config collection failed, fall back to StaticIAM if roleArns are provided
-                console.warn("AWS Config collection failed, checking for fallback options");
-                if (roleArns.length > 0) {
-                    console.info("Falling back to Static IAM approach");
-                    await collectViaStaticIAM(
-                        collectionPromises,
-                        roleArns,
-                        regions,
-                        excludeEC2,
-                        excludeLambda,
-                        collectEc2ResourceBatches,
-                        collectLambdaResourceBatches
-                    );
-                } else {
-                    console.warn("No fallback options available, continuing with current account only");
+    switch (crossAccountMode) {
+        case CROSS_ACCOUNT_MODE.CONFIG:
+            try {
+                if (!excludeLambda) {
+                    const lambdaConfigResults = await collectResourcesViaConfig(configAggregatorName, 'AWS::Lambda::Function');
+                    collectionPromises = [...collectionPromises, ...lambdaConfigResults];
                 }
+                if (!excludeEC2) {
+                    const ec2ConfigResults = await collectResourcesViaConfig(configAggregatorName, 'AWS::EC2::Instance');
+                    collectionPromises = [...collectionPromises, ...ec2ConfigResults];
+                }
+                console.info("Successfully collected cross-account resources via AWS Config");
+            } catch (error) {
+                console.error("Error in Lambda Config collection:", error);
+                console.log("Continuing with current account only");
             }
-        } catch (error) {
-            console.error("Error in Config collection:", error);
-            // Fall back to StaticIAM if available
-            if (roleArns.length > 0) {
-                console.info("Falling back to Static IAM approach");
-                await collectViaStaticIAM(
-                    collectionPromises,
-                    roleArns,
-                    regions,
-                    excludeEC2,
-                    excludeLambda,
-                    collectEc2ResourceBatches,
-                    collectLambdaResourceBatches
-                );
-            } else {
-                console.warn("No fallback options available, continuing with current account only");
+            break;
+
+        case CROSS_ACCOUNT_MODE.STATIC_IAM:
+            try {
+                if (!excludeLambda) {
+                    const lambdaConfigResults = await collectViaStaticIAM(roleArns, regions, 'AWS::Lambda::Function');
+                    collectionPromises = [...collectionPromises, ...lambdaConfigResults];
+                }
+                if (!excludeEC2) {
+                    const ec2ConfigResults = await collectViaStaticIAM(roleArns, regions, 'AWS::EC2::Instance');
+                    collectionPromises = [...collectionPromises, ...ec2ConfigResults];
+                }
+                console.info("Successfully collected cross-account resources via Static IAM");
+            } catch (error) {
+                console.error("Error in Static IAM collection:", error);
+                console.log("Continuing with current account only");
             }
-        }
-    } else if (crossAccountMode === CROSS_ACCOUNT_MODE.STATIC_IAM) {
-        // Use the existing Static IAM approach
-        await collectViaStaticIAM(
-            collectionPromises,
-            roleArns,
-            regions,
-            excludeEC2,
-            excludeLambda,
-            collectEc2ResourceBatches,
-            collectLambdaResourceBatches
-        );
-    } else {
-        console.info("Cross-account collection is disabled");
+            break;
+        default:
+            console.info("Cross-account collection is disabled. Continuing with current account only.");
+            break;
     }
 
     // Wait for all resources to be collected
@@ -144,7 +119,7 @@ const collectLambdaResourceBatches = async (region, accountId, clientConfig = {}
     for await (const batch of collectLambdaResources(region, clientConfig)) {
         batches.push(batch);
     }
-    return { source: "collector.lambda", region: region, account: accountId, batches };
+    return { source: "collector.lambda.api", region: region, account: accountId, batches };
 };
 
 const collectEc2ResourceBatches = async (region, accountId, clientConfig = {}) => {
@@ -153,5 +128,5 @@ const collectEc2ResourceBatches = async (region, accountId, clientConfig = {}) =
     for await (const batch of collectEc2Resources(region, clientConfig)) {
         batches.push(batch);
     }
-    return { source: "collector.ec2", region: region, account: accountId, batches };
+    return { source: "collector.ec2.api", region: region, account: accountId, batches };
 };
