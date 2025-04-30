@@ -12,7 +12,7 @@ const validateAndExtractConfiguration = () => {
 const { resourceTtlMinutes, roleName } = validateAndExtractConfiguration();
 
 export const generateEc2Resources = async (region, accountId, instances, mode = "api") => {
-    const instancesArray = [];
+    let instancesArray = [];
 
     // If mode is "config", fetch detailed information using DescribeInstances
     if (mode === "config") {
