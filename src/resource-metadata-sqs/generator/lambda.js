@@ -10,10 +10,12 @@ const validateAndExtractConfiguration = () => {
     const resourceTtlMinutes = parseInt(process.env.RESOURCE_TTL_MINUTES, 10);
     assert(process.env.COLLECT_ALIASES, "COLLECT_ALIASES env var missing!");
     const collectAliases = String(process.env.COLLECT_ALIASES).toLowerCase() === "true";
+    assert(process.env.LAMBDA_TELEMETRY_EXPORTER_FILTER, "LAMBDA_TELEMETRY_EXPORTER_FILTER env var missing!");
+    const lambdaTelemetryExporterFilter = String(process.env.LAMBDA_TELEMETRY_EXPORTER_FILTER).toLowerCase() === "true";
     const roleName = process.env.CROSSACCOUNT_IAM_ROLE_NAME ? process.env.CROSSACCOUNT_IAM_ROLE_NAME : "CrossAccountLambdaRole";
-    return { latestVersionsPerFunction, resourceTtlMinutes, collectAliases, roleName };
+    return { latestVersionsPerFunction, resourceTtlMinutes, collectAliases, roleName, lambdaTelemetryExporterFilter };
 };
-const { latestVersionsPerFunction, resourceTtlMinutes, collectAliases, roleName } = validateAndExtractConfiguration();
+const { latestVersionsPerFunction, resourceTtlMinutes, collectAliases, roleName, lambdaTelemetryExporterFilter } = validateAndExtractConfiguration();
 
 export const generateLambdaResources = async (region, accountId, functions) => {
     // Normalize function objects to handle both cases
@@ -56,6 +58,20 @@ const generateFunctionAndAliasResources = async (lambdaClient, listOfFunctions) 
         const functionName = lambdaFunctionVersionLatest.functionName ?? lambdaFunctionVersionLatest.FunctionName;
         try {
             const lambdaFunction = await lambdaClient.send(new GetFunctionConfigurationCommand({ FunctionName: functionName }));
+
+            if (lambdaTelemetryExporterFilter) {
+                console.log(lambdaFunction);
+                const layers = lambdaFunction.Layers || [];
+                const hasTelemetryLayer = layers.some(layer =>
+                    (layer.Arn || '').includes('coralogix-aws-lambda-telemetry-exporter')
+                );
+
+                if (!hasTelemetryLayer) {
+                    console.log(`Skipping function ${functionName} as it doesn't have the telemetry exporter layer`);
+                    return null;
+                }
+            }
+
             const functionResource = await makeLambdaFunctionResource(lambdaFunction, lambdaClient);
 
             const aliases = collectAliases
@@ -79,18 +95,32 @@ const generateFunctionAndAliasResources = async (lambdaClient, listOfFunctions) 
             return { functionResource, aliasResources, versionsToCollect };
         } catch (error) {
             console.warn(`Failed to generate metadata of ${functionName}: `, error.stack);
+            return null;
         }
     });
 
-    if (listOfFunctions.length > 0 && results.length == 0) {
-        console.error("Failed to generate metadata of any lambda function.");
-        throw "Failed to generate metadata of any lambda function.";
+    // Filter out null results (skipped functions)
+    const validResults = results.filter(result => result !== null);
+
+    if (listOfFunctions.length > 0 && validResults.length === 0) {
+        if (lambdaTelemetryExporterFilter) {
+            console.info("No functions with telemetry exporter layer were found. Skipping metadata generation.");
+        } else {
+            console.info("No eligible functions were found. Skipping metadata generation.");
+        }
+
+        // Return empty arrays instead of throwing an error
+        return {
+            functionResources: [],
+            aliasResources: [],
+            versionsToCollect: []
+        };
     }
 
     return {
-        functionResources: results.map(x => x.functionResource),
-        aliasResources: results.flatMap(x => x.aliasResources),
-        versionsToCollect: results.flatMap(x => x.versionsToCollect),
+        functionResources: validResults.map(x => x.functionResource),
+        aliasResources: validResults.flatMap(x => x.aliasResources),
+        versionsToCollect: validResults.flatMap(x => x.versionsToCollect),
     };
 };
 

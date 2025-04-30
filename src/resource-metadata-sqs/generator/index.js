@@ -80,6 +80,12 @@ const processMessage = async (event, context) => {
 const generateAndSendLambdaResources = async (collectorId, region, accountId, resources) => {
     console.info(`Generating Lambda resources from ${region}`);
     const lambdaResources = await generateLambdaResources(region, accountId, resources);
+
+    if (lambdaResources.length === 0) {
+        console.info("No resources to send to Coralogix - skipping");
+        return;
+    }
+
     console.info("Sending Lambda resources to coralogix");
     await sendToCoralogix({ collectorId, resources: lambdaResources });
     console.info("Sent Lambda resources to coralogix");
@@ -88,6 +94,12 @@ const generateAndSendLambdaResources = async (collectorId, region, accountId, re
 const generateAndSendEc2Resources = async (collectorId, region, accountId, resources, mode) => {
     console.info(`Generating EC2 resources from ${region}`);
     const ec2Resources = await generateEc2Resources(region, accountId, resources, mode);
+
+    if (ec2Resources.length === 0) {
+        console.info("No resources to send to Coralogix - skipping");
+        return;
+    }
+
     console.info("Sending EC2 resources to coralogix");
     await sendToCoralogix({ collectorId, resources: ec2Resources });
     console.info("Sent EC2 resources to coralogix");

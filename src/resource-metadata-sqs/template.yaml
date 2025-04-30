@@ -44,6 +44,7 @@ Metadata:
           - ResourceTtlMinutes
           - LatestVersionsPerFunction
           - CollectAliases
+          - LambdaTelemetryExporterFilter
           - LambdaFunctionIncludeRegexFilter
           - LambdaFunctionExcludeRegexFilter
           - LambdaFunctionTagFilters
@@ -92,6 +93,8 @@ Metadata:
         default: Latest Versions Per Function
       CollectAliases:
         default: Collect Aliases
+      LambdaTelemetryExporterFilter:
+        default: Lambda Telemetry Exporter Filter
       LambdaFunctionIncludeRegexFilter:
         default: Lambda Function Include Regex
       LambdaFunctionExcludeRegexFilter:
@@ -198,6 +201,13 @@ Parameters:
     Type: String
     Description: '[True/False]'
     Default: 'False'
+  LambdaTelemetryExporterFilter:
+    Type: String
+    Description: '[True/False] If specified, only lambda functions with telemetry-exporter layer will be included in the collected metadata'
+    AllowedValues:
+      - 'True'
+      - 'False'
+    Default: "False"
   LambdaFunctionIncludeRegexFilter:
     Type: String
     Description: 'If specified, only lambda functions with ARNs matching the regex will be included in the collected metadata'
@@ -504,6 +514,8 @@ Resources:
             Ref: CollectAliases
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
+          LAMBDA_TELEMETRY_EXPORTER_FILTER:
+            Ref: LambdaTelemetryExporterFilter
           CROSSACCOUNT_IAM_ROLE_NAME: !If
             - IsStaticIAMMode
             - Ref: CrossAccountIAMRoleName
@@ -602,6 +614,8 @@ Resources:
             Ref: CollectAliases
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
+          LAMBDA_TELEMETRY_EXPORTER_FILTER:
+            Ref: LambdaTelemetryExporterFilter
           CORALOGIX_METADATA_URL: !If
             - IsRegionCustomUrlEmpty
             - !Sub  'ingress.${CustomDomain}:443'
