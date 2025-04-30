@@ -2,6 +2,10 @@
 
 ## lambda-manager
 
+## 2.0.8  / 30-04-2025
+###  💡 Enhancements 💡
+- Add new parameter DisableAddPermission. Used when a custom Permission Policy was created.
+
 ## 2.0.7  / 20-04-2025
 ### 🧰 Bug fixes 🧰
 - Add a check if the log group is a standard log group, and if not, it will be excluded.

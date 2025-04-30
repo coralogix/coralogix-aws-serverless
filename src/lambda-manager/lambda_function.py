@@ -32,7 +32,10 @@ def lambda_handler(event, context):
 
         if "RequestType" in event and event['RequestType'] == 'Create' and log_group_permission_prefix != ['']:
             print("Addning permissions in creation")
-            add_permissions_first_time(destination_arn, log_group_permission_prefix, region, account_id)
+            if disable_add_permission == 'true':
+                print("Skipping adding permissions in creation")
+            else:
+                add_permissions_first_time(destination_arn, log_group_permission_prefix, region, account_id)
 
         if scan_all_log_groups == 'true' and "RequestType" in event and event['RequestType'] == 'Create':
             print(f"Scanning all log groups: {scan_all_log_groups}")
