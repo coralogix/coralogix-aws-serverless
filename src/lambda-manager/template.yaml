@@ -16,7 +16,7 @@ Metadata:
       - cloudwatch
       - lambda
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 2.0.7
+    SemanticVersion: 2.0.8
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -54,6 +54,10 @@ Parameters:
     AllowedValues:
       - firehose
       - lambda
+  DisableAddPermission:
+    Type: String
+    Description: Disable adding permission to lambda
+    Default: false
   ScanOldLogGroups:
     Type: String
     Description: Scan old log groups
@@ -137,6 +141,8 @@ Resources:
         Ref: FunctionTimeout
       Environment:
         Variables:
+          DISABLE_ADD_PERMISSION:
+            Ref: DisableAddPermission
           LOGS_FILTER:
             Ref: LogsFilter
           REGEX_PATTERN:
