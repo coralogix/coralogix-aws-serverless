@@ -25,14 +25,15 @@ const validateAndExtractConfiguration = () => {
     const excludeEC2 = String(process.env.IS_EC2_RESOURCE_TYPE_EXCLUDED).toLowerCase() === "true";
     const excludeLambda = String(process.env.IS_LAMBDA_RESOURCE_TYPE_EXCLUDED).toLowerCase() === "true";
     const regions = process.env.REGIONS?.split(',') || [process.env.AWS_REGION];
-    const roleArns = process.env.CROSSACCOUNT_IAM_ROLE_ARNS ? process.env.CROSSACCOUNT_IAM_ROLE_ARNS.split(',') : [];
+    const accountIds = process.env.ACCOUNT_IDS ? process.env.ACCOUNT_IDS.split(',') : [];
+    const roleName = process.env.CROSSACCOUNT_IAM_ROLE_NAME ? process.env.CROSSACCOUNT_IAM_ROLE_NAME : "CrossAccountLambdaRole";
     const crossAccountMode = process.env.CROSS_ACCOUNT_MODE || CROSS_ACCOUNT_MODE.DISABLED;
     const configAggregatorName = process.env.CONFIG_AGGREGATOR_NAME || 'OrganizationAggregator';
 
-    return { excludeEC2, excludeLambda, regions, roleArns, crossAccountMode, configAggregatorName };
+    return { excludeEC2, excludeLambda, regions, accountIds, roleName, crossAccountMode, configAggregatorName };
 };
 
-const { excludeEC2, excludeLambda, regions, roleArns, crossAccountMode, configAggregatorName } = validateAndExtractConfiguration();
+const { excludeEC2, excludeLambda, regions, accountIds, roleName, crossAccountMode, configAggregatorName } = validateAndExtractConfiguration();
 
 /**
  * @description Lambda function handler
@@ -77,6 +78,7 @@ export const handler = async (_, context) => {
             break;
 
         case CROSS_ACCOUNT_MODE.STATIC_IAM:
+            const roleArns = accountIds.map(accountId => `arn:aws:iam::${accountId}:role/${roleName}`);
             try {
                 if (!excludeLambda) {
                     const lambdaConfigResults = await collectViaStaticIAM(roleArns, regions, 'AWS::Lambda::Function');

@@ -72,8 +72,8 @@ export const collectResourcesViaConfig = async (configAggregatorName, resourceTy
 
                     // Format function data to match the expected structure
                     resources.push({
-                        FunctionArn: result.arn,
-                        FunctionName: result.resourceId,
+                        ResourceArn: result.arn,
+                        ResourceId: result.resourceId,
                         Region: result.awsRegion,
                         Account: result.accountId
                     });
@@ -92,11 +92,24 @@ export const collectResourcesViaConfig = async (configAggregatorName, resourceTy
             return acc;
         }, {});
 
-        // Create batches for each region-account pair
+        // Create batches for each region-account pair with cleaned-up resources
         for (const [key, resources] of Object.entries(groupedResources)) {
             const [region, account] = key.split(':');
+
+            // Clean up each resource by removing redundant Region and Account properties
+            const processedResources = resources.map(resource => {
+                // Create a new object without Region and Account
+                const { Region, Account, ...processedResource } = resource;
+                return processedResource;
+            });
+
             const resourceTypeKey = resourceType.split('::')[1].toLowerCase();
-            allBatches.push({ source: `collector.${resourceTypeKey}.config`, region, account, batches: [resources] });
+            allBatches.push({
+                source: `collector.${resourceTypeKey}.config`,
+                region,
+                account,
+                batches: [processedResources]
+            });
         }
 
         console.info(`Collected ${totalResources} ${resourceType} cross-account resources via AWS Config`);
