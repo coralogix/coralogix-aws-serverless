@@ -43,7 +43,7 @@ export const collectResourcesViaConfig = async (configAggregatorName, resourceTy
     console.info("Collecting Lambda resources via AWS Config");
     try {
         const configClient = new ConfigServiceClient({ region: process.env.AWS_REGION });
-        const batchSize = 100;
+        const batchSize = 50;
 
         const baseQuery = `SELECT arn, resourceId, awsRegion, accountId WHERE resourceType = '${resourceType}'`;
 
@@ -52,15 +52,16 @@ export const collectResourcesViaConfig = async (configAggregatorName, resourceTy
         let resources = [];
         let totalResources = 0;
 
-        const command = new SelectAggregateResourceConfigCommand({
-            Expression: baseQuery,
-            ConfigurationAggregatorName: configAggregatorName,
-            Limit: batchSize,
-            NextToken: nextToken
-        });
-
         // Paginate through all results
         do {
+            // Create a new command with the updated token for each request
+            const command = new SelectAggregateResourceConfigCommand({
+                Expression: baseQuery,
+                ConfigurationAggregatorName: configAggregatorName,
+                Limit: batchSize,
+                NextToken: nextToken
+            });
+
             const response = await configClient.send(command);
             nextToken = response.NextToken;
 
@@ -103,12 +104,19 @@ export const collectResourcesViaConfig = async (configAggregatorName, resourceTy
                 return processedResource;
             });
 
+            // Split into smaller batches based on batchSize
+            const resourceBatches = [];
+            for (let i = 0; i < processedResources.length; i += batchSize) {
+                const batch = processedResources.slice(i, i + batchSize);
+                resourceBatches.push(batch);
+            }
+
             const resourceTypeKey = resourceType.split('::')[1].toLowerCase();
             allBatches.push({
                 source: `collector.${resourceTypeKey}.config`,
                 region,
                 account,
-                batches: [processedResources]
+                batches: resourceBatches // Now an array of smaller batches
             });
         }
 
