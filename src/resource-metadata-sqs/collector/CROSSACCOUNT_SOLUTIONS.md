@@ -1,4 +1,6 @@
-Comparison Table
+# Cross-account solutions
+
+This table describes all possible solutions to fetch the info about Lambda functions and EC2 instances from multiple accounts.
 
 | Approach | Implementation Method | Pros | Cons | Complexity | Scalability | Permissions Required |
 |----------|------------------------|------|------|------------|-------------|----------------------|
@@ -10,3 +12,10 @@ Comparison Table
 | 6. Resource Groups Tagging API | Use GetResources API with resource type filter for Lambda functions in each account (requires assuming roles) and in each region. | • Simple API call<br>• No additional services needed<br>• Works with tags | • Limited to one account at a time<br>• Requires consistent tagging strategy<br>• Need to loop through accounts | Low | Good | • Tag:GetResources permission<br>• Cross-account roles |
 | 7. CloudWatch Logs Insights | Query CloudWatch Logs across accounts to find log groups with naming pattern "/aws/lambda/", then extract function names from log group names. | • Lambda functions generate logs by default<br>• Can derive function details from log groups | • Indirect discovery method<br>• May miss functions with custom log settings | Medium | Medium | • CloudWatch Logs access<br>• Cross-account roles |
 | 8. Lake Formation + Athena | Set up Lake Formation with crawlers to inventory AWS resources across accounts. Store data in central data lake and query with Athena SQL to find Lambda functions. | • Centralized data repository<br>• Powerful query capabilities<br>• Works across entire organization | • Complex setup<br>• Ongoing maintenance<br>• Additional costs | High | Excellent | • Lake Formation permissions<br>• Cross-account data catalog access |
+
+# Implemented solutions:
+
+1. Static IAM List
+2. AWS Config
+
+The rest can be implemented on demand.
