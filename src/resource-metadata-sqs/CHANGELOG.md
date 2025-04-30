@@ -6,6 +6,7 @@
 * [Feature] Cross-account collection has multiple options now: AWS Config and Static Account List
 * [Feature] Enable cross-account Eventbridge events reception by SQS queue
 * [Feature] Filter functions by telemetry-exporter layer
+* [Update] Split StaticIAM configuration between ACCOUNT_IDS and CROSSACCOUNT_IAM_ROLE_ARNS
 * [Fix] Get rid of GetFunctionCommand to avoid security vulnerability related to this command (i.e. link to the source code in the command output)
 
 ### 0.2.0 / 02.04.2025

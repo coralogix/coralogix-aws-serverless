@@ -29,12 +29,18 @@ Metadata:
         Parameters:
           - EventMode
       - Label:
+          default: Cross-account and cross-region configuration
+        Parameters:
+          - SourceRegions
+          - CrossAccountMode
+          - ConfigAggregatorName
+          - AccountIds
+          - CrossAccountIAMRoleName
+          - OrganizationId
+      - Label:
           default: Integration configuration
         Parameters:
           - Schedule
-          - SourceRegions
-          - OrganizationId
-          - CrossAccountIAMRoleArns
           - ResourceTtlMinutes
           - LatestVersionsPerFunction
           - CollectAliases
@@ -68,12 +74,18 @@ Metadata:
         default: Api Key
       EventMode:
         default: Event Mode
-      CrossAccountIAMRoleArns:
-        default: Cross Account IAM Role ARNs
+      CrossAccountMode:
+        default: Cross Account Mode
+      ConfigAggregatorName:
+        default: Config Aggregator Name
       OrganizationId:
         default: AWS Organization ID
       SourceRegions:
         default: Source AWS Regions
+      AccountIds:
+        default: Account IDs
+      CrossAccountIAMRoleName:
+        default: Cross Account IAM Role Name
       Schedule:
         default: Schedule
       LatestVersionsPerFunction:
@@ -126,13 +138,29 @@ Parameters:
     Type: String
     Description: Your Coralogix Send Your Data - API Key or incase you use pre created secret (created in AWS secret manager) put here the name of the secret that contains the Coralogix send your data key
     NoEcho: true
+  CrossAccountMode:
+    Type: String
+    Description: The mode to collect metadata from, separated by commas (e.g. StaticIAM, Config). Leave Disabled if you want to collect metadata from the current account only.
+    AllowedValues:
+      - Disabled
+      - StaticIAM
+      - Config
+    Default: Disabled
   SourceRegions:
     Type: String
     Description: The regions to collect metadata from, separated by commas (e.g. eu-north-1,eu-west-1,us-east-1). Leave empty if you want to collect metadata from the current region only.
     Default: ""
-  CrossAccountIAMRoleArns:
+  ConfigAggregatorName:
     Type: String
-    Description: The IAM role ARNs to collect metadata from, separated by commas (e.g. arn:aws:iam::123456789012:role/CrossAccountRole,arn:aws:iam::123456789012:role/AnotherCrossAccountRole). Leave empty if you want to collect metadata from the current account only.
+    Description: The name of the AWS Config aggregator to collect metadata from. Leave empty if you want to collect metadata from the current account only.
+    Default: ""
+  AccountIds:
+    Type: String
+    Description: The account IDs to collect metadata from, separated by commas (e.g. 123456789012,123456789013). Leave empty if you want to collect metadata from the current account only.
+    Default: ""
+  CrossAccountIAMRoleName:
+    Type: String
+    Description: The name of the IAM role to collect metadata from. Leave empty if you want to collect metadata from the current account only.
     Default: ""
   # to get this value, run the following command:
   # aws organizations describe-organization --query 'Organization.Id' --output text
@@ -306,7 +334,9 @@ Conditions:
   ShouldCreateCloudTrail: !Equals [!Ref EventMode, EnabledCreateTrail]
   UseExistingCloudTrail: !Equals [!Ref EventMode, EnabledWithExistingTrail]
   MultiRegionEnabled: !Not [!Equals [!Ref SourceRegions, ""]]
-  MultiAccountEnabled: !Not [!Equals [!Ref CrossAccountIAMRoleArns, ""]]
+  MultiAccountEnabled: !Not [!Equals [!Ref CrossAccountMode, Disabled]]
+  IsStaticIAMMode: !Equals [!Ref CrossAccountMode, StaticIAM]
+  IsConfigMode: !Equals [!Ref CrossAccountMode, Config]
   HasOrgId: !Not [!Equals [!Ref OrganizationId, ""]]
 
 Resources:
@@ -353,9 +383,19 @@ Resources:
             - MultiRegionEnabled
             - Ref: SourceRegions
             - !Ref 'AWS::NoValue'
-          CROSSACCOUNT_IAM_ROLE_ARNS: !If
-            - MultiAccountEnabled
-            - Ref: CrossAccountIAMRoleArns
+          CROSS_ACCOUNT_MODE:
+            - Ref: CrossAccountMode
+          ACCOUNT_IDS: !If
+            - IsStaticIAMMode
+            - Ref: AccountIds
+            - !Ref 'AWS::NoValue'
+          CROSSACCOUNT_IAM_ROLE_NAME: !If
+            - IsStaticIAMMode
+            - Ref: CrossAccountIAMRoleName
+            - !Ref 'AWS::NoValue'
+          CONFIG_AGGREGATOR_NAME: !If
+            - IsConfigMode
+            - Ref: ConfigAggregatorName
             - !Ref 'AWS::NoValue'
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
@@ -415,13 +455,22 @@ Resources:
                 - sqs:SendMessage
               Resource: !GetAtt MetadataQueue.Arn
         - !If
-          - MultiAccountEnabled
+          - IsStaticIAMMode
           - Version: "2012-10-17"
             Statement:
               - Sid: AssumeCrossAccountRoles
                 Effect: Allow
                 Action: sts:AssumeRole
-                Resource: !Split [",", !Ref CrossAccountIAMRoleArns]
+                Resource: !Sub "arn:aws:iam::*:role/${CrossAccountIAMRoleName}"
+          - !Ref 'AWS::NoValue'
+        - !If
+          - IsConfigMode
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetConfigAggregator
+                Effect: Allow
+                Action: config:SelectAggregateResourceConfigCommand
+                Resource: "*"
           - !Ref 'AWS::NoValue'
 
   CollectorLambdaFunctionNotificationSubscription:
@@ -455,9 +504,9 @@ Resources:
             Ref: CollectAliases
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
-          CROSSACCOUNT_IAM_ROLE_ARNS: !If
-            - MultiAccountEnabled
-            - Ref: CrossAccountIAMRoleArns
+          CROSSACCOUNT_IAM_ROLE_NAME: !If
+            - IsStaticIAMMode
+            - Ref: CrossAccountIAMRoleName
             - !Ref 'AWS::NoValue'
           CORALOGIX_METADATA_URL: !If
             - IsRegionCustomUrlEmpty
@@ -484,6 +533,16 @@ Resources:
           OnFailure:
             Type: SNS
       Policies:
+        - !If 
+          - IsNotEC2ResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetEc2Metadata
+                Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                Resource: "*"
+          - !Ref 'AWS::NoValue'
         - !If
           - IsNotLambdaResourceTypeExcluded
           - Version: "2012-10-17"
@@ -516,7 +575,7 @@ Resources:
               - Sid: AssumeCrossAccountRoles
                 Effect: Allow
                 Action: sts:AssumeRole
-                Resource: !Split [",", !Ref CrossAccountIAMRoleArns]
+                Resource: !Sub "arn:aws:iam::*:role/${CrossAccountIAMRoleName}"
           - !Ref 'AWS::NoValue'
 
   GeneratorLambdaFunctionSM:
@@ -575,6 +634,16 @@ Resources:
           OnFailure:
             Type: SNS
       Policies:
+        - !If 
+          - IsNotEC2ResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetEc2Metadata
+                Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                Resource: "*"
+          - !Ref 'AWS::NoValue'
         - !If
           - IsNotLambdaResourceTypeExcluded
           - Version: "2012-10-17"
@@ -607,7 +676,7 @@ Resources:
               - Sid: AssumeCrossAccountRoles
                 Effect: Allow
                 Action: sts:AssumeRole
-                Resource: !Split [",", !Ref CrossAccountIAMRoleArns]
+                Resource: !Sub "arn:aws:iam::*:role/${CrossAccountIAMRoleName}"
           - !Ref 'AWS::NoValue'
         - SecretsManagerReadWrite
 
