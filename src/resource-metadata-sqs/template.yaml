@@ -28,6 +28,7 @@ Metadata:
           default: EventBridge configuration
         Parameters:
           - EventMode
+          - OrganizationId
       - Label:
           default: Cross-account and cross-region configuration
         Parameters:
@@ -36,7 +37,6 @@ Metadata:
           - ConfigAggregatorName
           - AccountIds
           - CrossAccountIAMRoleName
-          - OrganizationId
       - Label:
           default: Integration configuration
         Parameters:
@@ -143,7 +143,7 @@ Parameters:
     NoEcho: true
   CrossAccountMode:
     Type: String
-    Description: The mode to collect metadata from, separated by commas (e.g. StaticIAM, Config). Leave Disabled if you want to collect metadata from the current account only.
+    Description: The mode to collect metadata [Disabled, StaticIAM, Config]. Leave Disabled if you want to collect metadata from the current account only.
     AllowedValues:
       - Disabled
       - StaticIAM
