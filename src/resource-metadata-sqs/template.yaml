@@ -435,7 +435,7 @@ Resources:
           OnFailure:
             Type: SNS
       Policies:
-        - !If 
+        - !If
           - IsNotEC2ResourceTypeExcluded
           - Version: "2012-10-17"
             Statement:
@@ -454,7 +454,7 @@ Resources:
                 Action:
                   - lambda:ListFunctions
                 Resource: "*"
-          - !Ref 'AWS::NoValue' 
+          - !Ref 'AWS::NoValue'
         - Version: "2012-10-17"
           Statement:
             - Sid: GetResourcesByTags
@@ -525,7 +525,7 @@ Resources:
             - !Ref 'AWS::NoValue'
           CORALOGIX_METADATA_URL: !If
             - IsRegionCustomUrlEmpty
-            - !Sub  'ingress.${CustomDomain}:443'
+            - !Sub 'ingress.${CustomDomain}:443'
             - !Sub
               - '${Prefix}${Domain}${Suffix}'
               - Prefix: ingress.
@@ -635,9 +635,9 @@ Resources:
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
           SECRET_NAME: !If
-              - CreateSecret
-              - ""
-              - Ref: ApiKey
+            - CreateSecret
+            - ""
+            - Ref: ApiKey
       Events:
         SQSEvent:
           Type: SQS
@@ -700,7 +700,7 @@ Resources:
   PrivateKeySecret:
     Condition: CreateSecret
     Type: AWS::SecretsManager::Secret
-    Properties: 
+    Properties:
       Description: Coralogix Send Your Data key Secret
       Name: !Sub
         - 'lambda/coralogix/${AWS::Region}/${function}'
