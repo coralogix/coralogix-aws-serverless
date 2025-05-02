@@ -624,10 +624,6 @@ Resources:
               - Prefix: ingress.
                 Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, MetadataUrl]
                 Suffix: :443
-          CROSSACCOUNT_IAM_ROLE_ARNS: !If
-            - MultiAccountEnabled
-            - Ref: CrossAccountIAMRoleArns
-            - !Ref 'AWS::NoValue'
           AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
