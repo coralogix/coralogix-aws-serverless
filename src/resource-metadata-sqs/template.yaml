@@ -355,21 +355,27 @@ Resources:
     Properties:
       VisibilityTimeout: 900
       MessageRetentionPeriod: 3600
-      QueuePolicy: !If 
-        - HasOrgId
-        - Version: "2012-10-17"
-          Statement:
-            - Effect: Allow
-              Principal: "*"
-              Action: sqs:SendMessage
-              Resource: !GetAtt MetadataQueue.Arn
-              Condition:
-                StringEquals:
-                  "aws:PrincipalOrgID": !Ref OrganizationId
-        - !Ref AWS::NoValue
+
+  MetadataQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Condition: HasOrgId
+    Properties:
+      Queues:
+        - !Ref MetadataQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: sqs:SendMessage
+            Resource: !GetAtt MetadataQueue.Arn
+            Condition:
+              StringEquals:
+                "aws:PrincipalOrgID": !Ref OrganizationId
 
   CollectorLambdaFunction:
     Type: AWS::Serverless::Function
+    DependsOn: MetadataQueue
     Properties:
       Description: Collect AWS resource metadata for Coralogix.
       CodeUri: ./collector
@@ -400,7 +406,7 @@ Resources:
             - Ref: AccountIds
             - !Ref 'AWS::NoValue'
           CROSSACCOUNT_IAM_ROLE_NAME: !If
-            - IsStaticIAMMode
+            - MultiAccountEnabled
             - Ref: CrossAccountIAMRoleName
             - !Ref 'AWS::NoValue'
           CONFIG_AGGREGATOR_NAME: !If
@@ -417,7 +423,7 @@ Resources:
               - IsLambdaResourceTypeExcluded
               - 'True'
               - 'False'
-          METADATA_QUEUE_URL: !Ref MetadataQueue
+          METADATA_QUEUE_URL: !GetAtt MetadataQueue.QueueUrl
           EC2_CHUNK_SIZE:
             Ref: EC2ChunkSize
       Events:
@@ -479,7 +485,7 @@ Resources:
             Statement:
               - Sid: GetConfigAggregator
                 Effect: Allow
-                Action: config:SelectAggregateResourceConfigCommand
+                Action: config:SelectAggregateResourceConfig
                 Resource: "*"
           - !Ref 'AWS::NoValue'
 
@@ -517,7 +523,7 @@ Resources:
           LAMBDA_TELEMETRY_EXPORTER_FILTER:
             Ref: LambdaTelemetryExporterFilter
           CROSSACCOUNT_IAM_ROLE_NAME: !If
-            - IsStaticIAMMode
+            - MultiAccountEnabled
             - Ref: CrossAccountIAMRoleName
             - !Ref 'AWS::NoValue'
           CORALOGIX_METADATA_URL: !If
