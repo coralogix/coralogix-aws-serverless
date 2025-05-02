@@ -158,7 +158,7 @@ export const collectViaStaticIAM = async (roleArns, regions, resourceType) => {
                 allBatches.push({ source: `collector.${resourceTypeKey}.api`, region: region, account: accountId, batches });
             }
         } catch (error) {
-            console.error(`Error assuming role ${roleArn}:`, error);
+            console.error(`Error assuming role:`, error);
             console.warn(`Skipping collection for role ${roleArn}`);
         }
     }
