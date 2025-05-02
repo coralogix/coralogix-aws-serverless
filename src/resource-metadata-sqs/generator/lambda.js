@@ -10,9 +10,9 @@ const validateAndExtractConfiguration = () => {
     const resourceTtlMinutes = parseInt(process.env.RESOURCE_TTL_MINUTES, 10);
     assert(process.env.COLLECT_ALIASES, "COLLECT_ALIASES env var missing!");
     const collectAliases = String(process.env.COLLECT_ALIASES).toLowerCase() === "true";
-    assert(process.env.LAMBDA_TELEMETRY_EXPORTER_FILTER, "LAMBDA_TELEMETRY_EXPORTER_FILTER env var missing!");
-    const lambdaTelemetryExporterFilter = String(process.env.LAMBDA_TELEMETRY_EXPORTER_FILTER).toLowerCase() === "true";
-    const roleName = process.env.CROSSACCOUNT_IAM_ROLE_NAME ? process.env.CROSSACCOUNT_IAM_ROLE_NAME : "CrossAccountLambdaRole";
+    assert(process.env.LAMBDA_LAYER_FILTER, "LAMBDA_LAYER_FILTER env var missing!");
+    const lambdaTelemetryExporterFilter = String(process.env.LAMBDA_LAYER_FILTER).toLowerCase() === "true";
+    const roleName = process.env.CROSSACCOUNT_IAM_ROLENAME ? process.env.CROSSACCOUNT_IAM_ROLENAME : "CrossAccountLambdaRole";
     return { latestVersionsPerFunction, resourceTtlMinutes, collectAliases, roleName, lambdaTelemetryExporterFilter };
 };
 const { latestVersionsPerFunction, resourceTtlMinutes, collectAliases, roleName, lambdaTelemetryExporterFilter } = validateAndExtractConfiguration();

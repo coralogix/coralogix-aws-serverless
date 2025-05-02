@@ -6,7 +6,7 @@ import { assumeRole, getAccountId } from './crossaccount.js';
 const validateAndExtractConfiguration = () => {
     assert(process.env.RESOURCE_TTL_MINUTES, "RESOURCE_TTL_MINUTES env var missing!");
     const resourceTtlMinutes = parseInt(process.env.RESOURCE_TTL_MINUTES, 10);
-    const roleName = process.env.CROSSACCOUNT_IAM_ROLE_NAME ? process.env.CROSSACCOUNT_IAM_ROLE_NAME : "CrossAccountEC2Role";
+    const roleName = process.env.CROSSACCOUNT_IAM_ROLENAME ? process.env.CROSSACCOUNT_IAM_ROLENAME : "CrossAccountEC2Role";
     return { resourceTtlMinutes, roleName };
 };
 const { resourceTtlMinutes, roleName } = validateAndExtractConfiguration();

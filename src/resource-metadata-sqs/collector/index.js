@@ -15,7 +15,7 @@ import { collectEc2Resources } from './ec2.js';
 import { sendToSqs } from './sqs.js';
 import { getAccountId, collectResourcesViaConfig, collectViaStaticIAM } from './crossaccount.js';
 
-const CROSS_ACCOUNT_MODE = {
+const CROSSACCOUNT_MODE = {
     DISABLED: 'Disabled',
     STATIC_IAM: 'StaticIAM',
     CONFIG: 'Config'
@@ -25,10 +25,10 @@ const validateAndExtractConfiguration = () => {
     const excludeEC2 = String(process.env.IS_EC2_RESOURCE_TYPE_EXCLUDED).toLowerCase() === "true";
     const excludeLambda = String(process.env.IS_LAMBDA_RESOURCE_TYPE_EXCLUDED).toLowerCase() === "true";
     const regions = process.env.REGIONS?.split(',') || [process.env.AWS_REGION];
-    const accountIds = process.env.ACCOUNT_IDS ? process.env.ACCOUNT_IDS.split(',') : [];
-    const roleName = process.env.CROSSACCOUNT_IAM_ROLE_NAME ? process.env.CROSSACCOUNT_IAM_ROLE_NAME : "CrossAccountLambdaRole";
-    const crossAccountMode = process.env.CROSS_ACCOUNT_MODE || CROSS_ACCOUNT_MODE.DISABLED;
-    const configAggregatorName = process.env.CONFIG_AGGREGATOR_NAME || 'OrganizationAggregator';
+    const accountIds = process.env.CROSSACCOUNT_IAM_ACCOUNTIDS ? process.env.CROSSACCOUNT_IAM_ACCOUNTIDS.split(',') : [];
+    const roleName = process.env.CROSSACCOUNT_IAM_ROLENAME ? process.env.CROSSACCOUNT_IAM_ROLENAME : "CrossAccountLambdaRole";
+    const crossAccountMode = process.env.CROSSACCOUNT_MODE || CROSSACCOUNT_MODE.DISABLED;
+    const configAggregatorName = process.env.CROSSACCOUNT_CONFIG_AGGREGATOR || 'OrganizationAggregator';
 
     return { excludeEC2, excludeLambda, regions, accountIds, roleName, crossAccountMode, configAggregatorName };
 };
@@ -60,7 +60,7 @@ export const handler = async (_, context) => {
 
     // Handle cross-account collection based on the selected mode
     switch (crossAccountMode) {
-        case CROSS_ACCOUNT_MODE.CONFIG:
+        case CROSSACCOUNT_MODE.CONFIG:
             try {
                 if (!excludeLambda) {
                     const lambdaConfigResults = await collectResourcesViaConfig(configAggregatorName, 'AWS::Lambda::Function');
@@ -77,7 +77,7 @@ export const handler = async (_, context) => {
             }
             break;
 
-        case CROSS_ACCOUNT_MODE.STATIC_IAM:
+        case CROSSACCOUNT_MODE.STATIC_IAM:
             const roleArns = accountIds.map(accountId => `arn:aws:iam::${accountId}:role/${roleName}`);
             try {
                 if (!excludeLambda) {

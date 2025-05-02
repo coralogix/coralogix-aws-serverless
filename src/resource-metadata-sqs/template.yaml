@@ -338,16 +338,13 @@ Conditions:
     Fn::Equals:
       - Ref: ExcludedLambdaResourceType
       - 'False'
-  IsEventModeEnabled: !Or
-    - !Equals [!Ref EventMode, EnabledWithExistingTrail]
-    - !Equals [!Ref EventMode, EnabledCreateTrail]
-  ShouldCreateCloudTrail: !Equals [!Ref EventMode, EnabledCreateTrail]
-  UseExistingCloudTrail: !Equals [!Ref EventMode, EnabledWithExistingTrail]
-  MultiRegionEnabled: !Not [!Equals [!Ref SourceRegions, ""]]
-  MultiAccountEnabled: !Not [!Equals [!Ref CrossAccountMode, Disabled]]
-  IsStaticIAMMode: !Equals [!Ref CrossAccountMode, StaticIAM]
-  IsConfigMode: !Equals [!Ref CrossAccountMode, Config]
-  HasOrgId: !Not [!Equals [!Ref OrganizationId, ""]]
+  IsEventModeEnabled: !Not [!Equals [!Ref EventMode, Disabled]]
+  EventModeCreateTrail: !Equals [!Ref EventMode, EnabledCreateTrail]
+  CrossRegionEnabled: !Not [!Equals [!Ref SourceRegions, ""]]
+  CrossAccountEnabled: !Not [!Equals [!Ref CrossAccountMode, Disabled]]
+  CrossAccountIamMode: !Equals [!Ref CrossAccountMode, StaticIAM]
+  CrossAccountConfigMode: !Equals [!Ref CrossAccountMode, Config]
+  CrossAccountHasOrgId: !Not [!Equals [!Ref OrganizationId, ""]]
 
 Resources:
   MetadataQueue:
@@ -358,7 +355,7 @@ Resources:
 
   MetadataQueuePolicy:
     Type: AWS::SQS::QueuePolicy
-    Condition: HasOrgId
+    Condition: CrossAccountHasOrgId
     Properties:
       Queues:
         - !Ref MetadataQueue
@@ -396,21 +393,21 @@ Resources:
           LAMBDA_FUNCTION_TAG_FILTERS:
             Ref: LambdaFunctionTagFilters
           REGIONS: !If
-            - MultiRegionEnabled
+            - CrossRegionEnabled
             - Ref: SourceRegions
             - !Ref 'AWS::NoValue'
-          CROSS_ACCOUNT_MODE:
+          CROSSACCOUNT_MODE:
             - Ref: CrossAccountMode
-          ACCOUNT_IDS: !If
-            - IsStaticIAMMode
+          CROSSACCOUNT_IAM_ACCOUNTIDS: !If
+            - CrossAccountIamMode
             - Ref: AccountIds
             - !Ref 'AWS::NoValue'
-          CROSSACCOUNT_IAM_ROLE_NAME: !If
-            - MultiAccountEnabled
+          CROSSACCOUNT_IAM_ROLENAME: !If
+            - CrossAccountEnabled
             - Ref: CrossAccountIAMRoleName
             - !Ref 'AWS::NoValue'
-          CONFIG_AGGREGATOR_NAME: !If
-            - IsConfigMode
+          CROSSACCOUNT_CONFIG_AGGREGATOR: !If
+            - CrossAccountConfigMode
             - Ref: ConfigAggregatorName
             - !Ref 'AWS::NoValue'
           AWS_RETRY_MODE: adaptive
@@ -471,7 +468,7 @@ Resources:
                 - sqs:SendMessage
               Resource: !GetAtt MetadataQueue.Arn
         - !If
-          - IsStaticIAMMode
+          - CrossAccountIamMode
           - Version: "2012-10-17"
             Statement:
               - Sid: AssumeCrossAccountRoles
@@ -480,7 +477,7 @@ Resources:
                 Resource: !Sub "arn:aws:iam::*:role/${CrossAccountIAMRoleName}"
           - !Ref 'AWS::NoValue'
         - !If
-          - IsConfigMode
+          - CrossAccountConfigMode
           - Version: "2012-10-17"
             Statement:
               - Sid: GetConfigAggregator
@@ -520,10 +517,10 @@ Resources:
             Ref: CollectAliases
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
-          LAMBDA_TELEMETRY_EXPORTER_FILTER:
+          LAMBDA_LAYER_FILTER:
             Ref: LambdaTelemetryExporterFilter
-          CROSSACCOUNT_IAM_ROLE_NAME: !If
-            - MultiAccountEnabled
+          CROSSACCOUNT_IAM_ROLENAME: !If
+            - CrossAccountEnabled
             - Ref: CrossAccountIAMRoleName
             - !Ref 'AWS::NoValue'
           CORALOGIX_METADATA_URL: !If
@@ -587,7 +584,7 @@ Resources:
                 - sqs:GetQueueAttributes
               Resource: !GetAtt MetadataQueue.Arn
         - !If
-          - MultiAccountEnabled
+          - CrossAccountEnabled
           - Version: "2012-10-17"
             Statement:
               - Sid: AssumeCrossAccountRoles
@@ -620,8 +617,12 @@ Resources:
             Ref: CollectAliases
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
-          LAMBDA_TELEMETRY_EXPORTER_FILTER:
+          LAMBDA_LAYER_FILTER:
             Ref: LambdaTelemetryExporterFilter
+          CROSSACCOUNT_IAM_ROLENAME: !If
+            - CrossAccountEnabled
+            - Ref: CrossAccountIAMRoleName
+            - !Ref 'AWS::NoValue'
           CORALOGIX_METADATA_URL: !If
             - IsRegionCustomUrlEmpty
             - !Sub  'ingress.${CustomDomain}:443'
@@ -686,7 +687,7 @@ Resources:
                 - sqs:GetQueueAttributes
               Resource: !GetAtt MetadataQueue.Arn
         - !If
-          - MultiAccountEnabled
+          - CrossAccountEnabled
           - Version: "2012-10-17"
             Statement:
               - Sid: AssumeCrossAccountRoles
@@ -721,7 +722,7 @@ Resources:
 
   CloudTrailBucket:
     Type: AWS::S3::Bucket
-    Condition: ShouldCreateCloudTrail
+    Condition: EventModeCreateTrail
     DeletionPolicy: Retain
     Properties:
       BucketName: !Sub metadata-cloudtrail-${AWS::AccountId}-${AWS::Region}
@@ -733,7 +734,7 @@ Resources:
 
   CloudTrailBucketPolicy:
     Type: AWS::S3::BucketPolicy
-    Condition: ShouldCreateCloudTrail
+    Condition: EventModeCreateTrail
     Properties:
       Bucket: !Ref CloudTrailBucket
       PolicyDocument:
@@ -757,7 +758,7 @@ Resources:
 
   CloudTrail:
     Type: AWS::CloudTrail::Trail
-    Condition: ShouldCreateCloudTrail
+    Condition: EventModeCreateTrail
     DependsOn:
       - CloudTrailBucketPolicy
     Properties:
