@@ -40,7 +40,9 @@ const { excludeEC2, excludeLambda, regions, accountIds, roleName, crossAccountMo
  */
 export const handler = async (_, context) => {
     console.info(`Starting a one-time collection of resources`);
-    console.info(`Cross account mode: ${crossAccountMode}`);
+    const validModes = Object.values(CROSSACCOUNT_MODE);
+    const sanitizedCrossAccountMode = validModes.includes(crossAccountMode) ? crossAccountMode : "Invalid or unexpected mode";
+    console.info(`Cross account mode: ${sanitizedCrossAccountMode}`);
 
     let collectionPromises = [];
 
