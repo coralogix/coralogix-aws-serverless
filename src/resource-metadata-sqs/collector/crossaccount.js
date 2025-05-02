@@ -15,6 +15,11 @@ import { ConfigServiceClient, SelectAggregateResourceConfigCommand } from "@aws-
 import { collectLambdaResources } from './lambda.js';
 import { collectEc2Resources } from './ec2.js';
 
+// Helper function to redact sensitive information from strings
+const redactSensitiveInfo = (input) => {
+    return input.replace(/arn:aws:iam::\d+:/, 'arn:aws:iam::[REDACTED]:');
+};
+
 // Function to assume a role using AWS SDK v3
 const assumeRole = async (roleArn) => {
     const stsClient = new STSClient({});
@@ -159,7 +164,8 @@ export const collectViaStaticIAM = async (roleArns, regions, resourceType) => {
             }
         } catch (error) {
             console.error(`Error assuming role:`, error);
-            console.warn(`Skipping collection for role ${roleArn}`);
+            const redactedRoleArn = redactSensitiveInfo(roleArn);
+            console.warn(`Skipping collection for role ${redactedRoleArn}`);
         }
     }
     console.info(`Collected ${resourceType} cross-account resources via Static IAM`);
