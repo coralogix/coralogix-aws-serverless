@@ -413,13 +413,13 @@ Resources:
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
           IS_EC2_RESOURCE_TYPE_EXCLUDED: !If
-              - IsEC2ResourceTypeExcluded
-              - 'True'
-              - 'False'
+            - IsEC2ResourceTypeExcluded
+            - 'True'
+            - 'False'
           IS_LAMBDA_RESOURCE_TYPE_EXCLUDED: !If
-              - IsLambdaResourceTypeExcluded
-              - 'True'
-              - 'False'
+            - IsLambdaResourceTypeExcluded
+            - 'True'
+            - 'False'
           METADATA_QUEUE_URL: !GetAtt MetadataQueue.QueueUrl
           EC2_CHUNK_SIZE:
             Ref: EC2ChunkSize
