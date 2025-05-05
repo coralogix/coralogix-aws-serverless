@@ -14,7 +14,7 @@ Metadata:
       - metadata
       - sqs
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 0.2.0
+    SemanticVersion: 0.3.0
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -28,15 +28,23 @@ Metadata:
           default: EventBridge configuration
         Parameters:
           - EventMode
+          - OrganizationId
+      - Label:
+          default: Cross-account and cross-region configuration
+        Parameters:
+          - SourceRegions
+          - CrossAccountMode
+          - ConfigAggregatorName
+          - AccountIds
+          - CrossAccountIAMRoleName
       - Label:
           default: Integration configuration
         Parameters:
           - Schedule
-          - SourceRegions
-          - CrossAccountIAMRoleArns
           - ResourceTtlMinutes
           - LatestVersionsPerFunction
           - CollectAliases
+          - LambdaTelemetryExporterFilter
           - LambdaFunctionIncludeRegexFilter
           - LambdaFunctionExcludeRegexFilter
           - LambdaFunctionTagFilters
@@ -67,16 +75,26 @@ Metadata:
         default: Api Key
       EventMode:
         default: Event Mode
-      CrossAccountIAMRoleArns:
-        default: Cross Account IAM Role ARNs
+      CrossAccountMode:
+        default: Cross Account Mode
+      ConfigAggregatorName:
+        default: Config Aggregator Name
+      OrganizationId:
+        default: AWS Organization ID
       SourceRegions:
         default: Source AWS Regions
+      AccountIds:
+        default: Account IDs
+      CrossAccountIAMRoleName:
+        default: Cross Account IAM Role Name
       Schedule:
         default: Schedule
       LatestVersionsPerFunction:
         default: Latest Versions Per Function
       CollectAliases:
         default: Collect Aliases
+      LambdaTelemetryExporterFilter:
+        default: Lambda Telemetry Exporter Filter
       LambdaFunctionIncludeRegexFilter:
         default: Lambda Function Include Regex
       LambdaFunctionExcludeRegexFilter:
@@ -123,14 +141,40 @@ Parameters:
     Type: String
     Description: Your Coralogix Send Your Data - API Key or incase you use pre created secret (created in AWS secret manager) put here the name of the secret that contains the Coralogix send your data key
     NoEcho: true
+  CrossAccountMode:
+    Type: String
+    Description: The mode to collect metadata [Disabled, StaticIAM, Config]. Leave Disabled if you want to collect metadata from the current account only.
+    AllowedValues:
+      - Disabled
+      - StaticIAM
+      - Config
+    Default: Disabled
   SourceRegions:
     Type: String
     Description: The regions to collect metadata from, separated by commas (e.g. eu-north-1,eu-west-1,us-east-1). Leave empty if you want to collect metadata from the current region only.
     Default: ""
-  CrossAccountIAMRoleArns:
+  ConfigAggregatorName:
     Type: String
-    Description: The IAM role ARNs to collect metadata from, separated by commas (e.g. arn:aws:iam::123456789012:role/CrossAccountRole,arn:aws:iam::123456789012:role/AnotherCrossAccountRole). Leave empty if you want to collect metadata from the current account only.
+    Description: The name of the AWS Config aggregator to collect metadata from. Leave empty if you want to collect metadata from the current account only.
     Default: ""
+  AccountIds:
+    Type: String
+    Description: The account IDs to collect metadata from, separated by commas (e.g. 123456789012,123456789013). Leave empty if you want to collect metadata from the current account only.
+    Default: ""
+  CrossAccountIAMRoleName:
+    Type: String
+    Description: The name of the IAM role to collect metadata from. Leave empty if you want to collect metadata from the current account only.
+    Default: ""
+  # to get this value, run the following command:
+  # aws organizations describe-organization --query 'Organization.Id' --output text
+  # TODO! Follow this ticket to check whether it becomes native in CF:
+  # https://github.com/aws-cloudformation/cfn-language-discussion/issues/57
+  OrganizationId:
+    Type: String
+    Description: "AWS Organization ID (starts with 'o-'). Leave empty to disable cross-account access."
+    Default: ""
+    AllowedPattern: "^$|^o-[a-z0-9]{10,32}$"
+    ConstraintDescription: "Must be empty or a valid Organization ID starting with 'o-' followed by 10-32 alphanumeric characters"
   EventMode:
     Type: String
     Description: Enable real-time processing of CloudTrail events via EventBridge [Disabled, EnabledWithExistingTrail, EnabledCreateTrail]. Note that it will be created in the current region only.
@@ -157,6 +201,13 @@ Parameters:
     Type: String
     Description: '[True/False]'
     Default: 'False'
+  LambdaTelemetryExporterFilter:
+    Type: String
+    Description: '[True/False] If specified, only lambda functions with telemetry-exporter layer will be included in the collected metadata'
+    AllowedValues:
+      - 'True'
+      - 'False'
+    Default: "False"
   LambdaFunctionIncludeRegexFilter:
     Type: String
     Description: 'If specified, only lambda functions with ARNs matching the regex will be included in the collected metadata'
@@ -287,13 +338,14 @@ Conditions:
     Fn::Equals:
       - Ref: ExcludedLambdaResourceType
       - 'False'
-  IsEventModeEnabled: !Or
-    - !Equals [!Ref EventMode, EnabledWithExistingTrail]
-    - !Equals [!Ref EventMode, EnabledCreateTrail]
-  ShouldCreateCloudTrail: !Equals [!Ref EventMode, EnabledCreateTrail]
-  UseExistingCloudTrail: !Equals [!Ref EventMode, EnabledWithExistingTrail]
-  MultiRegionEnabled: !Not [!Equals [!Ref SourceRegions, ""]]
-  MultiAccountEnabled: !Not [!Equals [!Ref CrossAccountIAMRoleArns, ""]]
+  IsEventModeEnabled: !Not [!Equals [!Ref EventMode, Disabled]]
+  EventModeCreateTrail: !Equals [!Ref EventMode, EnabledCreateTrail]
+  CrossRegionEnabled: !Not [!Equals [!Ref SourceRegions, ""]]
+  CrossAccountEnabled: !Not [!Equals [!Ref CrossAccountMode, Disabled]]
+  CrossAccountIamMode: !Equals [!Ref CrossAccountMode, StaticIAM]
+  CrossAccountConfigMode: !Equals [!Ref CrossAccountMode, Config]
+  CrossAccountHasOrgId: !Not [!Equals [!Ref OrganizationId, ""]]
+
 Resources:
   MetadataQueue:
     Type: AWS::SQS::Queue
@@ -301,8 +353,26 @@ Resources:
       VisibilityTimeout: 900
       MessageRetentionPeriod: 3600
 
+  MetadataQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Condition: CrossAccountHasOrgId
+    Properties:
+      Queues:
+        - !Ref MetadataQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: sqs:SendMessage
+            Resource: !GetAtt MetadataQueue.Arn
+            Condition:
+              StringEquals:
+                "aws:PrincipalOrgID": !Ref OrganizationId
+
   CollectorLambdaFunction:
     Type: AWS::Serverless::Function
+    DependsOn: MetadataQueue
     Properties:
       Description: Collect AWS resource metadata for Coralogix.
       CodeUri: ./collector
@@ -323,24 +393,34 @@ Resources:
           LAMBDA_FUNCTION_TAG_FILTERS:
             Ref: LambdaFunctionTagFilters
           REGIONS: !If
-            - MultiRegionEnabled
+            - CrossRegionEnabled
             - Ref: SourceRegions
             - !Ref 'AWS::NoValue'
-          CROSSACCOUNT_IAM_ROLE_ARNS: !If
-            - MultiAccountEnabled
-            - Ref: CrossAccountIAMRoleArns
+          CROSSACCOUNT_MODE:
+            - Ref: CrossAccountMode
+          CROSSACCOUNT_IAM_ACCOUNTIDS: !If
+            - CrossAccountIamMode
+            - Ref: AccountIds
+            - !Ref 'AWS::NoValue'
+          CROSSACCOUNT_IAM_ROLENAME: !If
+            - CrossAccountEnabled
+            - Ref: CrossAccountIAMRoleName
+            - !Ref 'AWS::NoValue'
+          CROSSACCOUNT_CONFIG_AGGREGATOR: !If
+            - CrossAccountConfigMode
+            - Ref: ConfigAggregatorName
             - !Ref 'AWS::NoValue'
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
           IS_EC2_RESOURCE_TYPE_EXCLUDED: !If
-              - IsEC2ResourceTypeExcluded
-              - 'True'
-              - 'False'
+            - IsEC2ResourceTypeExcluded
+            - 'True'
+            - 'False'
           IS_LAMBDA_RESOURCE_TYPE_EXCLUDED: !If
-              - IsLambdaResourceTypeExcluded
-              - 'True'
-              - 'False'
-          METADATA_QUEUE_URL: !Ref MetadataQueue
+            - IsLambdaResourceTypeExcluded
+            - 'True'
+            - 'False'
+          METADATA_QUEUE_URL: !GetAtt MetadataQueue.QueueUrl
           EC2_CHUNK_SIZE:
             Ref: EC2ChunkSize
       Events:
@@ -355,7 +435,7 @@ Resources:
           OnFailure:
             Type: SNS
       Policies:
-        - !If 
+        - !If
           - IsNotEC2ResourceTypeExcluded
           - Version: "2012-10-17"
             Statement:
@@ -374,7 +454,7 @@ Resources:
                 Action:
                   - lambda:ListFunctions
                 Resource: "*"
-          - !Ref 'AWS::NoValue' 
+          - !Ref 'AWS::NoValue'
         - Version: "2012-10-17"
           Statement:
             - Sid: GetResourcesByTags
@@ -388,13 +468,22 @@ Resources:
                 - sqs:SendMessage
               Resource: !GetAtt MetadataQueue.Arn
         - !If
-          - MultiAccountEnabled
+          - CrossAccountIamMode
           - Version: "2012-10-17"
             Statement:
               - Sid: AssumeCrossAccountRoles
                 Effect: Allow
                 Action: sts:AssumeRole
-                Resource: !Split [",", !Ref CrossAccountIAMRoleArns]
+                Resource: !Sub "arn:aws:iam::*:role/${CrossAccountIAMRoleName}"
+          - !Ref 'AWS::NoValue'
+        - !If
+          - CrossAccountConfigMode
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetConfigAggregator
+                Effect: Allow
+                Action: config:SelectAggregateResourceConfig
+                Resource: "*"
           - !Ref 'AWS::NoValue'
 
   CollectorLambdaFunctionNotificationSubscription:
@@ -428,13 +517,15 @@ Resources:
             Ref: CollectAliases
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
-          CROSSACCOUNT_IAM_ROLE_ARNS: !If
-            - MultiAccountEnabled
-            - Ref: CrossAccountIAMRoleArns
+          LAMBDA_LAYER_FILTER:
+            Ref: LambdaTelemetryExporterFilter
+          CROSSACCOUNT_IAM_ROLENAME: !If
+            - CrossAccountEnabled
+            - Ref: CrossAccountIAMRoleName
             - !Ref 'AWS::NoValue'
           CORALOGIX_METADATA_URL: !If
             - IsRegionCustomUrlEmpty
-            - !Sub  'ingress.${CustomDomain}:443'
+            - !Sub 'ingress.${CustomDomain}:443'
             - !Sub
               - '${Prefix}${Domain}${Suffix}'
               - Prefix: ingress.
@@ -457,6 +548,16 @@ Resources:
           OnFailure:
             Type: SNS
       Policies:
+        - !If 
+          - IsNotEC2ResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetEc2Metadata
+                Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                Resource: "*"
+          - !Ref 'AWS::NoValue'
         - !If
           - IsNotLambdaResourceTypeExcluded
           - Version: "2012-10-17"
@@ -465,7 +566,9 @@ Resources:
                 Effect: Allow
                 Action:
                   - lambda:ListVersionsByFunction
-                  - lambda:GetFunction
+                  - lambda:GetFunctionConfiguration
+                  - lambda:GetFunctionConcurrency
+                  - lambda:ListTags
                   - lambda:ListAliases
                   - lambda:ListEventSourceMappings
                   - lambda:GetPolicy
@@ -481,13 +584,13 @@ Resources:
                 - sqs:GetQueueAttributes
               Resource: !GetAtt MetadataQueue.Arn
         - !If
-          - MultiAccountEnabled
+          - CrossAccountEnabled
           - Version: "2012-10-17"
             Statement:
               - Sid: AssumeCrossAccountRoles
                 Effect: Allow
                 Action: sts:AssumeRole
-                Resource: !Split [",", !Ref CrossAccountIAMRoleArns]
+                Resource: !Sub "arn:aws:iam::*:role/${CrossAccountIAMRoleName}"
           - !Ref 'AWS::NoValue'
 
   GeneratorLambdaFunctionSM:
@@ -514,6 +617,12 @@ Resources:
             Ref: CollectAliases
           RESOURCE_TTL_MINUTES:
             Ref: ResourceTtlMinutes
+          LAMBDA_LAYER_FILTER:
+            Ref: LambdaTelemetryExporterFilter
+          CROSSACCOUNT_IAM_ROLENAME: !If
+            - CrossAccountEnabled
+            - Ref: CrossAccountIAMRoleName
+            - !Ref 'AWS::NoValue'
           CORALOGIX_METADATA_URL: !If
             - IsRegionCustomUrlEmpty
             - !Sub  'ingress.${CustomDomain}:443'
@@ -522,17 +631,13 @@ Resources:
               - Prefix: ingress.
                 Domain: !FindInMap [CoralogixRegionMap, !Ref CoralogixRegion, MetadataUrl]
                 Suffix: :443
-          CROSSACCOUNT_IAM_ROLE_ARNS: !If
-            - MultiAccountEnabled
-            - Ref: CrossAccountIAMRoleArns
-            - !Ref 'AWS::NoValue'
           AWS_LAMBDA_EXEC_WRAPPER: /opt/wrapper.sh
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
           SECRET_NAME: !If
-              - CreateSecret
-              - ""
-              - Ref: ApiKey
+            - CreateSecret
+            - ""
+            - Ref: ApiKey
       Events:
         SQSEvent:
           Type: SQS
@@ -546,6 +651,16 @@ Resources:
           OnFailure:
             Type: SNS
       Policies:
+        - !If 
+          - IsNotEC2ResourceTypeExcluded
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: GetEc2Metadata
+                Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                Resource: "*"
+          - !Ref 'AWS::NoValue'
         - !If
           - IsNotLambdaResourceTypeExcluded
           - Version: "2012-10-17"
@@ -554,7 +669,9 @@ Resources:
                 Effect: Allow
                 Action:
                   - lambda:ListVersionsByFunction
-                  - lambda:GetFunction
+                  - lambda:GetFunctionConfiguration
+                  - lambda:GetFunctionConcurrency
+                  - lambda:ListTags
                   - lambda:ListAliases
                   - lambda:ListEventSourceMappings
                   - lambda:GetPolicy
@@ -570,20 +687,20 @@ Resources:
                 - sqs:GetQueueAttributes
               Resource: !GetAtt MetadataQueue.Arn
         - !If
-          - MultiAccountEnabled
+          - CrossAccountEnabled
           - Version: "2012-10-17"
             Statement:
               - Sid: AssumeCrossAccountRoles
                 Effect: Allow
                 Action: sts:AssumeRole
-                Resource: !Split [",", !Ref CrossAccountIAMRoleArns]
+                Resource: !Sub "arn:aws:iam::*:role/${CrossAccountIAMRoleName}"
           - !Ref 'AWS::NoValue'
         - SecretsManagerReadWrite
 
   PrivateKeySecret:
     Condition: CreateSecret
     Type: AWS::SecretsManager::Secret
-    Properties: 
+    Properties:
       Description: Coralogix Send Your Data key Secret
       Name: !Sub
         - 'lambda/coralogix/${AWS::Region}/${function}'
@@ -605,7 +722,7 @@ Resources:
 
   CloudTrailBucket:
     Type: AWS::S3::Bucket
-    Condition: ShouldCreateCloudTrail
+    Condition: EventModeCreateTrail
     DeletionPolicy: Retain
     Properties:
       BucketName: !Sub metadata-cloudtrail-${AWS::AccountId}-${AWS::Region}
@@ -617,7 +734,7 @@ Resources:
 
   CloudTrailBucketPolicy:
     Type: AWS::S3::BucketPolicy
-    Condition: ShouldCreateCloudTrail
+    Condition: EventModeCreateTrail
     Properties:
       Bucket: !Ref CloudTrailBucket
       PolicyDocument:
@@ -641,7 +758,7 @@ Resources:
 
   CloudTrail:
     Type: AWS::CloudTrail::Trail
-    Condition: ShouldCreateCloudTrail
+    Condition: EventModeCreateTrail
     DependsOn:
       - CloudTrailBucketPolicy
     Properties:

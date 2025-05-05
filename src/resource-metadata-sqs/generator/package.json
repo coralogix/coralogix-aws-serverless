@@ -1,7 +1,7 @@
 {
   "name": "coralogix-resource-generator",
   "title": "AWS Resource Generator Lambda function for Coralogix",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "AWS Lambda function to generate AWS EC2/Lambda resources for Coralogix",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",

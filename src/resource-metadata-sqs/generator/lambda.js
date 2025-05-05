@@ -1,7 +1,7 @@
 import assert from 'assert';
-import { LambdaClient, GetFunctionCommand, ListAliasesCommand, GetPolicyCommand, ListVersionsByFunctionCommand, ListEventSourceMappingsCommand } from '@aws-sdk/client-lambda';
-import { STSClient, AssumeRoleCommand, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
+import { LambdaClient, GetFunctionConfigurationCommand, GetFunctionConcurrencyCommand, ListTagsCommand, ListAliasesCommand, GetPolicyCommand, ListVersionsByFunctionCommand, ListEventSourceMappingsCommand } from '@aws-sdk/client-lambda';
 import { schemaUrl, extractArchitecture, intAttr, stringAttr, traverse, flatTraverse } from './common.js';
+import { assumeRole, getAccountId } from './crossaccount.js';
 
 const validateAndExtractConfiguration = () => {
     assert(process.env.LATEST_VERSIONS_PER_FUNCTION, "LATEST_VERSIONS_PER_FUNCTION env var missing!");
@@ -10,39 +10,18 @@ const validateAndExtractConfiguration = () => {
     const resourceTtlMinutes = parseInt(process.env.RESOURCE_TTL_MINUTES, 10);
     assert(process.env.COLLECT_ALIASES, "COLLECT_ALIASES env var missing!");
     const collectAliases = String(process.env.COLLECT_ALIASES).toLowerCase() === "true";
-    const roleArns = process.env.CROSSACCOUNT_IAM_ROLE_ARNS ? process.env.CROSSACCOUNT_IAM_ROLE_ARNS.split(',') : [];
-    return { latestVersionsPerFunction, resourceTtlMinutes, collectAliases, roleArns };
+    assert(process.env.LAMBDA_LAYER_FILTER, "LAMBDA_LAYER_FILTER env var missing!");
+    const lambdaTelemetryExporterFilter = String(process.env.LAMBDA_LAYER_FILTER).toLowerCase() === "true";
+    const roleName = process.env.CROSSACCOUNT_IAM_ROLENAME ? process.env.CROSSACCOUNT_IAM_ROLENAME : "CrossAccountLambdaRole";
+    return { latestVersionsPerFunction, resourceTtlMinutes, collectAliases, roleName, lambdaTelemetryExporterFilter };
 };
-const { latestVersionsPerFunction, resourceTtlMinutes, collectAliases, roleArns } = validateAndExtractConfiguration();
-
-// Function to assume a role using AWS SDK v3
-const assumeRole = async (roleArn) => {
-    const stsClient = new STSClient({});
-    const command = new AssumeRoleCommand({
-        RoleArn: roleArn,
-        RoleSessionName: 'CrossAccountLambdaSession'
-    });
-    const data = await stsClient.send(command);
-    return {
-        accessKeyId: data.Credentials.AccessKeyId,
-        secretAccessKey: data.Credentials.SecretAccessKey,
-        sessionToken: data.Credentials.SessionToken
-    };
-};
-
-const getAccountId = async () => {
-    const stsClient = new STSClient({});
-    const command = new GetCallerIdentityCommand({});
-    const data = await stsClient.send(command);
-    return data.Account;
-};
-
+const { latestVersionsPerFunction, resourceTtlMinutes, collectAliases, roleName, lambdaTelemetryExporterFilter } = validateAndExtractConfiguration();
 
 export const generateLambdaResources = async (region, accountId, functions) => {
     // Normalize function objects to handle both cases
     functions = functions.map(f => ({
-        functionArn: f.functionArn ?? f.FunctionArn,
-        functionName: f.functionName ?? f.FunctionName,
+        functionArn: f.functionArn ?? f.FunctionArn ?? f.ResourceArn,
+        functionName: f.functionName ?? f.FunctionName ?? f.ResourceId,
         ...f
     }));
 
@@ -53,11 +32,7 @@ export const generateLambdaResources = async (region, accountId, functions) => {
         // Create normal LambdaClient for the current account
         lambdaClient = new LambdaClient({ region });
     } else {
-        // Find the appropriate role ARN for the different account
-        const roleArn = roleArns.find(arn => arn.includes(accountId));
-        if (!roleArn) {
-            throw new Error(`No role ARN found for account ID: ${accountId}`);
-        }
+        const roleArn = `arn:aws:iam::${accountId}:role/${roleName}`;
 
         // Assume role and create LambdaClient with assumed credentials
         const credentials = await assumeRole(roleArn);
@@ -82,8 +57,22 @@ const generateFunctionAndAliasResources = async (lambdaClient, listOfFunctions) 
         // Handle both Lambda API and EventBridge property casing
         const functionName = lambdaFunctionVersionLatest.functionName ?? lambdaFunctionVersionLatest.FunctionName;
         try {
-            const lambdaFunction = await lambdaClient.send(new GetFunctionCommand({ FunctionName: functionName }));
-            const functionResource = makeLambdaFunctionResource(lambdaFunction);
+            const lambdaFunction = await lambdaClient.send(new GetFunctionConfigurationCommand({ FunctionName: functionName }));
+
+            if (lambdaTelemetryExporterFilter) {
+                console.log(lambdaFunction);
+                const layers = lambdaFunction.Layers || [];
+                const hasTelemetryLayer = layers.some(layer =>
+                    (layer.Arn || '').includes('coralogix-aws-lambda-telemetry-exporter')
+                );
+
+                if (!hasTelemetryLayer) {
+                    console.log(`Skipping function ${functionName} as it doesn't have the telemetry exporter layer`);
+                    return null;
+                }
+            }
+
+            const functionResource = await makeLambdaFunctionResource(lambdaFunction, lambdaClient);
 
             const aliases = collectAliases
                 ? (await lambdaClient.send(new ListAliasesCommand({ FunctionName: functionName })))?.Aliases
@@ -92,7 +81,7 @@ const generateFunctionAndAliasResources = async (lambdaClient, listOfFunctions) 
 
             const versions = latestVersionsPerFunction > 0
                 ? (await lambdaClient.send(new ListVersionsByFunctionCommand({ FunctionName: functionName }))).Versions
-                : [lambdaFunctionVersionLatest];
+                : [lambdaFunction];
 
             const versionsToCollect = versions.filter((version, index) => {
                 const versionNumber = version.version ?? version.Version;
@@ -106,24 +95,38 @@ const generateFunctionAndAliasResources = async (lambdaClient, listOfFunctions) 
             return { functionResource, aliasResources, versionsToCollect };
         } catch (error) {
             console.warn(`Failed to generate metadata of ${functionName}: `, error.stack);
+            return null;
         }
     });
 
-    if (listOfFunctions.length > 0 && results.length == 0) {
-        console.error("Failed to generate metadata of any lambda function.");
-        throw "Failed to generate metadata of any lambda function.";
+    // Filter out null results (skipped functions)
+    const validResults = results.filter(result => result !== null);
+
+    if (listOfFunctions.length > 0 && validResults.length === 0) {
+        if (lambdaTelemetryExporterFilter) {
+            console.info("No functions with telemetry exporter layer were found. Skipping metadata generation.");
+        } else {
+            console.info("No eligible functions were found. Skipping metadata generation.");
+        }
+
+        // Return empty arrays instead of throwing an error
+        return {
+            functionResources: [],
+            aliasResources: [],
+            versionsToCollect: []
+        };
     }
 
     return {
-        functionResources: results.map(x => x.functionResource),
-        aliasResources: results.flatMap(x => x.aliasResources),
-        versionsToCollect: results.flatMap(x => x.versionsToCollect),
+        functionResources: validResults.map(x => x.functionResource),
+        aliasResources: validResults.flatMap(x => x.aliasResources),
+        versionsToCollect: validResults.flatMap(x => x.versionsToCollect),
     };
 };
 
 const generateFunctionVersionResources = async (lambdaClient, versionsToCollect) =>
     await traverse(versionsToCollect, async (lambdaFunctionVersion, index) => {
-        const version = lambdaFunctionVersion.version ?? lambdaFunctionVersion.Version;
+        const version = lambdaFunctionVersion.version ?? lambdaFunctionVersion.Version ?? '$LATEST';
         const functionName = lambdaFunctionVersion.functionName ?? lambdaFunctionVersion.FunctionName;
         const functionNameForRequests = version === "$LATEST"
             ? functionName
@@ -149,8 +152,8 @@ const generateFunctionVersionResources = async (lambdaClient, versionsToCollect)
         return functionVersionResource;
     });
 
-const makeLambdaFunctionResource = (f) => {
-    const functionArn = f.Configuration.functionArn ?? f.Configuration.FunctionArn;
+const makeLambdaFunctionResource = async (f, lambdaClient) => {
+    const functionArn = f.functionArn ?? f.FunctionArn ?? f.ResourceArn;
     const arn = parseLambdaFunctionArn(functionArn);
 
     const attributes = [
@@ -160,12 +163,14 @@ const makeLambdaFunctionResource = (f) => {
         stringAttr("cloud.region", arn.region),
         stringAttr("cloud.resource_id", functionArn),
         stringAttr("faas.name", arn.functionName),
-        stringAttr("lambda.last_update_status", f.Configuration.lastUpdateStatus ?? f.Configuration.LastUpdateStatus),
+        stringAttr("lambda.last_update_status", f.lastUpdateStatus ?? f.LastUpdateStatus),
     ];
 
-    attributes.push(...convertFunctionTagsToAttributes(f.Tags));
+    const tags = await lambdaClient.send(new ListTagsCommand({ Resource: functionArn }));
+    attributes.push(...convertFunctionTagsToAttributes(tags.Tags));
 
-    const reservedConcurrency = f.Concurrency?.ReservedConcurrentExecutions || f.concurrency?.reservedConcurrentExecutions;
+    const concurrency = await lambdaClient.send(new GetFunctionConcurrencyCommand({ FunctionName: functionArn }));
+    const reservedConcurrency = concurrency.ReservedConcurrentExecutions;
     if (reservedConcurrency) {
         attributes.push(intAttr("lambda.reserved_concurrency", reservedConcurrency));
     }
@@ -193,7 +198,7 @@ const makeLambdaFunctionVersionResource = (fv, eventSourceMappings, maybePolicy)
     const originalArn = fv.functionArn ?? fv.FunctionArn;
     const arn = parseLambdaFunctionVersionArn(originalArn);
     const functionArn = `arn:aws:lambda:${arn.region}:${arn.accountId}:function:${arn.functionName}`;
-    const version = fv.version ?? fv.Version;
+    const version = fv.version ?? fv.Version ?? '$LATEST';
     const functionVersionArn = `arn:aws:lambda:${arn.region}:${arn.accountId}:function:${arn.functionName}:${version}`;
     const resourceId = functionVersionArn;
     const architectures = fv.architectures ?? fv.Architectures;

@@ -1,6 +1,7 @@
 # General files
 .git/
 .idea/
+.vscode/
 .DS_Store
 
 # SAM files

@@ -1,17 +1,62 @@
 import assert from 'assert';
 import { schemaUrl, stringAttr } from './common.js';
+import { EC2Client, DescribeInstancesCommand } from "@aws-sdk/client-ec2";
+import { assumeRole, getAccountId } from './crossaccount.js';
 
 const validateAndExtractConfiguration = () => {
     assert(process.env.RESOURCE_TTL_MINUTES, "RESOURCE_TTL_MINUTES env var missing!");
     const resourceTtlMinutes = parseInt(process.env.RESOURCE_TTL_MINUTES, 10);
-    return { resourceTtlMinutes };
+    const roleName = process.env.CROSSACCOUNT_IAM_ROLENAME ? process.env.CROSSACCOUNT_IAM_ROLENAME : "CrossAccountEC2Role";
+    return { resourceTtlMinutes, roleName };
 };
-const { resourceTtlMinutes } = validateAndExtractConfiguration();
+const { resourceTtlMinutes, roleName } = validateAndExtractConfiguration();
 
-export const generateEc2Resources = async (region, accountId, instances) => {
+export const generateEc2Resources = async (region, accountId, instances, mode = "api") => {
+    let instancesArray = [];
 
-    console.info("Generating EC2 instances");
-    const instanceResources = instances.map(i => makeEc2InstanceResource(i, region, accountId));
+    // If mode is "config", fetch detailed information using DescribeInstances
+    if (mode === "config") {
+        // Extract instance IDs from the resources array
+        const instanceIds = instances.map(resource => resource.ResourceId);
+        console.log(`Fetching details for ${instanceIds.length} EC2 instances in ${region} using AWS EC2 API`);
+
+        // Create EC2 client with appropriate credentials
+        const currentAccountId = await getAccountId();
+        let ec2Client;
+
+        if (accountId === currentAccountId) {
+            // Create normal EC2Client for the current account
+            ec2Client = new EC2Client({ region });
+        } else {
+            const roleArn = `arn:aws:iam::${accountId}:role/${roleName}`;
+
+            // Assume role and create EC2Client with assumed credentials
+            const credentials = await assumeRole(roleArn);
+            ec2Client = new EC2Client({ region, credentials });
+        }
+        // Fetch detailed instance information
+        console.log(instanceIds)
+        const command = new DescribeInstancesCommand({
+            InstanceIds: instanceIds
+        });
+
+        const response = await ec2Client.send(command);
+
+        // DescribeInstances returns data in a nested Reservations > Instances structure
+        for (const reservation of response.Reservations || []) {
+            for (const instance of reservation.Instances || []) {
+                instancesArray.push(instance);
+            }
+        }
+
+        console.log(`Successfully retrieved details for ${instancesArray.length} EC2 instances`);
+    }
+    else {
+        instancesArray = instances;
+    }
+
+    console.log(`Processing ${instancesArray.length} EC2 instances in ${region}`);
+    const instanceResources = instancesArray.map(i => makeEc2InstanceResource(i, region, accountId));
 
     instanceResources.forEach((f, index) =>
         console.debug(`Ec2Instance (${index + 1}/${instanceResources.length}): ${JSON.stringify(f)}`)

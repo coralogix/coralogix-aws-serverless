@@ -52,14 +52,20 @@ const processMessage = async (event, context) => {
     console.info(`Collector ${collectorId} starting collection`);
 
     switch (event.source.toLowerCase()) {
-        case "collector.ec2":
-            await generateAndSendEc2Resources(collectorId, event.region, event.account, event.resources);
+        case "collector.ec2.api":
+            await generateAndSendEc2Resources(collectorId, event.region, event.account, event.resources, "api");
             break;
-        case "collector.lambda":
+        case "collector.lambda.api":
+            await generateAndSendLambdaResources(collectorId, event.region, event.account, event.resources);
+            break;
+        case "collector.ec2.config":
+            await generateAndSendEc2Resources(collectorId, event.region, event.account, event.resources, "config");
+            break;
+        case "collector.lambda.config":
             await generateAndSendLambdaResources(collectorId, event.region, event.account, event.resources);
             break;
         case "aws.ec2":
-            await generateAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId, event.detail.responseElements.instancesSet.items);
+            await generateAndSendEc2Resources(collectorId, invokedArn.region, invokedArn.accountId, event.detail.responseElements.instancesSet.items, mode = "api");
             break;
         case "aws.lambda":
             await generateAndSendLambdaResources(collectorId, invokedArn.region, invokedArn.accountId, [event.detail.responseElements]);
@@ -74,14 +80,26 @@ const processMessage = async (event, context) => {
 const generateAndSendLambdaResources = async (collectorId, region, accountId, resources) => {
     console.info(`Generating Lambda resources from ${region}`);
     const lambdaResources = await generateLambdaResources(region, accountId, resources);
+
+    if (lambdaResources.length === 0) {
+        console.info("No resources to send to Coralogix - skipping");
+        return;
+    }
+
     console.info("Sending Lambda resources to coralogix");
     await sendToCoralogix({ collectorId, resources: lambdaResources });
     console.info("Sent Lambda resources to coralogix");
 };
 
-const generateAndSendEc2Resources = async (collectorId, region, accountId, resources) => {
+const generateAndSendEc2Resources = async (collectorId, region, accountId, resources, mode) => {
     console.info(`Generating EC2 resources from ${region}`);
-    const ec2Resources = await generateEc2Resources(region, accountId, resources);
+    const ec2Resources = await generateEc2Resources(region, accountId, resources, mode);
+
+    if (ec2Resources.length === 0) {
+        console.info("No resources to send to Coralogix - skipping");
+        return;
+    }
+
     console.info("Sending EC2 resources to coralogix");
     await sendToCoralogix({ collectorId, resources: ec2Resources });
     console.info("Sent EC2 resources to coralogix");
