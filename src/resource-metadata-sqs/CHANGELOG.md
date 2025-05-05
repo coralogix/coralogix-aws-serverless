@@ -2,6 +2,9 @@
 
 ## resource-metadata-sqs
 
+### 0.3.1 / 05.05.2025
+* [Fix] Mention crossaccount.js in package.json to make it a part of the build
+
 ### 0.3.0 / 30.04.2025
 * [Feature] Cross-account collection has multiple options now: AWS Config and Static Account List
 * [Feature] Enable cross-account Eventbridge events reception by SQS queue

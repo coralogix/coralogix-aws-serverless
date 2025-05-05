@@ -1,7 +1,7 @@
 {
   "name": "coralogix-resource-generator",
   "title": "AWS Resource Generator Lambda function for Coralogix",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "AWS Lambda function to generate AWS EC2/Lambda resources for Coralogix",
   "homepage": "https://coralogix.com",
   "license": "Apache-2.0",
@@ -46,6 +46,7 @@
     "coralogix.js",
     "ec2.js",
     "lambda.js",
+    "crossaccount.js",
     "proto/service.proto",
     "proto/opentelemetry/proto/common/v1/common.proto"
   ]
