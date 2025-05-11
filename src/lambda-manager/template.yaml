@@ -16,7 +16,7 @@ Metadata:
       - cloudwatch
       - lambda
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 2.0.8
+    SemanticVersion: 2.0.9
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -30,6 +30,7 @@ Metadata:
           - DestinationRole
           - DestinationType
           - ScanOldLogGroups
+          - AddPermissionsToAllLogGroups
       - Label:
           default: Lambda configuration
         Parameters:
@@ -61,6 +62,10 @@ Parameters:
   ScanOldLogGroups:
     Type: String
     Description: Scan old log groups
+    Default: false
+  AddPermissionsToAllLogGroups:
+    Type: String
+    Description: Add permissions to allow all existing and new log groups to subscribe to the destination
     Default: false
   RegexPattern:
     Type: String
@@ -155,6 +160,8 @@ Resources:
             Ref: DestinationType
           SCAN_OLD_LOGGROUPS:
             Ref: ScanOldLogGroups
+          ADD_PERMISSIONS_TO_ALL_LOG_GROUPS:
+            Ref: AddPermissionsToAllLogGroups
           LOG_GROUP_PERMISSION_PREFIX:
             Ref: LogGroupPermissionPreFix
           AWS_API_REUESTS_LIMIT:
