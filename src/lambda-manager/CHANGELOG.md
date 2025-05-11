@@ -2,9 +2,9 @@
 
 ## lambda-manager
 
-## 2.0.9  / 8-05-2025
+## 2.0.9  / 11-05-2025
 ###  💡 Enhancements 💡
-- Add new parameter AddPermissionsToAllLogGroups. When set to true, the code will allow to all existing and new log groups using a wildcard to subscribe to the destination.
+- Add new parameter AddPermissionsToAllLogGroups. When set to true, grants subscription permissions to the destination for all current and future log groups using a wildcard.
 
 ## 2.0.8  / 30-04-2025
 ###  💡 Enhancements 💡

@@ -13,7 +13,7 @@ Environment variables:
 | DISABLE_ADD_PERMISSION | Skip Adding LogGroup Permission for lambda | false | |
 | DESTINATION_TYPE | Type of destination (Lambda or Firehose) | | :heavy_check_mark: |
 | SCAN_OLD_LOGGROUPS | When true, the Lambda scans all existing log groups on creation and adds those matching RegexPattern as triggers. After creation, only new log groups are detected. | false | |
-| ADD_PERMISSIONS_TO_ALL_LOG_GROUPS | When true, grants subscription permissions to all current and future log groups using a wildcard. | false | |
+| ADD_PERMISSIONS_TO_ALL_LOG_GROUPS | When set to true, grants subscription permissions to the destination for all current and future log groups using a wildcard | false | |
 | LogGroupPermissionPreFix | Instead of creating one permission for each log group in the destination lambda, the code will take the prefix that you set in the parameter and create 1 permission for all of the log groups that match the prefix, for example if you will define "/aws/log/logs" than the lambda will create only 1 permission for all of your log groups that start with /aws/log/logs instead of 1 permision for each of the log group. use this parameter when you have more than 50 log groups. Pay attention that you will not see the log groups as a trigger in the lambda if you use this parameter. | n/a | |
 | AWSApiRequestsLimit | In case you got an error in the lambda which is related to ThrottlingException, then you can increase the limit of the requests that the lambda can do to the AWS API using this variable. | 10 |  |
 | FunctionMemorySize | The maximum allocated memory this lambda may consume. The default value is the minimum recommended setting please consult coralogix support before changing. | 1024 |  |
