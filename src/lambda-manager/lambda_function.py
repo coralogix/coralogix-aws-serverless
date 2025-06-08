@@ -18,18 +18,17 @@ def lambda_handler(event, context):
     status = cfnresponse.SUCCESS
     lambda_client = boto3.client('lambda', config=config)
     try:
-        regex_pattern_list  = os.environ.get('REGEX_PATTERN').split(',')
-        destination_type    = os.environ.get('DESTINATION_TYPE')
-        add_permissions_to_all_log_groups = os.environ.get('ADD_PERMISSIONS_TO_ALL_LOG_GROUPS', 'false')
-        logs_filter         = os.environ.get('LOGS_FILTER', '')
-        scan_old_log_groups = os.environ.get('SCAN_OLD_LOGGROUPS', 'false')
-        destination_arn     = os.environ.get('DESTINATION_ARN')
+        regex_pattern_list     = os.environ.get('REGEX_PATTERN').split(',')
+        destination_type       = os.environ.get('DESTINATION_TYPE')
+        logs_filter            = os.environ.get('LOGS_FILTER', '')
+        scan_old_log_groups    = os.environ.get('SCAN_OLD_LOGGROUPS', 'false')
+        destination_arn        = os.environ.get('DESTINATION_ARN')
+        filter_name            = 'Coralogix_Filter_' + str(uuid.uuid4())
+        region                 = context.invoked_function_arn.split(":")[3]
+        account_id             = context.invoked_function_arn.split(":")[4]
         disable_add_permission = os.environ.get('DISABLE_ADD_PERMISSION', 'false')
-        filter_name         = 'Coralogix_Filter_' + str(uuid.uuid4())
-        log_group_permission_prefix = os.environ.get('LOG_GROUP_PERMISSION_PREFIX', '').split(',')
-        region              = context.invoked_function_arn.split(":")[3]
-        account_id          = context.invoked_function_arn.split(":")[4]
-        log_exist_in_regex_pattern = False
+        add_permissions_to_all_log_groups = os.environ.get('ADD_PERMISSIONS_TO_ALL_LOG_GROUPS', 'false')
+        log_group_permission_prefix       = os.environ.get('LOG_GROUP_PERMISSION_PREFIX', '').split(',')
 
         if "RequestType" in event and event['RequestType'] == 'Create':
             print("Addning permissions in creation")
@@ -49,47 +48,44 @@ def lambda_handler(event, context):
 
         if scan_old_log_groups != 'true' and "RequestType" not in event:
             log_group_to_subscribe = event['detail']['requestParameters']['logGroupName']
-            describe_log_group = cloudwatch_logs.describe_log_groups(logGroupNamePattern=log_group_to_subscribe)
-            log_group_type = describe_log_group["logGroups"][0]["logGroupClass"]
             print(f"Log Group: {log_group_to_subscribe}")
-            if log_group_type == "STANDARD":
-                for regex_pattern in regex_pattern_list:
-                    if regex_pattern and re.match(regex_pattern, log_group_to_subscribe):
-                        log_exist_in_regex_pattern = True
-                    if destination_type == 'firehose':
-                        print(f"Adding subscription filter for {log_group_to_subscribe}")
-                        status = add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn)
-                        if status == cfnresponse.FAILED:
-                            print(f"retrying to add subscription filter for {log_group_to_subscribe}")
-                            add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn)
-                    elif destination_type == 'lambda':
-                        try:
-                            if not check_if_log_group_exist_in_log_group_permission_prefix(log_group_to_subscribe, log_group_permission_prefix):
-                                print("Adding permission to lambda")
-                                if disable_add_permission == 'true' or add_permissions_to_all_log_groups == 'true':
-                                    print("Skipping adding permission to lambda")
-                                else:
-                                    add_permission_to_lambda(destination_arn, log_group_to_subscribe, region, account_id)
-                            print(f"Adding subscription filter for {log_group_to_subscribe}")
-                            status = add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn)
-                            if status == cfnresponse.FAILED:
-                                print(f"retrying to add subscription filter for {log_group_to_subscribe}")
-                                if disable_add_permission == 'true' or add_permissions_to_all_log_groups == 'true':
-                                    print("Skipping adding permission to lambda")
-                                else:
-                                    add_permission_to_lambda(destination_arn, log_group_to_subscribe, region, account_id)
-                                add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn)
-                        except Exception as e:
-                            print(f"Failed to put subscription filter for {log_group_to_subscribe}: {e}")
-                            status = cfnresponse.FAILED
-                    else:
-                        print(f"Invalid destination type {destination_type}")
-                        status = cfnresponse.FAILED
-            else:
-                print(f"Log Group {log_group_to_subscribe} is not a standard log group, so it will be excluded")
+            for regex_pattern in regex_pattern_list:
+                if not re.match(regex_pattern, log_group_to_subscribe):
+                    print(f"Loggroup {log_group_to_subscribe} excluded")
+                    continue
 
-            if not log_exist_in_regex_pattern:
-                print(f"Loggroup {log_group_to_subscribe} excluded")
+                if destination_type == 'firehose':
+                    print(f"Adding subscription filter for {log_group_to_subscribe}")
+                    status = add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn)
+                    if status == cfnresponse.FAILED:
+                        print(f"retrying to add subscription filter for {log_group_to_subscribe}")
+                        add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn)
+
+                elif destination_type == 'lambda':
+                    try:
+                        if not check_if_log_group_exist_in_log_group_permission_prefix(log_group_to_subscribe, log_group_permission_prefix):
+                            if disable_add_permission == 'true' or add_permissions_to_all_log_groups == 'true':
+                                print("Skipping adding permission to lambda")
+                            else:
+                                print(f"Adding permission to lambda for {log_group_to_subscribe}")
+                                add_permission_to_lambda(destination_arn, log_group_to_subscribe, region, account_id)
+                        print(f"Adding subscription filter for {log_group_to_subscribe}")
+                        found_log_group_in_regex_pattern = True
+                    except Exception as e:
+                        print(f"Failed to put subscription filter for {log_group_to_subscribe}: {e}")
+                        status = cfnresponse.FAILED
+                else:
+                    print(f"Invalid destination type {destination_type}")
+                    status = cfnresponse.FAILED
+            if found_log_group_in_regex_pattern:
+                status = add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn)
+                if status == cfnresponse.FAILED:
+                    print(f"retrying to add subscription filter for {log_group_to_subscribe}")
+                    if disable_add_permission == 'true' or add_permissions_to_all_log_groups == 'true':
+                        print("Skipping adding permission to lambda")
+                    else:
+                        add_permission_to_lambda(destination_arn, log_group_to_subscribe, region, account_id)
+                    add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn)
     except Exception as e:
         print(f"Failed with exception: {e}")
         status = cfnresponse.FAILED
@@ -188,46 +184,29 @@ def add_subscription(filter_name: str, logs_filter: str, log_group_to_subscribe:
 
 def add_permissions_first_time(destination_arn: str, log_group_permission_prefix: list[str], region: str, account_id: str, add_permissions_to_all_log_groups: str):
     '''Add permissions to the lambda on the creation of the lambda function for the first time'''
-    lambda_client   = boto3.client('lambda', config=config)
     if add_permissions_to_all_log_groups == "true":
         print("Adding permission to all log groups with *")
-        try:
-            lambda_client.add_permission(
-                FunctionName=destination_arn,
-                StatementId=f'allow-trigger-from-all-log-groups',
-                Action='lambda:InvokeFunction',
-                Principal='logs.amazonaws.com',
-                SourceArn=f'arn:aws:logs:{region}:{account_id}:log-group:*:*',
-            )
-        except Exception as e:
-            print(f"Failed to add permission: {e}")
+        add_permission_to_lambda(destination_arn, '*', region, account_id)
     else:
         print("Adding permission to log groups with prefix")
         for prefix in log_group_permission_prefix:
-            try:
-                lambda_client.add_permission(
-                    FunctionName=destination_arn,
-                    StatementId=f'allow-trigger-from-{prefix.replace("/","")}-log-groups',
-                    Action='lambda:InvokeFunction',
-                    Principal='logs.amazonaws.com',
-                    SourceArn=f'arn:aws:logs:{region}:{account_id}:log-group:{prefix}*:*',
-                )
-            except Exception as e:
-                print(f"Failed to add permission {prefix}: {e}")
+            add_permission_to_lambda(destination_arn, prefix, region, account_id)
 
 def add_permission_to_lambda(destination_arn: str, log_group_name: str, region: str, account_id: str):
     '''In case that the log group is not part of the log_group_permission_prefix then add permissions for it to the lambda function'''
     lambda_client   = boto3.client('lambda', config=config)
     try:
+        # Replace any characters that aren't alphanumeric, hyphen, or underscore
+        log_group_statement_id = re.sub(r'[^a-zA-Z0-9\-_]', '-', log_group_name)
         lambda_client.add_permission(
             FunctionName=destination_arn,
-            StatementId=f'allow-trigger-from-{log_group_name.replace('/','')}',
+            StatementId=f'allow-trigger-from-{log_group_statement_id}',
             Action='lambda:InvokeFunction',
             Principal='logs.amazonaws.com',
             SourceArn=f'arn:aws:logs:{region}:{account_id}:log-group:{log_group_name}:*',
         )
     except Exception as e:
-        print(f"Failed to add permission to lambda {destination_arn}: {e}")
+        print(f"Failed to add permission to lambda {destination_arn}, with log group name: {log_group_name}: {e}")
 
 def check_if_log_group_exist_in_log_group_permission_prefix(log_group_name: str, log_group_permission_prefix: str) -> bool:
     '''Check if the log group is part of the log_group_permission_prefix'''

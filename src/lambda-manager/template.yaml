@@ -212,6 +212,9 @@ Resources:
                   - "logs.amazonaws.com"
                 eventName:
                   - "CreateLogGroup"
+                requestParameters:
+                  logGroupClass:
+                    - "STANDARD"
             Target:
                 Id: cx-loggroup-target
 
