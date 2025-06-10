@@ -1,3 +1,5 @@
+# Warning: This Lambda Function is deprecated and no longer supported
+
 # Coralogix-MongoDB-Atlas
 
 Collects and pushes MongoDB Atlas cluster logs, metrics (as logs), events, and alerts to Coralogix.
