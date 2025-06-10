@@ -4,7 +4,7 @@ Description: Collect and send cluster logs, metrics, events, alerts from MongoDB
 Metadata:
   AWS::ServerlessRepo::Application:
     Name: Coralogix-MongoDB-Atlas
-    Description: Collect and send cluster logs, metrics, events, alerts from MongoDB Atlas to Coralogix.
+    Description: Warning This Lambda Function is depracated and no longer supported. Collect and send cluster logs, metrics, events, alerts from MongoDB Atlas to Coralogix.
     Author: Coralogix
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE
@@ -18,7 +18,7 @@ Metadata:
       - events
       - alerts
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.12
+    SemanticVersion: 1.0.13
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
