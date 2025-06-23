@@ -2,6 +2,13 @@
 
 ## lambda-manager
 
+## 2.0.10  / 23-06-2025
+###  💡 Code Enhancements 💡
+- Remove duplication of code
+- Add a description for each function
+- Change the logging format and remove unnecessary logs
+- improve lambda run time
+
 ## 2.0.9  / 11-05-2025
 ###  💡 Enhancements 💡
 - Add new parameter AddPermissionsToAllLogGroups. When set to true, grants subscription permissions to the destination for all current and future log groups using a wildcard.
