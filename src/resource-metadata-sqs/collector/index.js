@@ -10,6 +10,7 @@
 
 "use strict";
 
+// Test comment
 import { collectLambdaResources } from './lambda.js';
 import { collectEc2Resources } from './ec2.js';
 import { sendToSqs } from './sqs.js';
