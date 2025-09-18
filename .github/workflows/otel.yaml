@@ -4,6 +4,7 @@ on:
   workflow_run:
     workflows: ['*']
     types: [completed]
+    branches: [master, try-gh-action]
 
 permissions: read-all
 
