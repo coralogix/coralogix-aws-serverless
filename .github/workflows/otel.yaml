@@ -1,4 +1,4 @@
-name: OpenTelemetry
+name: Send telemetry to Coralogix
 
 on:
   workflow_run:
