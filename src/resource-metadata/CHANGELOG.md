@@ -2,6 +2,9 @@
 
 ## resource-metadata
 
+### 1.2.12 / 04.12.2025
+* [Update] Update Node.js version to 22.x
+
 ### 1.2.11 / 15.10.2024
 * [Fix] Fix typo in the conditioning to exclude ec2/lambdas resources.
 
