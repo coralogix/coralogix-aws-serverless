@@ -28,7 +28,7 @@ To enable this feature, you need to specify the `CrossAccountMode` parameter (`D
 There are two options to collect metadata across accounts:
 
 1. IAM Cross-account roles (`StaticIAM`): loops over account IDs (`AccountIds`), assuming IAM role in each account. IAM role should have the same name in each account (`CrossAccountIAMRoleName`).
-2. AWS Config Resource Aggregator (`Config`): runs a Query on AWS Config Aggregator (`ConfigAggregatorName`) deployed in the account where the `resource-metadata` is running. It also requires IAM cross-account roles setup.
+2. AWS Config Resource Aggregator (`Config`): runs a Query on AWS Config Aggregator (`ConfigAggregatorName`). If the aggregator is in a different account, set `ConfigCrossAccountRole` to the IAM role ARN in that account; the collector will assume it when querying Config. It also requires IAM cross-account roles setup for the generator.
 
 There are many other ways to collect the metadata about Lambda functions and EC2 instances from different accounts. See [the cross-account solutions doc](./collector/CROSSACCOUNT_SOLUTIONS.md) for more details. The rest of those options can be implemented on demand.
 
@@ -215,6 +215,7 @@ EC2 only:
 | SourceRegions | The regions to collect metadata from, separated by commas (e.g. eu-north-1,eu-west-1,us-east-1). Leave empty if you want to collect metadata from the current region only. | | |
 | CrossAccountMode | The mode to collect metadata from multiple accounts[Disabled, StaticIAM, Config]. Leave Disabled if you want to collect metadata from the current account only. | Disabled | |
 | ConfigAggregatorName | The name of the AWS Config Aggregator to run the query. Used if `CrossAccountMode` is set to `Config`. | | |
+| ConfigCrossAccountRole | IAM role ARN in the account where the AWS Config aggregator lives. If set, the collector will assume this role when querying Config (use when the aggregator is in a different account). | | |
 | AccountIds | The list of account IDs, separated by comma. Used if `CrossAccountMode` is set to `StaticIAM`. | Disabled | |
 | CrossAccountIAMRoleName | The name of the IAM cross-account roles set in each source account. Used if `CrossAccountMode` is not `Disabled`. | Disabled | |
 

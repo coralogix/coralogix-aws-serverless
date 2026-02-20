@@ -47,7 +47,13 @@ export const getAccountId = async (clientConfig = {}) => {
 export const collectResourcesViaConfig = async (configAggregatorName, resourceType) => {
     console.info("Collecting Lambda resources via AWS Config");
     try {
-        const configClient = new ConfigServiceClient({ region: process.env.AWS_REGION });
+        const configRoleArn = process.env.CROSSACCOUNT_CONFIG_ASSUME_ROLE;
+        const clientConfig = { region: process.env.AWS_REGION };
+        if (configRoleArn) {
+            const credentials = await assumeRole(configRoleArn);
+            clientConfig.credentials = credentials;
+        }
+        const configClient = new ConfigServiceClient(clientConfig);
         const batchSize = 50;
 
         const baseQuery = `SELECT arn, resourceId, awsRegion, accountId WHERE resourceType = '${resourceType}'`;

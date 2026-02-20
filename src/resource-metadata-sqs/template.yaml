@@ -14,7 +14,7 @@ Metadata:
       - metadata
       - sqs
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 0.3.0
+    SemanticVersion: 0.3.2
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -35,6 +35,7 @@ Metadata:
           - SourceRegions
           - CrossAccountMode
           - ConfigAggregatorName
+          - ConfigCrossAccountRole
           - AccountIds
           - CrossAccountIAMRoleName
       - Label:
@@ -79,6 +80,8 @@ Metadata:
         default: Cross Account Mode
       ConfigAggregatorName:
         default: Config Aggregator Name
+      ConfigCrossAccountRole:
+        default: Config Cross-Account Role ARN
       OrganizationId:
         default: AWS Organization ID
       SourceRegions:
@@ -156,6 +159,10 @@ Parameters:
   ConfigAggregatorName:
     Type: String
     Description: The name of the AWS Config aggregator to collect metadata from. Leave empty if you want to collect metadata from the current account only.
+    Default: ""
+  ConfigCrossAccountRole:
+    Type: String
+    Description: IAM role ARN in the account where AWS Config aggregator lives. If set, the collector will assume this role when querying Config (use when aggregator is in a different account).
     Default: ""
   AccountIds:
     Type: String
@@ -344,6 +351,7 @@ Conditions:
   CrossAccountEnabled: !Not [!Equals [!Ref CrossAccountMode, Disabled]]
   CrossAccountIamMode: !Equals [!Ref CrossAccountMode, StaticIAM]
   CrossAccountConfigMode: !Equals [!Ref CrossAccountMode, Config]
+  ConfigCrossAccountRoleSet: !Not [!Equals [!Ref ConfigCrossAccountRole, ""]]
   CrossAccountHasOrgId: !Not [!Equals [!Ref OrganizationId, ""]]
 
 Resources:
@@ -409,6 +417,10 @@ Resources:
           CROSSACCOUNT_CONFIG_AGGREGATOR: !If
             - CrossAccountConfigMode
             - Ref: ConfigAggregatorName
+            - !Ref 'AWS::NoValue'
+          CROSSACCOUNT_CONFIG_ASSUME_ROLE: !If
+            - ConfigCrossAccountRoleSet
+            - Ref: ConfigCrossAccountRole
             - !Ref 'AWS::NoValue'
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: 10
@@ -484,6 +496,15 @@ Resources:
                 Effect: Allow
                 Action: config:SelectAggregateResourceConfig
                 Resource: "*"
+          - !Ref 'AWS::NoValue'
+        - !If
+          - ConfigCrossAccountRoleSet
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: AssumeConfigCrossAccountRole
+                Effect: Allow
+                Action: sts:AssumeRole
+                Resource: !Ref ConfigCrossAccountRole
           - !Ref 'AWS::NoValue'
 
   CollectorLambdaFunctionNotificationSubscription:
