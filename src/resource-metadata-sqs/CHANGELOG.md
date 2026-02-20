@@ -2,6 +2,9 @@
 
 ## resource-metadata-sqs
 
+### 0.3.2 / 20.02.2025
+* [Feature] Assume cross-account IAM role when querying AWS Config aggregator in a different account (`ConfigCrossAccountRole` parameter)
+
 ### 0.3.1 / 05.05.2025
 * [Fix] Mention crossaccount.js in package.json to make it a part of the build
 
