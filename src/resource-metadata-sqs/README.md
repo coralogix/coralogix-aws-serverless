@@ -1,6 +1,6 @@
 # Coralogix Resource Metadata (SQS mode)
 
-This application collect AWS resource metadata and sends them to your **Coralogix** account.
+This application collects AWS resource metadata and sends it to your **Coralogix** account.
 
 This is a specific version of the [resource-metadata](../resource-metadata) application, which is designed to:
 
@@ -11,9 +11,9 @@ This is a specific version of the [resource-metadata](../resource-metadata) appl
 
 * Permissions to create required AWS resources (Lambda, SQS, SNS, Cloudtrail etc.)
 * An AWS account.
-* A coralogix account.
-* in case you use Secret Manager you should first deploy the [SM lambda layer](https://serverlessrepo.aws.amazon.com/applications/eu-central-1/597078901540/Coralogix-Lambda-SSMLayer), you should only deploy one layer per region.
-* in case you want to collect metadata from multiple AWS accounts, see [Cross-Account Collection](##cross-account-collection) for more details.
+* A Coralogix account.
+* If you use AWS Secrets Manager, first deploy the [SM lambda layer](https://serverlessrepo.aws.amazon.com/applications/eu-central-1/597078901540/Coralogix-Lambda-SSMLayer). Deploy only one layer per region.
+* If you want to collect metadata from multiple AWS accounts, see [Cross-Account Collection](#cross-account-collection) for more details.
 
 ## Cross-Region Collection
 
@@ -198,7 +198,7 @@ EC2 only:
 | Parameter | Description | Default Value | Required |
 |---|---|---|---|
 | CoralogixRegion | The Coralogix location region, possible options are [EU1, EU2, AP1, AP2, AP3, US1, US2, Custom].In case that you want to use Custom domain, leave this as default and write the Custom doamin in the ``CustomDomain`` filed. | Custom | :heavy_check_mark: |
-| ApiKey | Your [Coralogix Send Your Data – API Key](https://coralogix.com/docs/send-your-data-api-key/) or incase you use pre created secret (created in AWS secret manager) put here the name of the secret that contains the Coralogix send your data key | | :heavy_check_mark: |
+| ApiKey | Your [Coralogix Send Your Data – API Key](https://coralogix.com/docs/send-your-data-api-key/), or, if you use a pre-created secret (created in AWS Secrets Manager), the name of the secret that contains the Coralogix Send Your Data API key. | | :heavy_check_mark: |
 | CustomDomain | The Coralogix custom domain, leave empty if you don't use Custom domain. | | |
 
 ### Event Mode Parameters
@@ -241,8 +241,8 @@ EC2 only:
 | Parameter | Description | Default Value | Required |
 |---|---|---|---|
 | FunctionArchitecture | Lambda function architecture, possible options are [x86_64, arm64]. | x86_64 | |
-| FunctionMemorySize | The maximum allocated memory this lambda may consume. Default value is the minimum recommended setting please consult coralogix support before changing. | 256 | |
-| FunctionTimeout | The maximum time in seconds the function may be allowed to run. Default value is the minimum recommended setting please consult coralogix support before changing. | 300 | |
+| FunctionMemorySize | The maximum allocated memory this lambda may consume. Default value is the minimum recommended setting; contact Coralogix support before changing. | 256 | |
+| FunctionTimeout | The maximum time in seconds the function may be allowed to run. Default value is the minimum recommended setting; contact Coralogix support before changing. | 300 | |
 | MaximumConcurrency | Maximum number of concurrent SQS messages to be processed by `generator` lambda after the collection has finished. | 5 | |
 
 ### Security configuration
