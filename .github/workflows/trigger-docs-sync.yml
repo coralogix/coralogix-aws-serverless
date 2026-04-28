@@ -8,6 +8,10 @@ on:
     paths:
       - 'src/resource-metadata-sqs/README.md'
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   trigger_action:
     runs-on: ubuntu-latest
