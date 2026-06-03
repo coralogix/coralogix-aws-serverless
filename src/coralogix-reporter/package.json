@@ -44,7 +44,7 @@
     "url": "https://github.com/coralogix/coralogix-aws-serverless/issues"
   },
   "dependencies": {
-    "@aws-sdk/client-ses": "^3.758.0",
+    "@aws-sdk/client-sesv2": "^3.758.0",
     "@opensearch-project/opensearch": "^3.4.0",
     "jmespath-plus": "^0.1.7",
     "jsonexport": "^3.2.0",
