@@ -48,7 +48,7 @@
     "@opensearch-project/opensearch": "^3.4.0",
     "jmespath-plus": "^0.1.7",
     "jsonexport": "^3.2.0",
-    "nodemailer": "^6.10.0"
+    "nodemailer": "^8.0.5"
   },
   "files": [
     "LICENSE",
