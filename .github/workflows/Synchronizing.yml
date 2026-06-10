@@ -1,5 +1,8 @@
 name: Synchronizing Cloudformation repo with serverless
 
+permissions:
+  contents: read
+
 on:
   pull_request:
     types: [closed]
