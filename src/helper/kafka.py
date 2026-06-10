@@ -3,11 +3,20 @@
 
 import json
 import time
+import uuid
 import boto3
 import cfnresponse
 
 
 client = boto3.client("lambda")
+
+
+def is_event_source_mapping_uuid(value):
+    try:
+        uuid.UUID(value)
+        return True
+    except (TypeError, ValueError, AttributeError):
+        return False
 
 
 def lambda_handler(event, context):
@@ -22,10 +31,13 @@ def lambda_handler(event, context):
             if event["RequestType"] == "Update":
                 try:
                     print("EventSourceMapping recreation")
-                    client.delete_event_source_mapping(UUID=physicalResourceId)
-                    while True:
-                        client.get_event_source_mapping(UUID=physicalResourceId)
-                        time.sleep(10)
+                    if is_event_source_mapping_uuid(physicalResourceId):
+                        client.delete_event_source_mapping(UUID=physicalResourceId)
+                        while True:
+                            client.get_event_source_mapping(UUID=physicalResourceId)
+                            time.sleep(10)
+                    else:
+                        print("Skipping delete for non-mapping PhysicalResourceId:", physicalResourceId)
                 except client.exceptions.ResourceNotFoundException:
                     pass
 
@@ -65,7 +77,10 @@ def lambda_handler(event, context):
             print("EventSourceMapping successfully created")
         elif event["RequestType"] == "Delete":
             try:
-                client.delete_event_source_mapping(UUID=physicalResourceId)
+                if is_event_source_mapping_uuid(physicalResourceId):
+                    client.delete_event_source_mapping(UUID=physicalResourceId)
+                else:
+                    print("Skipping delete for non-mapping PhysicalResourceId:", physicalResourceId)
             except client.exceptions.ResourceNotFoundException:
                 pass
             print("EventSourceMapping successfully deleted")

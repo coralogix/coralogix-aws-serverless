@@ -13,7 +13,7 @@
 "use strict";
 
 // Import required libraries
-const sesClientModule = require("@aws-sdk/client-ses");
+const sesClientModule = require("@aws-sdk/client-sesv2");
 const assert = require("assert");
 const opensearch = require("@opensearch-project/opensearch");
 const jmespath = require("jmespath-plus");
@@ -106,11 +106,11 @@ async function handler(event, context) {
         });
 
         console.log('Initializing SES client');
-        const ses = new sesClientModule.SESClient({
+        const ses = new sesClientModule.SESv2Client({
             region: process.env.AWS_REGION
         });
         const transporter = nodemailer.createTransport({
-            SES: { ses, aws: sesClientModule }
+            SES: { sesClient: ses, SendEmailCommand: sesClientModule.SendEmailCommand }
         });
 
         console.log('Sending email');
