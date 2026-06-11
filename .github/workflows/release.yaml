@@ -106,6 +106,8 @@ jobs:
     name: Publish
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
     needs: 
@@ -116,6 +118,11 @@ jobs:
       matrix:
         package: ${{ fromJSON(needs.check.outputs.packages) }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: aws-actions/setup-sam@v2
         with:
           use-installer: true
@@ -153,3 +160,34 @@ jobs:
           aws s3 cp \
             $(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "LambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml) \
             s3://${{ env.AWS_SERVERLESS_BUCKET }}-${{ env.AWS_DEFAULT_REGION }}/${{ matrix.package }}.zip
+
+      - if: ${{ matrix.package != 'helper' }}
+        name: Create git tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          package_dir="src/${{ matrix.package }}"
+          version="$(sed -n 's/^[[:space:]]*SemanticVersion:[[:space:]]*//p' "$package_dir/template.yaml" | head -n1 | tr -d '"\r' | xargs)"
+          if [[ -z "$version" ]]; then
+            echo "Could not determine SemanticVersion for $package_dir" >&2
+            exit 1
+          fi
+
+          tag="${{ matrix.package }}-v${version}"
+          target_sha="${{ github.event.pull_request.merge_commit_sha }}"
+          if [[ -z "$target_sha" || "$target_sha" == "null" ]]; then
+            target_sha="$GITHUB_SHA"
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            echo "Tag $tag already exists; skipping release creation."
+            exit 0
+          fi
+
+          bash scripts/changelog_release_notes.sh "$package_dir" "$version" > release-notes.md
+          gh release create "$tag" \
+            --target "$target_sha" \
+            --title "$tag" \
+            --notes-file release-notes.md
