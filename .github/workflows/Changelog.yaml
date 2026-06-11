@@ -30,13 +30,37 @@ jobs:
       id: changed-files
       uses: tj-actions/changed-files@v46.0.1
 
-    - name: Check changelog file 
+    - name: Check changelog contract
       run: |
+        set -euo pipefail
         changed_files_string="${{ steps.changed-files.outputs.all_changed_files }}"
         read -ra changed_files_array <<< "$changed_files_string"
-        chmod +x scripts/changelog_check.sh
-        for changed_file in "${changed_files_array[@]}"; do
-          if [[ "$changed_file" == *"/template."* ]]; then
-            scripts/changelog_check.sh $(dirname $changed_file)
+
+        package_dirs="$(
+          printf '%s\n' "${changed_files_array[@]}" \
+            | awk -F/ '$1 == "src" && $2 != "" { print $1 "/" $2 }' \
+            | sort -u
+        )"
+
+        if [[ -z "$package_dirs" ]]; then
+          echo "No src/<name>/ changes detected."
+          exit 0
+        fi
+
+        checked_count=0
+        while IFS= read -r package_dir; do
+          [[ -n "$package_dir" ]] || continue
+
+          if [[ ! -f "$package_dir/template.yaml" || ! -f "$package_dir/CHANGELOG.md" ]]; then
+            echo "Skipping $package_dir because it is not a published lambda package."
+            continue
           fi
-        done
+
+          echo "Checking changelog contract for $package_dir"
+          bash scripts/changelog_check.sh "$package_dir"
+          checked_count=$((checked_count + 1))
+        done <<< "$package_dirs"
+
+        if [[ "$checked_count" -eq 0 ]]; then
+          echo "No published lambda packages required changelog validation."
+        fi
