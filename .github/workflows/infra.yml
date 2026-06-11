@@ -1,5 +1,8 @@
 name: Infrastructure
 
+permissions:
+  contents: read
+
 on:
   schedule:
     - cron: '0 10 * * 1'  # Every Monday at 10:00 UTC
