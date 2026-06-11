@@ -1,12 +1,20 @@
 # Changelog
 
-## lambda-secretLayer
+All notable changes to this project will be documented in this file.
+This format is based on Keep a Changelog.
 
-### 0.0.3 / 25.8.2024
-* [update] Allow the layer to run in nodejs20 applications.
+## [1.0.3] - 2024-08-25
+### Changed
+- Allow the layer to run in Node.js 20 applications by using the Node.js 18-compatible code path.
 
-### 0.0.2 / 1.10.2023
-* [Change] Change SSM option in the integration to SM - Secret Manager.
+## [1.0.2] - 2023-10-02
+### Changed
+- Switch the integration from the SSM option to AWS Secrets Manager terminology and behavior.
 
-### version 0.0.1 / 15.8.2023
-* [update] Add an option to use an existing secret instead of creating a new one with SSM 
+## [1.0.1] - 2023-08-16
+### Added
+- Allow using an existing secret instead of creating one automatically.
+
+## [1.0.0] - 2023-03-08
+### Added
+- Introduce the secret layer for safe keeping of the Coralogix data API key.
