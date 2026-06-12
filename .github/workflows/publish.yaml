@@ -37,7 +37,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          git fetch origin master:refs/remotes/origin/master --depth=1
+          git fetch origin master:refs/remotes/origin/master
           bash scripts/release_publish_preflight.sh "$GITHUB_REF_NAME" origin/master "${GITHUB_REF_NAME}^{commit}" > preflight.env
           cat preflight.env >> "$GITHUB_OUTPUT"
 
