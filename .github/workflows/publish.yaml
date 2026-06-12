@@ -6,6 +6,9 @@ on:
       - '*-v*.*.*'
       - '*-*.*.*'
 
+permissions:
+  contents: read
+
 env:
   AWS_DEFAULT_REGION: eu-central-1
   AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
@@ -82,7 +85,7 @@ jobs:
           if versions_json="$(aws serverlessrepo list-application-versions --application-id "$application_id" --output json 2>versions.err)"; then
             if jq -e --arg version "$VERSION" '.Versions[]? | select(.SemanticVersion == $version)' <<<"$versions_json" >/dev/null; then
               echo "version_exists=true" >> "$GITHUB_OUTPUT"
-              echo "SAR version ${VERSION} is already published for ${APPLICATION_NAME}; skipping publish steps."
+              echo "SAR version ${VERSION} is already published for ${APPLICATION_NAME}; skipping only the SAR publish step so S3 artifacts can still be repaired."
             else
               echo "version_exists=false" >> "$GITHUB_OUTPUT"
             fi
@@ -95,13 +98,11 @@ jobs:
             fi
           fi
 
-      - if: ${{ steps.sar-version.outputs.version_exists != 'true' }}
-        name: Build
+      - name: Build
         working-directory: ./${{ env.PACKAGE_DIR }}
         run: sam build --use-container
 
-      - if: ${{ steps.sar-version.outputs.version_exists != 'true' }}
-        name: Package
+      - name: Package
         working-directory: ./${{ env.PACKAGE_DIR }}
         run: |
           sam package \
@@ -114,7 +115,7 @@ jobs:
         working-directory: ./${{ env.PACKAGE_DIR }}
         run: sam publish --template packaged.yaml
 
-      - if: ${{ steps.sar-version.outputs.version_exists != 'true' && env.PACKAGE == 'resource-metadata-sqs' }}
+      - if: ${{ env.PACKAGE == 'resource-metadata-sqs' }}
         name: StoreMultiFunction
         working-directory: ./${{ env.PACKAGE_DIR }}
         run: |
@@ -125,7 +126,7 @@ jobs:
             "$(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "GeneratorLambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml)" \
             "s3://${AWS_SERVERLESS_BUCKET}-${AWS_DEFAULT_REGION}/${PACKAGE}-generator.zip"
 
-      - if: ${{ steps.sar-version.outputs.version_exists != 'true' && env.PACKAGE != 'resource-metadata-sqs' }}
+      - if: ${{ env.PACKAGE != 'resource-metadata-sqs' }}
         name: Store
         working-directory: ./${{ env.PACKAGE_DIR }}
         run: |
@@ -139,7 +140,17 @@ jobs:
           set -euo pipefail
 
           if git ls-remote --exit-code --tags origin "refs/tags/${CANONICAL_TAG}" >/dev/null 2>&1; then
-            echo "Canonical tag ${CANONICAL_TAG} already exists."
+            tmp_ref="refs/tags/__tmp_canonical_tag_check"
+            git fetch --no-tags origin "refs/tags/${CANONICAL_TAG}:${tmp_ref}"
+            remote_commit_sha="$(git rev-parse "${tmp_ref}^{commit}")"
+            git update-ref -d "$tmp_ref"
+
+            if [[ "${remote_commit_sha}" != "${COMMIT_SHA}" ]]; then
+              echo "Canonical tag ${CANONICAL_TAG} already points to ${remote_commit_sha}, expected ${COMMIT_SHA}." >&2
+              exit 1
+            fi
+
+            echo "Canonical tag ${CANONICAL_TAG} already exists on ${COMMIT_SHA}."
             exit 0
           fi
 
