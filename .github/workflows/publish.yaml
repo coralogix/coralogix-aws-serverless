@@ -1,0 +1,187 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - '*-v*.*.*'
+      - '*-*.*.*'
+
+permissions:
+  contents: read
+
+env:
+  AWS_DEFAULT_REGION: eu-central-1
+  AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
+
+jobs:
+  preflight:
+    name: Preflight
+    runs-on: ubuntu-latest
+    outputs:
+      trigger_tag: ${{ steps.preflight.outputs.trigger_tag }}
+      canonical_tag: ${{ steps.preflight.outputs.canonical_tag }}
+      tag_variant: ${{ steps.preflight.outputs.tag_variant }}
+      package: ${{ steps.preflight.outputs.package }}
+      package_dir: ${{ steps.preflight.outputs.package_dir }}
+      version: ${{ steps.preflight.outputs.version }}
+      application_name: ${{ steps.preflight.outputs.application_name }}
+      commit_sha: ${{ steps.preflight.outputs.commit_sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve publish target
+        id: preflight
+        run: |
+          set -euo pipefail
+
+          git fetch origin master:refs/remotes/origin/master
+          bash scripts/release_publish_preflight.sh "$GITHUB_REF_NAME" origin/master "${GITHUB_REF_NAME}^{commit}" > preflight.env
+          cat preflight.env >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    needs: preflight
+    permissions:
+      contents: write
+    concurrency:
+      group: sar-publish-${{ needs.preflight.outputs.package }}-${{ needs.preflight.outputs.version }}
+      cancel-in-progress: false
+    env:
+      PACKAGE: ${{ needs.preflight.outputs.package }}
+      PACKAGE_DIR: ${{ needs.preflight.outputs.package_dir }}
+      VERSION: ${{ needs.preflight.outputs.version }}
+      APPLICATION_NAME: ${{ needs.preflight.outputs.application_name }}
+      CANONICAL_TAG: ${{ needs.preflight.outputs.canonical_tag }}
+      TAG_VARIANT: ${{ needs.preflight.outputs.tag_variant }}
+      COMMIT_SHA: ${{ needs.preflight.outputs.commit_sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - if: ${{ env.TAG_VARIANT == 'alias' }}
+        id: canonical-tag-check
+        name: Validate canonical tag target
+        run: |
+          set -euo pipefail
+
+          if ! git ls-remote --exit-code --tags origin "refs/tags/${CANONICAL_TAG}" >/dev/null 2>&1; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Canonical tag ${CANONICAL_TAG} does not exist yet."
+            exit 0
+          fi
+
+          tmp_ref="refs/tags/__tmp_canonical_tag_check"
+          git fetch --no-tags origin "refs/tags/${CANONICAL_TAG}:${tmp_ref}"
+          remote_commit_sha="$(git rev-parse "${tmp_ref}^{commit}")"
+          git update-ref -d "$tmp_ref"
+
+          if [[ "${remote_commit_sha}" != "${COMMIT_SHA}" ]]; then
+            echo "Canonical tag ${CANONICAL_TAG} already points to ${remote_commit_sha}, expected ${COMMIT_SHA}." >&2
+            exit 1
+          fi
+
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+          echo "Canonical tag ${CANONICAL_TAG} already exists on ${COMMIT_SHA}."
+
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Check published SAR version
+        id: sar-version
+        run: |
+          set -euo pipefail
+
+          account_id="$(aws sts get-caller-identity --query 'Account' --output text)"
+          application_id="arn:aws:serverlessrepo:${AWS_DEFAULT_REGION}:${account_id}:applications/${APPLICATION_NAME}"
+
+          if versions_json="$(aws serverlessrepo list-application-versions --application-id "$application_id" --output json 2>versions.err)"; then
+            if jq -e --arg version "$VERSION" '.Versions[]? | select(.SemanticVersion == $version)' <<<"$versions_json" >/dev/null; then
+              echo "version_exists=true" >> "$GITHUB_OUTPUT"
+              echo "SAR version ${VERSION} is already published for ${APPLICATION_NAME}; skipping only the SAR publish step so S3 artifacts can still be repaired."
+            else
+              echo "version_exists=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            if grep -Eiq 'not.?found|ResourceNotFoundException' versions.err; then
+              echo "version_exists=false" >> "$GITHUB_OUTPUT"
+            else
+              cat versions.err >&2
+              exit 1
+            fi
+          fi
+
+      - name: Build
+        working-directory: ./${{ env.PACKAGE_DIR }}
+        run: sam build --use-container
+
+      - name: Package
+        working-directory: ./${{ env.PACKAGE_DIR }}
+        run: |
+          sam package \
+            --s3-bucket "${AWS_SERVERLESS_BUCKET}" \
+            --s3-prefix "${PACKAGE}" \
+            --output-template-file packaged.yaml
+
+      - if: ${{ steps.sar-version.outputs.version_exists != 'true' }}
+        name: Publish to SAR
+        working-directory: ./${{ env.PACKAGE_DIR }}
+        run: sam publish --template packaged.yaml
+
+      - if: ${{ env.PACKAGE == 'resource-metadata-sqs' }}
+        name: StoreMultiFunction
+        working-directory: ./${{ env.PACKAGE_DIR }}
+        run: |
+          aws s3 cp \
+            "$(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "CollectorLambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml)" \
+            "s3://${AWS_SERVERLESS_BUCKET}-${AWS_DEFAULT_REGION}/${PACKAGE}-collector.zip"
+          aws s3 cp \
+            "$(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "GeneratorLambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml)" \
+            "s3://${AWS_SERVERLESS_BUCKET}-${AWS_DEFAULT_REGION}/${PACKAGE}-generator.zip"
+
+      - if: ${{ env.PACKAGE != 'resource-metadata-sqs' }}
+        name: Store
+        working-directory: ./${{ env.PACKAGE_DIR }}
+        run: |
+          aws s3 cp \
+            "$(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "LambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml)" \
+            "s3://${AWS_SERVERLESS_BUCKET}-${AWS_DEFAULT_REGION}/${PACKAGE}.zip"
+
+      - if: ${{ env.TAG_VARIANT == 'alias' && steps.canonical-tag-check.outputs.exists != 'true' }}
+        name: Ensure canonical tag
+        run: |
+          set -euo pipefail
+
+          git tag "${CANONICAL_TAG}" "${COMMIT_SHA}"
+          git push origin "refs/tags/${CANONICAL_TAG}"
+
+      - name: Generate release notes
+        run: bash scripts/changelog_release_notes.sh "${PACKAGE_DIR}" "${VERSION}" > release-notes.md
+
+      - name: Create canonical GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if gh release view "${CANONICAL_TAG}" >/dev/null 2>&1; then
+            echo "Release ${CANONICAL_TAG} already exists; skipping release creation."
+            exit 0
+          fi
+
+          gh release create "${CANONICAL_TAG}" \
+            --verify-tag \
+            --title "${CANONICAL_TAG}" \
+            --notes-file release-notes.md
