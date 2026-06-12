@@ -3,14 +3,15 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
-## [0.3.2] - 2026-02-20
+## [0.3.2] - 2025-02-20
 ### Added
 - Assume a cross-account IAM role when querying an AWS Config aggregator in a different account via the `ConfigCrossAccountRole` parameter.
 
+## [0.3.1] - 2025-05-05
 ### Fixed
 - Mention `crossaccount.js` in `package.json` so it is included in the build output.
 
-## [0.3.0] - 2025-05-05
+## [0.3.0] - 2025-04-30
 ### Added
 - Support cross-account collection through both AWS Config and static account lists.
 - Enable cross-account EventBridge event reception through the SQS queue.

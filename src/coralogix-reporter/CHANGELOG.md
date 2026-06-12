@@ -27,7 +27,7 @@ This format is based on Keep a Changelog.
 ### Fixed
 - Add the SES `sendmail` policy to the Lambda function.
 
-## [2.0.0] - 2023-12-13
+## [2.0.0] - 2023-12-12
 ### Changed
 - Move from Elasticsearch to OpenSearch and rename the package to `coralogix-reporter`.
 - Upgrade the runtime from Node.js 16.x to 20.x.

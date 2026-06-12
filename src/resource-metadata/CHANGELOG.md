@@ -38,10 +38,10 @@ This format is based on Keep a Changelog.
 ### Added
 - Add filtering for Lambda functions.
 
-## [0.0.2] - 2023-10-02
+## [0.0.2] - 2023-10-01
 ### Changed
 - Switch the integration from the SSM option to AWS Secrets Manager terminology and behavior.
 
-## [0.0.1] - 2023-08-16
+## [0.0.1] - 2023-08-15
 ### Added
 - Allow using an existing secret instead of creating one automatically and remove the `SsmEnabled` parameter.

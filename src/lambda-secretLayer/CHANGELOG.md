@@ -7,11 +7,11 @@ This format is based on Keep a Changelog.
 ### Changed
 - Allow the layer to run in Node.js 20 applications by using the Node.js 18-compatible code path.
 
-## [1.0.2] - 2023-10-02
+## [1.0.2] - 2023-10-01
 ### Changed
 - Switch the integration from the SSM option to AWS Secrets Manager terminology and behavior.
 
-## [1.0.1] - 2023-08-16
+## [1.0.1] - 2023-08-15
 ### Added
 - Allow using an existing secret instead of creating one automatically.
 

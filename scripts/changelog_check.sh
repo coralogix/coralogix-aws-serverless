@@ -96,7 +96,7 @@ if [[ "$has_non_changelog_changes" -eq 1 && -n "$base_semver" ]] && ! semver_gt 
   printf 'changelog_check: base=%s current=%s\n' "$base_semver" "$current_semver" >&2
   printf 'changelog_check: changed files:\n' >&2
   printf '%s\n' "$changed_files" | sed 's/^/  /' >&2
-  fail "bump $template_path SemanticVersion and keep the top $changelog_path entry in sync, or use the 'skip changelog' label"
+  fail "bump $template_path SemanticVersion and keep the top $changelog_path entry in sync, or use the 'skip-changelog' label"
 fi
 
 printf 'changelog_check: %s passed\n' "$package_dir"
