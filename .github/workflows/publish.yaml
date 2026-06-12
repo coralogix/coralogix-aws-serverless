@@ -64,6 +64,31 @@ jobs:
         with:
           fetch-depth: 0
 
+      - if: ${{ env.TAG_VARIANT == 'alias' }}
+        id: canonical-tag-check
+        name: Validate canonical tag target
+        run: |
+          set -euo pipefail
+
+          if ! git ls-remote --exit-code --tags origin "refs/tags/${CANONICAL_TAG}" >/dev/null 2>&1; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Canonical tag ${CANONICAL_TAG} does not exist yet."
+            exit 0
+          fi
+
+          tmp_ref="refs/tags/__tmp_canonical_tag_check"
+          git fetch --no-tags origin "refs/tags/${CANONICAL_TAG}:${tmp_ref}"
+          remote_commit_sha="$(git rev-parse "${tmp_ref}^{commit}")"
+          git update-ref -d "$tmp_ref"
+
+          if [[ "${remote_commit_sha}" != "${COMMIT_SHA}" ]]; then
+            echo "Canonical tag ${CANONICAL_TAG} already points to ${remote_commit_sha}, expected ${COMMIT_SHA}." >&2
+            exit 1
+          fi
+
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+          echo "Canonical tag ${CANONICAL_TAG} already exists on ${COMMIT_SHA}."
+
       - uses: aws-actions/setup-sam@v2
         with:
           use-installer: true
@@ -134,25 +159,10 @@ jobs:
             "$(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "LambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml)" \
             "s3://${AWS_SERVERLESS_BUCKET}-${AWS_DEFAULT_REGION}/${PACKAGE}.zip"
 
-      - if: ${{ env.TAG_VARIANT == 'alias' }}
+      - if: ${{ env.TAG_VARIANT == 'alias' && steps.canonical-tag-check.outputs.exists != 'true' }}
         name: Ensure canonical tag
         run: |
           set -euo pipefail
-
-          if git ls-remote --exit-code --tags origin "refs/tags/${CANONICAL_TAG}" >/dev/null 2>&1; then
-            tmp_ref="refs/tags/__tmp_canonical_tag_check"
-            git fetch --no-tags origin "refs/tags/${CANONICAL_TAG}:${tmp_ref}"
-            remote_commit_sha="$(git rev-parse "${tmp_ref}^{commit}")"
-            git update-ref -d "$tmp_ref"
-
-            if [[ "${remote_commit_sha}" != "${COMMIT_SHA}" ]]; then
-              echo "Canonical tag ${CANONICAL_TAG} already points to ${remote_commit_sha}, expected ${COMMIT_SHA}." >&2
-              exit 1
-            fi
-
-            echo "Canonical tag ${CANONICAL_TAG} already exists on ${COMMIT_SHA}."
-            exit 0
-          fi
 
           git tag "${CANONICAL_TAG}" "${COMMIT_SHA}"
           git push origin "refs/tags/${CANONICAL_TAG}"
