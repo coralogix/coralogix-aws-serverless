@@ -33,6 +33,7 @@ jobs:
     - name: Check changelog contract
       run: |
         set -euo pipefail
+        base_ref="origin/master"
         changed_files_string="${{ steps.changed-files.outputs.all_changed_files }}"
         read -ra changed_files_array <<< "$changed_files_string"
 
@@ -52,6 +53,11 @@ jobs:
           [[ -n "$package_dir" ]] || continue
 
           if [[ ! -f "$package_dir/template.yaml" ]]; then
+            if git cat-file -e "${base_ref}:${package_dir}/template.yaml" 2>/dev/null; then
+              echo "Missing $package_dir/template.yaml for previously published lambda package $package_dir." >&2
+              exit 1
+            fi
+
             echo "Skipping $package_dir because it is not a published lambda package."
             continue
           fi
