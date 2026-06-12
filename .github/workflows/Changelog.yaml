@@ -51,9 +51,14 @@ jobs:
         while IFS= read -r package_dir; do
           [[ -n "$package_dir" ]] || continue
 
-          if [[ ! -f "$package_dir/template.yaml" || ! -f "$package_dir/CHANGELOG.md" ]]; then
+          if [[ ! -f "$package_dir/template.yaml" ]]; then
             echo "Skipping $package_dir because it is not a published lambda package."
             continue
+          fi
+
+          if [[ ! -f "$package_dir/CHANGELOG.md" ]]; then
+            echo "Missing $package_dir/CHANGELOG.md for published lambda package $package_dir." >&2
+            exit 1
           fi
 
           echo "Checking changelog contract for $package_dir"

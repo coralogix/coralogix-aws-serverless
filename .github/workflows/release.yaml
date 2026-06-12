@@ -39,12 +39,21 @@ jobs:
               | jq -rcnR '[inputs | select(length > 0)]'
           )"
 
-          publish_packages="$(
-            printf '%s\n' "$changed_files" \
-              | awk -F/ '$1 == "src" && $2 != "" && $2 != "helper" && $3 != "CHANGELOG.md" { print $2 }' \
-              | sort -u \
-              | jq -rcnR '[inputs | select(length > 0)]'
-          )"
+          skip_changelog=false
+          if [[ "${{ github.event_name }}" == "pull_request" ]] && jq -e '.pull_request.labels[]?.name | select(. == "skip-changelog")' "$GITHUB_EVENT_PATH" >/dev/null; then
+            skip_changelog=true
+          fi
+
+          if [[ "$skip_changelog" == "true" ]]; then
+            publish_packages='[]'
+          else
+            publish_packages="$(
+              printf '%s\n' "$changed_files" \
+                | awk -F/ '$1 == "src" && $2 != "" && $2 != "helper" && $3 != "CHANGELOG.md" { print $2 }' \
+                | sort -u \
+                | jq -rcnR '[inputs | select(length > 0)]'
+            )"
+          fi
 
           echo "packages=$packages" >> "$GITHUB_OUTPUT"
           echo "publish_packages=$publish_packages" >> "$GITHUB_OUTPUT"
