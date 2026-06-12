@@ -1,3 +1,4 @@
+# Branch-side validation only. Tag-triggered publish and release creation live in .github/workflows/publish.yaml.
 name: Release Checks
 
 on:
@@ -19,6 +20,9 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+
+      - name: Run release publish preflight tests
+        run: bash scripts/release_publish_preflight_test.sh
 
       - name: Get Changed Packages
         id: get-changed-packages
