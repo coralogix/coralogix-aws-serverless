@@ -1,11 +1,8 @@
-name: Release
+name: Release Checks
 
 on:
   push:
     branches-ignore: [master]
-  pull_request:
-    types: [closed]
-    branches: [master]
 
 env:
   AWS_DEFAULT_REGION: eu-central-1
@@ -16,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       packages: ${{ steps.get-changed-packages.outputs.packages }}
-      publish_packages: ${{ steps.get-changed-packages.outputs.publish_packages }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,7 +25,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          base_ref="${{ github.event.pull_request.base.sha || 'origin/master' }}"
+          base_ref="origin/master"
           changed_files="$(git diff --name-only --diff-filter=d "${base_ref}...${{ github.sha }}" -- src/)"
 
           packages="$(
@@ -39,24 +35,7 @@ jobs:
               | jq -rcnR '[inputs | select(length > 0)]'
           )"
 
-          skip_changelog=false
-          if [[ "${{ github.event_name }}" == "pull_request" ]] && jq -e '.pull_request.labels[]?.name | select(. == "skip-changelog")' "$GITHUB_EVENT_PATH" >/dev/null; then
-            skip_changelog=true
-          fi
-
-          if [[ "$skip_changelog" == "true" ]]; then
-            publish_packages='[]'
-          else
-            publish_packages="$(
-              printf '%s\n' "$changed_files" \
-                | awk -F/ '$1 == "src" && $2 != "" && $2 != "helper" && $3 != "CHANGELOG.md" { print $2 }' \
-                | sort -u \
-                | jq -rcnR '[inputs | select(length > 0)]'
-            )"
-          fi
-
           echo "packages=$packages" >> "$GITHUB_OUTPUT"
-          echo "publish_packages=$publish_packages" >> "$GITHUB_OUTPUT"
 
   validate:
     name: Validate
@@ -89,8 +68,6 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    env:
-      AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
     needs: [check, validate]
     strategy:
       matrix:
@@ -114,117 +91,3 @@ jobs:
         name: Build
         working-directory: ./src/${{ matrix.package }}
         run: sam build --use-container
-
-      - name: Package
-        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true && matrix.package != 'helper'}}
-        working-directory: ./src/${{ matrix.package }}
-        run: |
-          sam package \
-            --s3-bucket ${{ env.AWS_SERVERLESS_BUCKET }} \
-            --s3-prefix ${{ matrix.package }} \
-            --output-template-file packaged.yaml
-
-      - name: Store
-        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true && matrix.package != 'helper' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.package }}-packaged.yaml
-          path: src/${{ matrix.package }}/packaged.yaml
-
-  publish:
-    name: Publish
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true && needs.check.outputs.publish_packages != '[]' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    env:
-      AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
-    needs: 
-      - check
-      - build
-
-    strategy:
-      matrix:
-        package: ${{ fromJSON(needs.check.outputs.publish_packages) }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: aws-actions/setup-sam@v2
-        with:
-          use-installer: true
-
-      - if: ${{ matrix.package != 'helper' }}
-        name: Download
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ matrix.package }}-packaged.yaml
-
-      - if: ${{ matrix.package != 'helper' }}
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
-
-      - if: ${{ matrix.package != 'helper' }}
-        name: Publish
-        run: sam publish --template packaged.yaml
-
-      - if: ${{ matrix.package == 'resource-metadata-sqs' }}
-        name: StoreMultiFunction
-        run: |
-          aws s3 cp \
-            $(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "CollectorLambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml) \
-            s3://${{ env.AWS_SERVERLESS_BUCKET }}-${{ env.AWS_DEFAULT_REGION }}/${{ matrix.package }}-collector.zip
-          aws s3 cp \
-            $(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "GeneratorLambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml) \
-            s3://${{ env.AWS_SERVERLESS_BUCKET }}-${{ env.AWS_DEFAULT_REGION }}/${{ matrix.package }}-generator.zip
-
-      - if: ${{ !contains(fromJson('["helper", "resource-metadata-sqs"]'), matrix.package) }}
-        name: Store
-        run: |
-          aws s3 cp \
-            $(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "LambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml) \
-            s3://${{ env.AWS_SERVERLESS_BUCKET }}-${{ env.AWS_DEFAULT_REGION }}/${{ matrix.package }}.zip
-
-      - if: ${{ matrix.package != 'helper' }}
-        name: Create git tag and GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-
-          package_dir="src/${{ matrix.package }}"
-          version="$(sed -n 's/^[[:space:]]*SemanticVersion:[[:space:]]*//p' "$package_dir/template.yaml" | head -n1 | tr -d '"\r' | xargs)"
-          if [[ -z "$version" ]]; then
-            echo "Could not determine SemanticVersion for $package_dir" >&2
-            exit 1
-          fi
-
-          tag="${{ matrix.package }}-v${version}"
-          target_sha="${{ github.event.pull_request.merge_commit_sha }}"
-          if [[ -z "$target_sha" || "$target_sha" == "null" ]]; then
-            target_sha="$GITHUB_SHA"
-          fi
-
-          if gh release view "$tag" >/dev/null 2>&1; then
-            echo "Release $tag already exists; skipping release creation."
-            exit 0
-          fi
-
-          bash scripts/changelog_release_notes.sh "$package_dir" "$version" > release-notes.md
-
-          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
-            gh release create "$tag" \
-              --verify-tag \
-              --title "$tag" \
-              --notes-file release-notes.md
-          else
-            gh release create "$tag" \
-              --target "$target_sha" \
-              --title "$tag" \
-              --notes-file release-notes.md
-          fi
