@@ -15,7 +15,8 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     outputs:
-      packages: ${{ env.packages }}
+      packages: ${{ steps.get-changed-packages.outputs.packages }}
+      publish_packages: ${{ steps.get-changed-packages.outputs.publish_packages }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,8 +27,27 @@ jobs:
       - name: Get Changed Packages
         id: get-changed-packages
         run: |
-          export PACKAGES=$(git diff --name-only --diff-filter=d ${{ github.event.pull_request.base.sha || 'origin/master' }} ${{ github.sha }} src/ | xargs -n1 dirname | sed -r 's/src\/([^\/]+).*$/src\/\1/g' | xargs -n1 basename | sort | uniq | jq -rcnR '[inputs]')
-          echo "packages=$PACKAGES" >> $GITHUB_ENV
+          set -euo pipefail
+
+          base_ref="${{ github.event.pull_request.base.sha || 'origin/master' }}"
+          changed_files="$(git diff --name-only --diff-filter=d "${base_ref}...${{ github.sha }}" -- src/)"
+
+          packages="$(
+            printf '%s\n' "$changed_files" \
+              | awk -F/ '$1 == "src" && $2 != "" { print $2 }' \
+              | sort -u \
+              | jq -rcnR '[inputs | select(length > 0)]'
+          )"
+
+          publish_packages="$(
+            printf '%s\n' "$changed_files" \
+              | awk -F/ '$1 == "src" && $2 != "" && $2 != "helper" && $3 != "CHANGELOG.md" { print $2 }' \
+              | sort -u \
+              | jq -rcnR '[inputs | select(length > 0)]'
+          )"
+
+          echo "packages=$packages" >> "$GITHUB_OUTPUT"
+          echo "publish_packages=$publish_packages" >> "$GITHUB_OUTPUT"
 
   validate:
     name: Validate
@@ -104,7 +124,7 @@ jobs:
 
   publish:
     name: Publish
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true }}
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true && needs.check.outputs.publish_packages != '[]' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -116,7 +136,7 @@ jobs:
 
     strategy:
       matrix:
-        package: ${{ fromJSON(needs.check.outputs.packages) }}
+        package: ${{ fromJSON(needs.check.outputs.publish_packages) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -181,13 +201,21 @@ jobs:
             target_sha="$GITHUB_SHA"
           fi
 
-          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
-            echo "Tag $tag already exists; skipping release creation."
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; skipping release creation."
             exit 0
           fi
 
           bash scripts/changelog_release_notes.sh "$package_dir" "$version" > release-notes.md
-          gh release create "$tag" \
-            --target "$target_sha" \
-            --title "$tag" \
-            --notes-file release-notes.md
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            gh release create "$tag" \
+              --verify-tag \
+              --title "$tag" \
+              --notes-file release-notes.md
+          else
+            gh release create "$tag" \
+              --target "$target_sha" \
+              --title "$tag" \
+              --notes-file release-notes.md
+          fi
