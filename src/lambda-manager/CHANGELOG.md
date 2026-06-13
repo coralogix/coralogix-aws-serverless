@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.0.11] - 2026-06-13
+### Fixed
+- Ignore failed CloudTrail `CreateLogGroup` events so they do not trigger duplicate subscription work.
+- Skip creating a new subscription when the destination is already attached to the log group.
+
 ## lambda-manager
 
 ## 2.0.10  / 23-06-2025
