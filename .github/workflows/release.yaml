@@ -1,11 +1,12 @@
-name: Release
+# Branch-side validation only. Tag-triggered publish and release creation live in .github/workflows/publish.yaml.
+name: Release Checks
+
+permissions:
+  contents: read
 
 on:
   push:
     branches-ignore: [master]
-  pull_request:
-    types: [closed]
-    branches: [master]
 
 env:
   AWS_DEFAULT_REGION: eu-central-1
@@ -15,7 +16,7 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     outputs:
-      packages: ${{ env.packages }}
+      packages: ${{ steps.get-changed-packages.outputs.packages }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,11 +24,25 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
+      - name: Run release publish preflight tests
+        run: bash scripts/release_publish_preflight_test.sh
+
       - name: Get Changed Packages
         id: get-changed-packages
         run: |
-          export PACKAGES=$(git diff --name-only --diff-filter=d ${{ github.event.pull_request.base.sha || 'origin/master' }} ${{ github.sha }} src/ | xargs -n1 dirname | sed -r 's/src\/([^\/]+).*$/src\/\1/g' | xargs -n1 basename | sort | uniq | jq -rcnR '[inputs]')
-          echo "packages=$PACKAGES" >> $GITHUB_ENV
+          set -euo pipefail
+
+          base_ref="origin/master"
+          changed_files="$(git diff --name-only --diff-filter=d "${base_ref}...${{ github.sha }}" -- src/)"
+
+          packages="$(
+            printf '%s\n' "$changed_files" \
+              | awk -F/ '$1 == "src" && $2 != "" { print $2 }' \
+              | sort -u \
+              | jq -rcnR '[inputs | select(length > 0)]'
+          )"
+
+          echo "packages=$packages" >> "$GITHUB_OUTPUT"
 
   validate:
     name: Validate
@@ -60,8 +75,6 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    env:
-      AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
     needs: [check, validate]
     strategy:
       matrix:
@@ -85,71 +98,3 @@ jobs:
         name: Build
         working-directory: ./src/${{ matrix.package }}
         run: sam build --use-container
-
-      - name: Package
-        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true && matrix.package != 'helper'}}
-        working-directory: ./src/${{ matrix.package }}
-        run: |
-          sam package \
-            --s3-bucket ${{ env.AWS_SERVERLESS_BUCKET }} \
-            --s3-prefix ${{ matrix.package }} \
-            --output-template-file packaged.yaml
-
-      - name: Store
-        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true && matrix.package != 'helper' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.package }}-packaged.yaml
-          path: src/${{ matrix.package }}/packaged.yaml
-
-  publish:
-    name: Publish
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == true }}
-    runs-on: ubuntu-latest
-    env:
-      AWS_SERVERLESS_BUCKET: coralogix-serverless-repo
-    needs: 
-      - check
-      - build
-
-    strategy:
-      matrix:
-        package: ${{ fromJSON(needs.check.outputs.packages) }}
-    steps:
-      - uses: aws-actions/setup-sam@v2
-        with:
-          use-installer: true
-
-      - if: ${{ matrix.package != 'helper' }}
-        name: Download
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ matrix.package }}-packaged.yaml
-
-      - if: ${{ matrix.package != 'helper' }}
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
-
-      - if: ${{ matrix.package != 'helper' }}
-        name: Publish
-        run: sam publish --template packaged.yaml
-
-      - if: ${{ matrix.package == 'resource-metadata-sqs' }}
-        name: StoreMultiFunction
-        run: |
-          aws s3 cp \
-            $(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "CollectorLambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml) \
-            s3://${{ env.AWS_SERVERLESS_BUCKET }}-${{ env.AWS_DEFAULT_REGION }}/${{ matrix.package }}-collector.zip
-          aws s3 cp \
-            $(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "GeneratorLambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml) \
-            s3://${{ env.AWS_SERVERLESS_BUCKET }}-${{ env.AWS_DEFAULT_REGION }}/${{ matrix.package }}-generator.zip
-
-      - if: ${{ !contains(fromJson('["helper", "resource-metadata-sqs"]'), matrix.package) }}
-        name: Store
-        run: |
-          aws s3 cp \
-            $(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "LambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml) \
-            s3://${{ env.AWS_SERVERLESS_BUCKET }}-${{ env.AWS_DEFAULT_REGION }}/${{ matrix.package }}.zip
