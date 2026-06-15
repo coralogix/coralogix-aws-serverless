@@ -107,7 +107,7 @@ class LambdaManagerCreateLogGroupTests(unittest.TestCase):
         add_permission.assert_not_called()
         add_subscription.assert_not_called()
 
-    def test_new_destination_subscription_still_gets_created(self):
+    def test_event_without_log_group_class_still_gets_subscribed(self):
         event = {"detail": {"requestParameters": {"logGroupName": "/aws/lambda/example"}}}
         self.module.cloudwatch_logs.describe_subscription_filters.return_value = {"subscriptionFilters": []}
 
@@ -124,6 +124,25 @@ class LambdaManagerCreateLogGroupTests(unittest.TestCase):
         )
         add_subscription.assert_called_once()
 
+    def test_non_standard_log_group_class_is_ignored(self):
+        for log_group_class in ("INFREQUENT_ACCESS", "DELIVERY"):
+            event = {
+                "detail": {
+                    "requestParameters": {
+                        "logGroupName": "/aws/lambda/example",
+                        "logGroupClass": log_group_class,
+                    }
+                }
+            }
+
+            with self.subTest(log_group_class=log_group_class):
+                with patch.object(self.module, "add_permission_to_lambda") as add_permission, patch.object(
+                    self.module, "add_subscription"
+                ) as add_subscription:
+                    self.invoke_handler(event)
+
+                add_permission.assert_not_called()
+                add_subscription.assert_not_called()
 
 if __name__ == "__main__":
     unittest.main()

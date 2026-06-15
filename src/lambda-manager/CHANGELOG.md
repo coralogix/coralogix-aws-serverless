@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [2.0.12] - 2026-06-15
+### Fixed
+- Match CloudFormation `CreateLogGroup` events when `LogGroupClass` is omitted and the log group still defaults to `STANDARD`.
+- Continue skipping non-standard `INFREQUENT_ACCESS` and `DELIVERY` log groups during create-event processing.
+
 ## [2.0.11] - 2026-06-13
 ### Fixed
 - Ignore failed CloudTrail `CreateLogGroup` events so they do not trigger duplicate subscription work.

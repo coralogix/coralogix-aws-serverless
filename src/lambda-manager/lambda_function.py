@@ -26,6 +26,8 @@ config = Config(
 cloudwatch_logs = boto3.client('logs', config=config)
 lambda_client = boto3.client('lambda', config=config)
 
+SUPPORTED_LOG_GROUP_CLASS = "STANDARD"
+
 def lambda_handler(event: Dict[str, Any], context) -> None:
     """
     Main Lambda function handler that manages CloudWatch log group subscriptions.
@@ -94,6 +96,9 @@ def lambda_handler(event: Dict[str, Any], context) -> None:
                 return
 
             log_group_to_subscribe = event_detail['requestParameters']['logGroupName']
+
+            if not should_process_log_group_class(event_detail):
+                return
             found_log_group_in_regex_pattern = False
             
             for regex_pattern in regex_pattern_list:
@@ -249,6 +254,21 @@ def should_create_subscription(cloudwatch_logs, log_group_name: str, destination
         return False
 
     return True
+
+def should_process_log_group_class(event_detail: Dict[str, Any]) -> bool:
+    """
+    Allow standard log groups, including events where CloudTrail omits logGroupClass.
+
+    CloudFormation-created log groups default to STANDARD even when the property is
+    not present in requestParameters. Explicit non-standard classes should still be
+    ignored to preserve the existing behavior.
+    """
+    log_group_class = event_detail.get('requestParameters', {}).get('logGroupClass', SUPPORTED_LOG_GROUP_CLASS)
+    if log_group_class == SUPPORTED_LOG_GROUP_CLASS:
+        return True
+
+    logger.info(f"Skipping log group because logGroupClass {log_group_class} is not supported")
+    return False
 
 def add_subscription(
     filter_name: str, 
