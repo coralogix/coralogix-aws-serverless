@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [2.0.11] - 2026-06-13
+### Fixed
+- Ignore failed CloudTrail `CreateLogGroup` events so they do not trigger duplicate subscription work.
+- Skip creating a new subscription when the destination is already attached to the log group.
+
 ## [2.0.10] - 2025-06-23
 ### Changed
 - Remove duplicated code.

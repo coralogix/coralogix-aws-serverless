@@ -84,11 +84,22 @@ def lambda_handler(event: Dict[str, Any], context) -> None:
 
         # Handle CloudWatch log group creation events
         if scan_old_log_groups != 'true' and "RequestType" not in event:
-            log_group_to_subscribe = event['detail']['requestParameters']['logGroupName']
+            event_detail = event['detail']
+
+            if cloudtrail_event_failed(event_detail):
+                logger.info(
+                    "Skipping failed CloudTrail CreateLogGroup event for %s",
+                    event_detail.get('requestParameters', {}).get('logGroupName', 'unknown log group')
+                )
+                return
+
+            log_group_to_subscribe = event_detail['requestParameters']['logGroupName']
             found_log_group_in_regex_pattern = False
             
             for regex_pattern in regex_pattern_list:
                 if re.match(regex_pattern, log_group_to_subscribe):
+                    if not should_create_subscription(cloudwatch_logs, log_group_to_subscribe, destination_arn):
+                        break
                     if destination_type == 'firehose':
                         logger.info(f"Adding subscription filter for {log_group_to_subscribe}")
                         status = add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn)
@@ -183,28 +194,11 @@ def list_log_groups_and_subscriptions(
     account_id = context.invoked_function_arn.split(":")[4]
     
     for log_group in log_groups:
-        create_subscription = False
         log_group_name = log_group['logGroupName']
 
         for regex_pattern in regex_pattern_list:
             if regex_pattern and re.match(regex_pattern, log_group_name):
-                # Check existing subscriptions
-                subscriptions = cloudwatch_logs.describe_subscription_filters(logGroupName=log_group_name)
-                subscriptions = subscriptions.get('subscriptionFilters')
-
-                if subscriptions is None:
-                    create_subscription = True
-                elif len(subscriptions) < 2:
-                    create_subscription = True
-                    for subscription in subscriptions:
-                        if subscription['destinationArn'] == destination_arn:
-                            create_subscription = False
-                            break
-                elif len(subscriptions) >= 2:
-                    logger.warning(f"Skipping {log_group_name} as it already has 2 subscriptions")
-                    break
-
-                if create_subscription:
+                if should_create_subscription(cloudwatch_logs, log_group_name, destination_arn):
                     if identify_arn_service(destination_arn) == "lambda" and add_permissions_to_all_log_groups == 'false':
                         if not check_if_log_group_exist_in_log_group_permission_prefix(log_group_name, log_group_permission_prefix):
                             add_permission_to_lambda(destination_arn, log_group_name, region, account_id)
@@ -221,6 +215,40 @@ def list_log_groups_and_subscriptions(
                             logger.warning(f"Retrying to add subscription filter for {log_group_name}")
                             add_subscription(filter_name, logs_filter, log_group_name, destination_arn)
                 break  # no need to continue the loop if we find a match for the log group
+
+def cloudtrail_event_failed(event_detail: Dict[str, Any]) -> bool:
+    """
+    Check whether a CloudTrail event represents a failed API call.
+
+    Failed CreateLogGroup events can be retried or emitted for no-op operations such as
+    ResourceAlreadyExistsException. These should not trigger new subscription work.
+    """
+    return bool(event_detail.get('errorCode') or event_detail.get('errorMessage'))
+
+def should_create_subscription(cloudwatch_logs, log_group_name: str, destination_arn: str) -> bool:
+    """
+    Determine whether a log group can accept a new subscription for the destination.
+
+    Returns False when the destination is already subscribed or the log group has already
+    reached the CloudWatch subscription limit.
+    """
+    subscriptions = cloudwatch_logs.describe_subscription_filters(logGroupName=log_group_name)
+    subscriptions = subscriptions.get('subscriptionFilters') or []
+
+    for subscription in subscriptions:
+        if subscription.get('destinationArn') == destination_arn:
+            logger.info(
+                "Skipping %s because a subscription for %s already exists",
+                log_group_name,
+                destination_arn
+            )
+            return False
+
+    if len(subscriptions) >= 2:
+        logger.warning(f"Skipping {log_group_name} as it already has 2 subscriptions")
+        return False
+
+    return True
 
 def add_subscription(
     filter_name: str, 
