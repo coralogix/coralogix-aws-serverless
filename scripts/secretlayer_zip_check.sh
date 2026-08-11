@@ -12,6 +12,10 @@ set -euo pipefail
 layer_dir="${1:-src/lambda-secretLayer}"
 zip_path="$layer_dir/wrapper.zip"
 expected_entries="wrapper.sh wrapper16.js wrapper18.js"
+# wrapper.sh is exec'd via AWS_LAMBDA_EXEC_WRAPPER=/opt/wrapper.sh, so it has to
+# carry the execute bit inside the archive or the function dies with exit 126
+expected_mode_wrapper_sh="-rwxr-xr-x"
+expected_mode_default="-rw-r--r--"
 
 fail() {
   echo "secretlayer_zip_check: $*" >&2
@@ -33,6 +37,24 @@ if [[ "$actual_entries" != "$sorted_expected" ]]; then
 fi
 
 drifted=0
+
+# entry modes, read out of the archive rather than the extracted copies, since
+# unzip can apply the umask on extraction
+for entry in $expected_entries; do
+  case "$entry" in
+    wrapper.sh) want="$expected_mode_wrapper_sh" ;;
+    *)          want="$expected_mode_default" ;;
+  esac
+  got="$(unzip -Z -l "$zip_path" | awk -v e="$entry" '$NF == e { print $1 }')"
+  if [[ "$got" != "$want" ]]; then
+    echo "secretlayer_zip_check: $entry has mode $got in wrapper.zip, expected $want" >&2
+    if [[ "$entry" == "wrapper.sh" ]]; then
+      echo "  wrapper.sh is exec'd via AWS_LAMBDA_EXEC_WRAPPER; without the execute bit the function fails with exit 126" >&2
+    fi
+    drifted=1
+  fi
+done
+
 for entry in $expected_entries; do
   source_file="$layer_dir/$entry"
   [[ -f "$source_file" ]] || fail "missing tracked source $source_file"

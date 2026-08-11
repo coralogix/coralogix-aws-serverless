@@ -2,15 +2,22 @@
 
 # Rebuild src/lambda-secretLayer/wrapper.zip from the tracked wrapper sources.
 #
-# Deterministic on purpose: entry mode is forced to 644 and mtimes to a fixed
-# timestamp, so rebuilding from unchanged sources produces a byte-identical
-# archive and the committed binary does not churn.
+# wrapper.sh must be executable in the archive: consumers set
+# AWS_LAMBDA_EXEC_WRAPPER=/opt/wrapper.sh (see src/resource-metadata-sqs/template.yaml)
+# and Lambda execs that path, so a non-executable entry fails with exit 126 before
+# the handler starts. The wrappers it dispatches to are only ever passed to node,
+# so they stay non-executable.
+#
+# Deterministic on purpose: modes and mtimes are fixed, so rebuilding from
+# unchanged sources produces a byte-identical archive and the committed binary
+# does not churn.
 
 set -euo pipefail
 
 layer_dir="${1:-src/lambda-secretLayer}"
 zip_name="wrapper.zip"
 entries="wrapper18.js wrapper16.js wrapper.sh"
+executable_entries=" wrapper.sh "
 # fixed so rebuilds are reproducible; matches when the sources last changed (#190)
 mtime="202606110000"
 
@@ -23,7 +30,10 @@ trap 'rm -rf "$work"' EXIT
 for entry in $entries; do
   [[ -f "$layer_dir/$entry" ]] || { echo "secretlayer_zip_build: missing $layer_dir/$entry" >&2; exit 1; }
   cp "$layer_dir/$entry" "$work/$entry"
-  chmod 644 "$work/$entry"
+  case "$executable_entries" in
+    *" $entry "*) chmod 755 "$work/$entry" ;;
+    *)            chmod 644 "$work/$entry" ;;
+  esac
   touch -t "$mtime" "$work/$entry"
 done
 
