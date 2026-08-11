@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [0.4.0] - 2026-08-11
+### Changed
+- Send to the regional Coralogix domains (`ingress.<region>.coralogix.com`) instead of the legacy per-region domains.
+
+### Added
+- Add `US3` to `CoralogixRegion`.
+
 ## [0.3.2] - 2025-02-20
 ### Added
 - Assume a cross-account IAM role when querying an AWS Config aggregator in a different account via the `ConfigCrossAccountRole` parameter.

@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [3.1.0] - 2026-08-11
+### Changed
+- Send to the regional Coralogix domains (`api.<region>.coralogix.com`) instead of the legacy per-region domains.
+
+### Added
+- Add `AP3` and `US3` to `CoralogixRegion`.
+
 ## [3.0.0] - 2025-03-13
 ### Added
 - Parse the OpenSearch JSON response in the templating flow and fail fast when the template result is empty.

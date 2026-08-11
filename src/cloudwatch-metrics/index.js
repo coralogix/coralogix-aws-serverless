@@ -6,7 +6,7 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.0.7
+ * @version     1.1.0
  * @since       1.0.0
  */
  "use strict";
@@ -20,7 +20,8 @@ const cloudwatch = new aws.CloudWatch();
 
 // Check Lambda function parameters
 const appName = process.env.app_name ? process.env.app_name : "NO_APPLICATION";
-const coralogixUrl = process.env.CORALOGIX_URL || "api.coralogix.com";
+assert(process.env.CORALOGIX_URL, "No Coralogix URL!");
+const coralogixUrl = process.env.CORALOGIX_URL;
 assert(process.env.private_key, "No private key!");
 assert(process.env.metrics, "No metrics list!");
 
@@ -38,13 +39,13 @@ function postToCoralogix(logs, callback, retryNumber = 0, retryLimit = 3) {
         const request = https.request({
             hostname: coralogixUrl,
             port: 443,
-            path: "/logs/rest/singles",
+            path: "/logs/v1/singles",
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "Content-Encoding": "gzip",
                 "Content-Length": logs.length,
-                "private_key": process.env.private_key
+                "Authorization": `Bearer ${process.env.private_key}`
             },
             timeout: 10000
         });

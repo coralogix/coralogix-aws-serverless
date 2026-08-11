@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [1.3.0] - 2026-08-11
+### Changed
+- Send to the regional Coralogix domains (`ingress.<region>.coralogix.com`) instead of the legacy per-region domains.
+
+### Added
+- Add `US3` to `CoralogixRegion`.
+
 ## [1.2.12] - 2025-12-04
 ### Changed
 - Update the Node.js runtime to 22.x.

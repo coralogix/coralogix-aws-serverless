@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [1.1.0] - 2026-08-11
+### Changed
+- Send to the regional Coralogix domains (`ingress.<region>.coralogix.com`) instead of the legacy per-region domains.
+- Post to `/logs/v1/singles` with an `Authorization: Bearer` header instead of the retired `/logs/rest/singles` path and `private_key` header. The `PrivateKey` parameter is unchanged; its value is now sent as the bearer token. The legacy path is not served on `US3`.
+- Require the `CORALOGIX_URL` environment variable instead of falling back to `api.coralogix.com`, which does not serve the ingestion path. The template always sets it, so stack deployments are unaffected.
+- Change the `CoralogixRegion` default from `Europe` to `EU1`. Both resolve to the same endpoint, so the deployed behaviour is identical.
+
+### Added
+- Accept the region codes `EU1`, `EU2`, `AP1`, `AP2`, `AP3`, `US1`, `US2` and `US3` for `CoralogixRegion`, and add `AP3` and `US3` endpoint support.
+
+### Deprecated
+- The `Europe`, `Europe2`, `India`, `Singapore` and `US` values of `CoralogixRegion` are still accepted and map to `EU1`, `EU2`, `AP1`, `AP2` and `US1`. Use the region codes instead.
+
 ## [1.0.7] - 2023-07-30
 ### Added
 - Add US2 region support.
