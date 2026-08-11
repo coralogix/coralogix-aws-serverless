@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [1.2.13] - 2026-08-11
+### Fixed
+- Upgrade transitive `protobufjs` to `^7.6.5` to address GHSA-j3f2-48v5-ccww and GHSA-f38q-mgvj-vph7.
+
 ## [1.2.12] - 2025-12-04
 ### Changed
 - Update the Node.js runtime to 22.x.

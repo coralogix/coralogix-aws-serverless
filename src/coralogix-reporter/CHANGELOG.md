@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [3.0.1] - 2026-08-11
+### Fixed
+- Upgrade `nodemailer` to `^9.0.5` to address GHSA-p6gq-j5cr-w38f.
+
 ## [3.0.0] - 2025-03-13
 ### Added
 - Parse the OpenSearch JSON response in the templating flow and fail fast when the template result is empty.
