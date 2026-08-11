@@ -9,6 +9,8 @@ This format is based on Keep a Changelog.
 - Post to `/logs/v1/singles` instead of `/api/v1/logs`, which Coralogix disables on 2026-09-30.
 - Bump `coralogix_logger` to 2.1.1, which sends the private key as an `Authorization: Bearer` header and converts the bulk payload to the singles format. 2.0.5 sent no headers at all, so it could not authenticate against the replacement endpoint.
 - Change the `CoralogixRegion` default from `Europe` to `EU1`. Both resolve to the same endpoint, so the deployed behaviour is identical.
+- Update the Python runtime from 3.9, deprecated by AWS on 2025-12-15, to 3.14.
+- Drop the `boto3` and `botocore` pins, which were from 2022 and cannot install on Python 3.13 or later. Both are provided by the Lambda Python runtime, as they already were for `lambda-manager`.
 
 ### Added
 - Accept the region codes `EU1`, `EU2`, `AP1`, `AP2`, `AP3`, `US1`, `US2` and `US3` for `CoralogixRegion`, and add `AP3` and `US3` endpoint support.

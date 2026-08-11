@@ -12,11 +12,11 @@
  "use strict";
 
  // Import required libraries
-const aws = require("aws-sdk");
+const { CloudWatchClient, GetMetricStatisticsCommand } = require("@aws-sdk/client-cloudwatch");
 const https = require("https");
 const zlib = require("zlib");
 const assert = require("assert");
-const cloudwatch = new aws.CloudWatch();
+const cloudwatch = new CloudWatchClient({});
 
 // Check Lambda function parameters
 const appName = process.env.app_name ? process.env.app_name : "NO_APPLICATION";
@@ -92,37 +92,33 @@ function handler (event, context, callback) {
 
     try{
         JSON.parse(process.env.metrics).forEach((metric) => {
-            cloudwatch.getMetricStatistics(Object.assign(metric, {
+            cloudwatch.send(new GetMetricStatisticsCommand(Object.assign(metric, {
                 "StartTime": StartTime,
                 "EndTime": EndTime
-            }), (error, result) => {
-                if(error) {
-                    callback(error);
-                } else{
-                    zlib.gzip(JSON.stringify(
-                        result.Datapoints.map((datapoint) => ({
-                            "applicationName": appName,
-                            "subsystemName": metric.Namespace,
-                            "timestamp": new Date(datapoint.Timestamp).getTime(),
-                            "severity": 3,
-                            "json": {
-                                "Datapoint": datapoint,
-                                "MetricName": metric.MetricName,
-                                "Period": metric.Period,
-                                "Dimensions": Object.fromEntries(
-                                    metric.Dimensions.map((dimension) => [dimension.Name, dimension.Value])
-                                )
-                            }
-                        })
-                    )), (error, compressedEvents) => {
-                        if (error) {
-                            callback(error);
-                        } else {
-                            postToCoralogix(compressedEvents, callback);
+            }))).then((result) => {
+                zlib.gzip(JSON.stringify(
+                    result.Datapoints.map((datapoint) => ({
+                        "applicationName": appName,
+                        "subsystemName": metric.Namespace,
+                        "timestamp": new Date(datapoint.Timestamp).getTime(),
+                        "severity": 3,
+                        "json": {
+                            "Datapoint": datapoint,
+                            "MetricName": metric.MetricName,
+                            "Period": metric.Period,
+                            "Dimensions": Object.fromEntries(
+                                metric.Dimensions.map((dimension) => [dimension.Name, dimension.Value])
+                            )
                         }
-                    });
-                }
-            });
+                    })
+                )), (error, compressedEvents) => {
+                    if (error) {
+                        callback(error);
+                    } else {
+                        postToCoralogix(compressedEvents, callback);
+                    }
+                });
+            }).catch(callback);
         });
     } catch (error){
         callback(error);

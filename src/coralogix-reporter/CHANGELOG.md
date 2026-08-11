@@ -6,6 +6,7 @@ This format is based on Keep a Changelog.
 ## [3.1.0] - 2026-08-11
 ### Changed
 - Send to the regional Coralogix domains (`api.<region>.coralogix.com`) instead of the legacy per-region domains.
+- Update the Node.js runtime to 24.x, the latest AWS Lambda supports.
 
 ### Added
 - Add `AP3` and `US3` to `CoralogixRegion`.

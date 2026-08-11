@@ -9,6 +9,8 @@ This format is based on Keep a Changelog.
 - Post to `/logs/v1/singles` with an `Authorization: Bearer` header instead of the retired `/logs/rest/singles` path and `private_key` header. The `PrivateKey` parameter is unchanged; its value is now sent as the bearer token. The legacy path is not served on `US3`.
 - Require the `CORALOGIX_URL` environment variable instead of falling back to `api.coralogix.com`, which does not serve the ingestion path. The template always sets it, so stack deployments are unaffected.
 - Change the `CoralogixRegion` default from `Europe` to `EU1`. Both resolve to the same endpoint, so the deployed behaviour is identical.
+- Update the Node.js runtime from 16.x, deprecated by AWS on 2024-06-12, to 24.x.
+- Migrate from AWS SDK for JavaScript v2 to v3 (`@aws-sdk/client-cloudwatch`), which the runtime bump requires: no supported Node.js runtime ships SDK v2, and the function relied on the runtime to provide it. `@aws-sdk/client-cloudwatch` is now a declared dependency.
 
 ### Added
 - Accept the region codes `EU1`, `EU2`, `AP1`, `AP2`, `AP3`, `US1`, `US2` and `US3` for `CoralogixRegion`, and add `AP3` and `US3` endpoint support.

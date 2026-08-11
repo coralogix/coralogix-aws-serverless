@@ -12,7 +12,10 @@
     "url": "https://coralogix.com"
   },
   "engines": {
-    "node": "16.x"
+    "node": "24.x"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.758.0"
   },
   "contributors": [
     {

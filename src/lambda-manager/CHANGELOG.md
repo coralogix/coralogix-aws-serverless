@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [2.1.0] - 2026-08-11
+### Changed
+- Update the Python runtime to 3.14, the latest AWS Lambda supports.
+
 ## [2.0.12] - 2026-06-15
 ### Fixed
 - Match CloudFormation `CreateLogGroup` events when `LogGroupClass` is omitted and the log group still defaults to `STANDARD`.

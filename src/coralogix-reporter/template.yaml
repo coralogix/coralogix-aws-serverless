@@ -140,7 +140,7 @@ Resources:
       Description: Generate report from Coralogix OpenSearch API and send it by email.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
