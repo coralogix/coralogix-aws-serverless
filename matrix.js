@@ -20,10 +20,6 @@
     "path": "src/cloudwatch-logs/**"
   },
   {
-    "name": "cloudwatch-metrics",
-    "path": "src/cloudwatch-metrics/**"
-  },
-  {
     "name": "coralogix-reporter",
     "path": "src/coralogix-reporter/**"
   },
