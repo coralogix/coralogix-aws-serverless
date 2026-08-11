@@ -197,7 +197,7 @@ EC2 only:
 
 | Parameter | Description | Default Value | Required |
 |---|---|---|---|
-| CoralogixRegion | The Coralogix location region, possible options are [EU1, EU2, AP1, AP2, AP3, US1, US2, US3, Custom].In case that you want to use Custom domain, leave this as default and write the Custom doamin in the ``CustomDomain`` filed. | Custom | :heavy_check_mark: |
+| CoralogixRegion | The Coralogix location region, possible options are [EU1, EU2, AP1, AP2, AP3, US1, US2, US3, Custom]. In case that you want to use Custom domain, leave this as default and write the Custom domain in the ``CustomDomain`` field. | Custom | :heavy_check_mark: |
 | ApiKey | Your [Coralogix Send Your Data – API Key](https://coralogix.com/docs/send-your-data-api-key/), or, if you use a pre-created secret (created in AWS Secrets Manager), the name of the secret that contains the Coralogix Send Your Data API key. | | :heavy_check_mark: |
 | CustomDomain | The Coralogix custom domain, leave empty if you don't use Custom domain. | | |
 
