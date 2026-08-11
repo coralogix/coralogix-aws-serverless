@@ -6,22 +6,21 @@
  * @link        https://coralogix.com/
  * @copyright   Coralogix Ltd.
  * @licence     Apache-2.0
- * @version     1.1.0
+ * @version     1.0.7
  * @since       1.0.0
  */
  "use strict";
 
  // Import required libraries
-const { CloudWatchClient, GetMetricStatisticsCommand } = require("@aws-sdk/client-cloudwatch");
+const aws = require("aws-sdk");
 const https = require("https");
 const zlib = require("zlib");
 const assert = require("assert");
-const cloudwatch = new CloudWatchClient({});
+const cloudwatch = new aws.CloudWatch();
 
 // Check Lambda function parameters
 const appName = process.env.app_name ? process.env.app_name : "NO_APPLICATION";
-assert(process.env.CORALOGIX_URL, "No Coralogix URL!");
-const coralogixUrl = process.env.CORALOGIX_URL;
+const coralogixUrl = process.env.CORALOGIX_URL || "api.coralogix.com";
 assert(process.env.private_key, "No private key!");
 assert(process.env.metrics, "No metrics list!");
 
@@ -39,13 +38,13 @@ function postToCoralogix(logs, callback, retryNumber = 0, retryLimit = 3) {
         const request = https.request({
             hostname: coralogixUrl,
             port: 443,
-            path: "/logs/v1/singles",
+            path: "/logs/rest/singles",
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "Content-Encoding": "gzip",
                 "Content-Length": logs.length,
-                "Authorization": `Bearer ${process.env.private_key}`
+                "private_key": process.env.private_key
             },
             timeout: 10000
         });
@@ -92,33 +91,37 @@ function handler (event, context, callback) {
 
     try{
         JSON.parse(process.env.metrics).forEach((metric) => {
-            cloudwatch.send(new GetMetricStatisticsCommand(Object.assign(metric, {
+            cloudwatch.getMetricStatistics(Object.assign(metric, {
                 "StartTime": StartTime,
                 "EndTime": EndTime
-            }))).then((result) => {
-                zlib.gzip(JSON.stringify(
-                    result.Datapoints.map((datapoint) => ({
-                        "applicationName": appName,
-                        "subsystemName": metric.Namespace,
-                        "timestamp": new Date(datapoint.Timestamp).getTime(),
-                        "severity": 3,
-                        "json": {
-                            "Datapoint": datapoint,
-                            "MetricName": metric.MetricName,
-                            "Period": metric.Period,
-                            "Dimensions": Object.fromEntries(
-                                metric.Dimensions.map((dimension) => [dimension.Name, dimension.Value])
-                            )
+            }), (error, result) => {
+                if(error) {
+                    callback(error);
+                } else{
+                    zlib.gzip(JSON.stringify(
+                        result.Datapoints.map((datapoint) => ({
+                            "applicationName": appName,
+                            "subsystemName": metric.Namespace,
+                            "timestamp": new Date(datapoint.Timestamp).getTime(),
+                            "severity": 3,
+                            "json": {
+                                "Datapoint": datapoint,
+                                "MetricName": metric.MetricName,
+                                "Period": metric.Period,
+                                "Dimensions": Object.fromEntries(
+                                    metric.Dimensions.map((dimension) => [dimension.Name, dimension.Value])
+                                )
+                            }
+                        })
+                    )), (error, compressedEvents) => {
+                        if (error) {
+                            callback(error);
+                        } else {
+                            postToCoralogix(compressedEvents, callback);
                         }
-                    })
-                )), (error, compressedEvents) => {
-                    if (error) {
-                        callback(error);
-                    } else {
-                        postToCoralogix(compressedEvents, callback);
-                    }
-                });
-            }).catch(callback);
+                    });
+                }
+            });
         });
     } catch (error){
         callback(error);

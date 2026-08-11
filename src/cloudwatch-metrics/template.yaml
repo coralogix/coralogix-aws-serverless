@@ -14,28 +14,20 @@ Metadata:
       - metrics
       - cloudwatch
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.1.0
+    SemanticVersion: 1.0.7
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
     Type: String
-    Description: The Coralogix location region, possible options are [EU1, EU2, AP1, AP2, AP3, US1, US2, US3]. The legacy names [Europe, Europe2, India, Singapore, US] are still accepted and map to the same endpoints.
+    Description: The Coralogix location region, possible options are [Europe, Europe2, India, Singapore, US, US2]
     AllowedValues:
-      - EU1
-      - EU2
-      - AP1
-      - AP2
-      - AP3
-      - US1
-      - US2
-      - US3
-      # Deprecated aliases, kept so existing stacks keep deploying
       - Europe
       - Europe2
       - India
       - Singapore
       - US
-    Default: EU1
+      - US2
+    Default: Europe
   PrivateKey:
     Type: String
     Description: The Coralogix private key which is used to validate your authenticity
@@ -76,33 +68,18 @@ Parameters:
     Default: ''
 Mappings:
   CoralogixRegionMap:
-    EU1:
-      LogUrl: ingress.eu1.coralogix.com
-    EU2:
-      LogUrl: ingress.eu2.coralogix.com
-    AP1:
-      LogUrl: ingress.ap1.coralogix.com
-    AP2:
-      LogUrl: ingress.ap2.coralogix.com
-    AP3:
-      LogUrl: ingress.ap3.coralogix.com
-    US1:
-      LogUrl: ingress.us1.coralogix.com
-    US2:
-      LogUrl: ingress.us2.coralogix.com
-    US3:
-      LogUrl: ingress.us3.coralogix.com
-    # Deprecated aliases, kept so existing stacks keep deploying
     Europe:
-      LogUrl: ingress.eu1.coralogix.com
+      LogUrl: ingress.coralogix.com
     Europe2:
       LogUrl: ingress.eu2.coralogix.com
     India:
-      LogUrl: ingress.ap1.coralogix.com
+      LogUrl: ingress.coralogix.in
     Singapore:
-      LogUrl: ingress.ap2.coralogix.com
+      LogUrl: ingress.coralogixsg.com
     US:
-      LogUrl: ingress.us1.coralogix.com
+      LogUrl: ingress.coralogix.us
+    US2:
+      LogUrl: ingress.cx498.coralogix.com
 Conditions:
   IsNotificationEnabled:
     Fn::Not:
@@ -116,7 +93,7 @@ Resources:
       Description: Send CloudWatch metrics to Coralogix.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs24.x
+      Runtime: nodejs16.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
