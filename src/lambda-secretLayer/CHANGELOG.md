@@ -7,6 +7,9 @@ This format is based on Keep a Changelog.
 ### Added
 - Add `nodejs22.x` and `nodejs24.x` to the default `CompatibleRuntimes`, so the layer can be attached to functions on the current runtimes. `wrapper.sh` already routes anything other than Node.js 14/16 to the SDK v3 code path. The previously listed runtimes are unchanged.
 
+### Fixed
+- Rebuild `wrapper.zip` from the tracked wrapper sources. The archive had not been rebuilt since 2024-08-25, so #190's removal of a `console.log` of the Secrets Manager secret name never reached the deployed layer. Only the secret's name was logged, never its value.
+
 ## [1.0.3] - 2024-08-25
 ### Changed
 - Allow the layer to run in Node.js 20 applications by using the Node.js 18-compatible code path.
