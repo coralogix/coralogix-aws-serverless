@@ -19,7 +19,7 @@ Environment variables:
 | FunctionMemorySize | The maximum allocated memory this lambda may consume. The default value is the minimum recommended setting please consult coralogix support before changing. | 1024 |  |
 | FunctionTimeout | The maximum time in seconds the function may be allowed to run. The default value is the minimum recommended setting please consult coralogix support before changing. | 300 |  |
 | NotificationEmail | Failure notification email address | | |
-| SnsKmsKeyArn | Optional KMS key ARN or alias to encrypt the Lambda failure-notification SNS topic. Leave empty for no encryption. The key policy must allow `sns.amazonaws.com` and the Lambda execution role to use `kms:Decrypt` and `kms:GenerateDataKey*`. | | |
+| SnsKmsKeyArn | Optional KMS key ARN (not an alias) to encrypt the Lambda failure-notification SNS topic. Leave empty for no encryption. The key policy must allow `sns.amazonaws.com` and the Lambda execution role to use `kms:Decrypt` and `kms:GenerateDataKey*`. | | |
 
 ## Requirements
 

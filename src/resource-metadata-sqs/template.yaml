@@ -272,7 +272,8 @@ Parameters:
     Default: ""
   SnsKmsKeyArn:
     Type: String
-    Description: Optional KMS key ARN or alias to encrypt the Lambda failure-notification SNS topic. Leave empty for no encryption. The key policy must allow sns.amazonaws.com and the Lambda execution role to use kms:Decrypt and kms:GenerateDataKey*.
+    Description: Optional KMS key ARN (not an alias) to encrypt the Lambda failure-notification SNS topic. Leave empty for no encryption. The key policy must allow sns.amazonaws.com and the Lambda execution role to use kms:Decrypt and kms:GenerateDataKey*.
+    AllowedPattern: '^$|^arn:[a-z0-9-]+:kms:[a-z0-9-]+:[0-9]{12}:key/.+$'
     Default: ""
   CreateSecret:
     Type: String
