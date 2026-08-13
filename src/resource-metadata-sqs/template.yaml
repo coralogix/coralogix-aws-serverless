@@ -784,15 +784,6 @@ Resources:
         - function: !Ref GeneratorLambdaFunctionSM
       SecretString: !Ref ApiKey
 
-  GeneratorLambdaFunctionNotificationSubscription:
-    Type: AWS::SNS::Subscription
-    Condition: IsNotificationEnabled
-    Properties:
-      Protocol: email
-      Endpoint:
-        Ref: NotificationEmail
-      TopicArn: !Ref FailureNotificationTopic
-
   CloudTrailBucket:
     Type: AWS::S3::Bucket
     Condition: EventModeCreateTrail
