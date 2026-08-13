@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [1.0.4] - 2026-08-13
+### Added
+- Add optional `SnsKmsKeyArn` to encrypt the Lambda failure-notification SNS topic with a customer-managed KMS key.
+
 ## [1.0.3] - 2023-08-09
 ### Fixed
 - Fix the Salesforce API update flow.

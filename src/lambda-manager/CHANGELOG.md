@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [2.0.13] - 2026-08-13
+### Added
+- Add optional `SnsKmsKeyArn` to encrypt the Lambda failure-notification SNS topic with a customer-managed KMS key.
+
 ## [2.0.12] - 2026-06-15
 ### Fixed
 - Match CloudFormation `CreateLogGroup` events when `LogGroupClass` is omitted and the log group still defaults to `STANDARD`.
