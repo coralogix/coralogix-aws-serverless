@@ -44,6 +44,7 @@ Metadata:
           - FunctionTimeout
           - FunctionSchedule
           - NotificationEmail
+          - SnsKmsKeyArn
       - Label:
           default: Script Configuration
         Parameters:
@@ -176,6 +177,11 @@ Parameters:
     Description: Failure notification email address
     MaxLength: 320
     Default: ""
+  SnsKmsKeyArn:
+    Type: String
+    Description: Optional KMS key ARN (not an alias) to encrypt the Lambda failure-notification SNS topic. Leave empty for no encryption. The key policy must allow sns.amazonaws.com and the Lambda execution role to use kms:Decrypt and kms:GenerateDataKey*.
+    AllowedPattern: '^$|^arn:[a-z0-9-]+:kms:[a-z0-9-]+:[0-9]{12}:key/.+$'
+    Default: ""
   LogsToStdout:
     Type: String
     Description: Send logs to stdout/cloudwatch [True,False]
@@ -217,7 +223,15 @@ Conditions:
     - !Equals
       - !Ref NotificationEmail
       - ''
+  IsSnsKmsKeySet: !Not [!Equals [!Ref SnsKmsKeyArn, '']]
 Resources:
+  LambdaFunctionEventInvokeConfigOnFailureTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId: !If
+        - IsSnsKmsKeySet
+        - !Ref SnsKmsKeyArn
+        - !Ref AWS::NoValue
   DynamoDB:
     Type: AWS::Serverless::SimpleTable
     Properties:
@@ -272,10 +286,22 @@ Resources:
         DestinationConfig:
           OnFailure:
             Type: SNS
+            Destination: !Ref LambdaFunctionEventInvokeConfigOnFailureTopic
       Policies:
         - DynamoDBCrudPolicy:
             TableName:
               Ref: DynamoDB
+        - !If
+          - IsSnsKmsKeySet
+          - Version: '2012-10-17'
+            Statement:
+              - Sid: SnsKms
+                Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:GenerateDataKey*
+                Resource: !Ref SnsKmsKeyArn
+          - !Ref AWS::NoValue
       Events:
         CWSchedule:
           Type: Schedule
@@ -294,4 +320,4 @@ Resources:
       Endpoint:
         Ref: NotificationEmail
       TopicArn:
-        Ref: LambdaFunction.DestinationTopic
+        Ref: LambdaFunctionEventInvokeConfigOnFailureTopic

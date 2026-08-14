@@ -29,6 +29,7 @@ To learn more about application name and subsystem name go [here](https://coralo
 * **FunctionTimeout** - Lambda function timeout limit.
 * **FunctionSchedule** - Lambda function schedule in hours, the function will be invoked each X hours. after deploy first invocation will be after X hours.
 * **NotificationEmail** - Failure notification email address.
+* **SnsKmsKeyArn** - Optional KMS key ARN (not an alias) to encrypt the Lambda failure-notification SNS topic. Leave empty for no encryption. The key policy must allow `sns.amazonaws.com` and the Lambda execution role to use `kms:Decrypt` and `kms:GenerateDataKey*`.
 
 ## Script Configuration
 

@@ -18,6 +18,12 @@ This format is based on Keep a Changelog.
 ### Deprecated
 - The `Europe`, `Europe2`, `India`, `Singapore` and `US` values of `CoralogixRegion` are still accepted and map to `EU1`, `EU2`, `AP1`, `AP2` and `US1`. Use the region codes instead.
 
+## [1.0.4] - 2026-08-13
+### Added
+- Add optional `SnsKmsKeyArn` to encrypt the Lambda failure-notification SNS topic with a customer-managed KMS key.
+### Fixed
+- Reuse the SAM OnFailure topic logical ID so existing email subscriptions are not replaced when `SnsKmsKeyArn` is unset.
+
 ## [1.0.3] - 2023-08-09
 ### Fixed
 - Fix the Salesforce API update flow.

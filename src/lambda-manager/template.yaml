@@ -26,6 +26,7 @@ Metadata:
           - LogsFilter
           - RegexPattern
           - NotificationEmail
+          - SnsKmsKeyArn
           - DestinationArn
           - DestinationRole
           - DestinationType
@@ -96,6 +97,11 @@ Parameters:
     Description: Failure notification email address
     MaxLength: 320
     Default: ''
+  SnsKmsKeyArn:
+    Type: String
+    Description: Optional KMS key ARN (not an alias) to encrypt the Lambda failure-notification SNS topic. Leave empty for no encryption. The key policy must allow sns.amazonaws.com and the Lambda execution role to use kms:Decrypt and kms:GenerateDataKey*.
+    AllowedPattern: '^$|^arn:[a-z0-9-]+:kms:[a-z0-9-]+:[0-9]{12}:key/.+$'
+    Default: ''
 Conditions:
   IsDestinationLambda:
     Fn::Equals:
@@ -106,7 +112,19 @@ Conditions:
       - Fn::Equals:
           - Ref: NotificationEmail
           - ''
+  IsSnsKmsKeySet:
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: SnsKmsKeyArn
+          - ''
 Resources:
+  LambdaFunctionEventInvokeConfigOnFailureTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId: !If
+        - IsSnsKmsKeySet
+        - !Ref SnsKmsKeyArn
+        - !Ref AWS::NoValue
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -194,10 +212,20 @@ Resources:
                 - iam:PassRole
               Resource: 
                 - !Sub "arn:aws:iam::${AWS::AccountId}:role/*"
+            - !If
+              - IsSnsKmsKeySet
+              - Sid: SnsKms
+                Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:GenerateDataKey*
+                Resource: !Ref SnsKmsKeyArn
+              - !Ref AWS::NoValue
       EventInvokeConfig:
         DestinationConfig:
           OnFailure:
             Type: SNS
+            Destination: !Ref LambdaFunctionEventInvokeConfigOnFailureTopic
       Events:
         EventBridgeRule:
           Type: EventBridgeRule
@@ -232,4 +260,4 @@ Resources:
       Endpoint:
         Ref: NotificationEmail
       TopicArn:
-        Ref: LambdaFunction.DestinationTopic
+        Ref: LambdaFunctionEventInvokeConfigOnFailureTopic
