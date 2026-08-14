@@ -6,6 +6,8 @@ This format is based on Keep a Changelog.
 ## [2.0.13] - 2026-08-13
 ### Added
 - Add optional `SnsKmsKeyArn` to encrypt the Lambda failure-notification SNS topic with a customer-managed KMS key.
+### Fixed
+- Reuse the SAM OnFailure topic logical ID so existing email subscriptions are not replaced when `SnsKmsKeyArn` is unset.
 
 ## [2.0.12] - 2026-06-15
 ### Fixed

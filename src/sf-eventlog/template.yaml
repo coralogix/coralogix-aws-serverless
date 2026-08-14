@@ -202,7 +202,7 @@ Conditions:
       - ''
   IsSnsKmsKeySet: !Not [!Equals [!Ref SnsKmsKeyArn, '']]
 Resources:
-  FailureNotificationTopic:
+  LambdaFunctionEventInvokeConfigOnFailureTopic:
     Type: AWS::SNS::Topic
     Properties:
       KmsMasterKeyId: !If
@@ -263,7 +263,7 @@ Resources:
         DestinationConfig:
           OnFailure:
             Type: SNS
-            Destination: !Ref FailureNotificationTopic
+            Destination: !Ref LambdaFunctionEventInvokeConfigOnFailureTopic
       Policies:
         - DynamoDBCrudPolicy:
             TableName:
@@ -297,4 +297,4 @@ Resources:
       Endpoint:
         Ref: NotificationEmail
       TopicArn:
-        Ref: FailureNotificationTopic
+        Ref: LambdaFunctionEventInvokeConfigOnFailureTopic

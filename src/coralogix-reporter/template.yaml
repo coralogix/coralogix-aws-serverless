@@ -134,7 +134,7 @@ Conditions:
   IsScheduleEnabled: !Not [!Equals [!Ref ScheduleEnable, 'false']] 
     
 Resources:
-  FailureNotificationTopic:
+  LambdaFunctionEventInvokeConfigOnFailureTopic:
     Type: AWS::SNS::Topic
     Properties:
       KmsMasterKeyId: !If
@@ -200,7 +200,7 @@ Resources:
         DestinationConfig:
           OnFailure:
             Type: SNS
-            Destination: !Ref FailureNotificationTopic
+            Destination: !Ref LambdaFunctionEventInvokeConfigOnFailureTopic
       Events:
         CloudWatchSchedule:
           Type: Schedule
@@ -217,5 +217,4 @@ Resources:
       Protocol: email
       Endpoint:
         Ref: NotificationEmail
-      TopicArn:
-        Ref: FailureNotificationTopic
+      TopicArn: !Ref LambdaFunctionEventInvokeConfigOnFailureTopic

@@ -368,7 +368,23 @@ Conditions:
   CrossAccountHasOrgId: !Not [!Equals [!Ref OrganizationId, ""]]
 
 Resources:
-  FailureNotificationTopic:
+  CollectorLambdaFunctionEventInvokeConfigOnFailureTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId: !If
+        - IsSnsKmsKeySet
+        - !Ref SnsKmsKeyArn
+        - !Ref AWS::NoValue
+  GeneratorLambdaFunctionEventInvokeConfigOnFailureTopic:
+    Condition: IsNotSMEnabled
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId: !If
+        - IsSnsKmsKeySet
+        - !Ref SnsKmsKeyArn
+        - !Ref AWS::NoValue
+  GeneratorLambdaFunctionSMEventInvokeConfigOnFailureTopic:
+    Condition: IsSMEnabled
     Type: AWS::SNS::Topic
     Properties:
       KmsMasterKeyId: !If
@@ -466,7 +482,7 @@ Resources:
         DestinationConfig:
           OnFailure:
             Type: SNS
-            Destination: !Ref FailureNotificationTopic
+            Destination: !Ref CollectorLambdaFunctionEventInvokeConfigOnFailureTopic
       Policies:
         - !If
           - IsNotEC2ResourceTypeExcluded
@@ -546,7 +562,7 @@ Resources:
       Protocol: email
       Endpoint:
         Ref: NotificationEmail
-      TopicArn: !Ref FailureNotificationTopic
+      TopicArn: !Ref CollectorLambdaFunctionEventInvokeConfigOnFailureTopic
 
   GeneratorLambdaFunction:
     Condition: IsNotSMEnabled
@@ -600,7 +616,7 @@ Resources:
         DestinationConfig:
           OnFailure:
             Type: SNS
-            Destination: !Ref FailureNotificationTopic
+            Destination: !Ref GeneratorLambdaFunctionEventInvokeConfigOnFailureTopic
       Policies:
         - !If 
           - IsNotEC2ResourceTypeExcluded
@@ -715,7 +731,7 @@ Resources:
         DestinationConfig:
           OnFailure:
             Type: SNS
-            Destination: !Ref FailureNotificationTopic
+            Destination: !Ref GeneratorLambdaFunctionSMEventInvokeConfigOnFailureTopic
       Policies:
         - !If 
           - IsNotEC2ResourceTypeExcluded
@@ -783,6 +799,18 @@ Resources:
         - 'lambda/coralogix/${AWS::Region}/${function}'
         - function: !Ref GeneratorLambdaFunctionSM
       SecretString: !Ref ApiKey
+
+  GeneratorLambdaFunctionNotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: IsNotificationEnabled
+    Properties:
+      Protocol: email
+      Endpoint:
+        Ref: NotificationEmail
+      TopicArn: !If
+        - IsSMEnabled
+        - !Ref GeneratorLambdaFunctionSMEventInvokeConfigOnFailureTopic
+        - !Ref GeneratorLambdaFunctionEventInvokeConfigOnFailureTopic
 
   CloudTrailBucket:
     Type: AWS::S3::Bucket

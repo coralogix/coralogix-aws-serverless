@@ -254,7 +254,16 @@ Conditions:
       - Ref: ExcludedLambdaResourceType
       - 'False'
 Resources:
-  FailureNotificationTopic:
+  LambdaFunctionEventInvokeConfigOnFailureTopic:
+    Condition: IsNotSMEnabled
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId: !If
+        - IsSnsKmsKeySet
+        - !Ref SnsKmsKeyArn
+        - !Ref AWS::NoValue
+  LambdaFunctionSMEventInvokeConfigOnFailureTopic:
+    Condition: IsSMEnabled
     Type: AWS::SNS::Topic
     Properties:
       KmsMasterKeyId: !If
@@ -320,7 +329,7 @@ Resources:
         DestinationConfig:
           OnFailure:
             Type: SNS
-            Destination: !Ref FailureNotificationTopic
+            Destination: !Ref LambdaFunctionEventInvokeConfigOnFailureTopic
       Policies:
         - !If 
           - IsNotEC2ResourceTypeExcluded
@@ -429,7 +438,7 @@ Resources:
         DestinationConfig:
           OnFailure:
             Type: SNS
-            Destination: !Ref FailureNotificationTopic
+            Destination: !Ref LambdaFunctionSMEventInvokeConfigOnFailureTopic
       Policies:
         - !If 
           - IsNotEC2ResourceTypeExcluded
@@ -493,4 +502,7 @@ Resources:
       Protocol: email
       Endpoint:
         Ref: NotificationEmail
-      TopicArn: !Ref FailureNotificationTopic
+      TopicArn: !If
+        - IsSMEnabled
+        - !Ref LambdaFunctionSMEventInvokeConfigOnFailureTopic
+        - !Ref LambdaFunctionEventInvokeConfigOnFailureTopic
