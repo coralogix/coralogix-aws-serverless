@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [0.3.3] - 2026-08-13
+### Added
+- Add optional `SnsKmsKeyArn` to encrypt the Lambda failure-notification SNS topic with a customer-managed KMS key.
+### Fixed
+- Reuse the SAM OnFailure topic logical IDs so existing email subscriptions are not replaced when `SnsKmsKeyArn` is unset.
+
 ## [0.3.2] - 2025-02-20
 ### Added
 - Assume a cross-account IAM role when querying an AWS Config aggregator in a different account via the `ConfigCrossAccountRole` parameter.

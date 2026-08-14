@@ -13,7 +13,7 @@ Metadata:
       - coralogix
       - metadata
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.2.12
+    SemanticVersion: 1.2.13
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -34,6 +34,7 @@ Metadata:
           - LambdaFunctionExcludeRegexFilter
           - LambdaFunctionTagFilters
           - NotificationEmail
+          - SnsKmsKeyArn
           - ExcludedEC2ResourceType
           - ExcludedLambdaResourceType
       - Label:
@@ -78,6 +79,8 @@ Metadata:
         default: Timeout
       NotificationEmail:
         default: Notification Email
+      SnsKmsKeyArn:
+        default: SNS KMS Key ARN
       ExcludedEC2ResourceType:
         default: Is EC2 Resource Type Excluded?
       ExcludedLambdaResourceType:
@@ -162,6 +165,11 @@ Parameters:
     Description: Failure notification email address
     MaxLength: 320
     Default: ""
+  SnsKmsKeyArn:
+    Type: String
+    Description: Optional KMS key ARN (not an alias) to encrypt the Lambda failure-notification SNS topic. Leave empty for no encryption. The key policy must allow sns.amazonaws.com and the Lambda execution role to use kms:Decrypt and kms:GenerateDataKey*.
+    AllowedPattern: '^$|^arn:[a-z0-9-]+:kms:[a-z0-9-]+:[0-9]{12}:key/.+$'
+    Default: ""
   CreateSecret:
     Type: String
     Description: Set to False In case you want to use secrets manager with a predefine secret that was already created and contains Coralogix Send Your Data API key.
@@ -205,6 +213,11 @@ Conditions:
       - Fn::Equals:
           - Ref: NotificationEmail
           - ""
+  IsSnsKmsKeySet:
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: SnsKmsKeyArn
+          - ""
   IsSMEnabled:
     Fn::Not:
       - Fn::Equals:
@@ -241,6 +254,22 @@ Conditions:
       - Ref: ExcludedLambdaResourceType
       - 'False'
 Resources:
+  LambdaFunctionEventInvokeConfigOnFailureTopic:
+    Condition: IsNotSMEnabled
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId: !If
+        - IsSnsKmsKeySet
+        - !Ref SnsKmsKeyArn
+        - !Ref AWS::NoValue
+  LambdaFunctionSMEventInvokeConfigOnFailureTopic:
+    Condition: IsSMEnabled
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId: !If
+        - IsSnsKmsKeySet
+        - !Ref SnsKmsKeyArn
+        - !Ref AWS::NoValue
   LambdaFunction:
     Condition: IsNotSMEnabled
     Type: AWS::Serverless::Function
@@ -300,6 +329,7 @@ Resources:
         DestinationConfig:
           OnFailure:
             Type: SNS
+            Destination: !Ref LambdaFunctionEventInvokeConfigOnFailureTopic
       Policies:
         - !If 
           - IsNotEC2ResourceTypeExcluded
@@ -333,6 +363,17 @@ Resources:
               Action:
                 - tag:GetResources
               Resource: "*"
+        - !If
+          - IsSnsKmsKeySet
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: SnsKms
+                Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:GenerateDataKey*
+                Resource: !Ref SnsKmsKeyArn
+          - !Ref AWS::NoValue
   LambdaFunctionSM:
     Condition: IsSMEnabled
     Type: AWS::Serverless::Function
@@ -397,6 +438,7 @@ Resources:
         DestinationConfig:
           OnFailure:
             Type: SNS
+            Destination: !Ref LambdaFunctionSMEventInvokeConfigOnFailureTopic
       Policies:
         - !If 
           - IsNotEC2ResourceTypeExcluded
@@ -431,6 +473,17 @@ Resources:
                 - tag:GetResources
               Resource: "*"
         - SecretsManagerReadWrite
+        - !If
+          - IsSnsKmsKeySet
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: SnsKms
+                Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:GenerateDataKey*
+                Resource: !Ref SnsKmsKeyArn
+          - !Ref AWS::NoValue
 
   PrivateKeySecret:
     Condition: CreateSecret
@@ -449,8 +502,7 @@ Resources:
       Protocol: email
       Endpoint:
         Ref: NotificationEmail
-      TopicArn:
-        !If
-          - IsSMEnabled
-          - !Ref LambdaFunctionSM.DestinationTopic
-          - !Ref LambdaFunction.DestinationTopic
+      TopicArn: !If
+        - IsSMEnabled
+        - !Ref LambdaFunctionSMEventInvokeConfigOnFailureTopic
+        - !Ref LambdaFunctionEventInvokeConfigOnFailureTopic

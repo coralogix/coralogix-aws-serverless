@@ -20,6 +20,7 @@ The API key can be created in your Coralogix account under `Data Flow` -> `API K
 * **Subject** - report email subject line.
 * **RequestTimeout** - the OpenSearch query timeout.
 * **NotificationEmail** - Failure notification email address.
+* **SnsKmsKeyArn** - Optional KMS key ARN (not an alias) to encrypt the Lambda failure-notification SNS topic. Leave empty for no encryption. The key policy must allow `sns.amazonaws.com` and the Lambda execution role to use `kms:Decrypt` and `kms:GenerateDataKey*`.
 
 ## Usage
 

@@ -18,7 +18,7 @@ Metadata:
       - ses
       - email
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 3.0.0
+    SemanticVersion: 3.0.1
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
@@ -109,6 +109,11 @@ Parameters:
     Description: Failure notification email address
     MaxLength: 320
     Default: ''
+  SnsKmsKeyArn:
+    Type: String
+    Description: Optional KMS key ARN (not an alias) to encrypt the Lambda failure-notification SNS topic. Leave empty for no encryption. The key policy must allow sns.amazonaws.com and the Lambda execution role to use kms:Decrypt and kms:GenerateDataKey*.
+    AllowedPattern: '^$|^arn:[a-z0-9-]+:kms:[a-z0-9-]+:[0-9]{12}:key/.+$'
+    Default: ''
 Mappings:
   CoralogixRegionMap:
     EU1:
@@ -125,9 +130,17 @@ Mappings:
       LogUrl: https://api.cx498.coralogix.com/data/os-api
 Conditions:
   IsNotificationEnabled: !Not [!Equals [!Ref NotificationEmail, '']]
+  IsSnsKmsKeySet: !Not [!Equals [!Ref SnsKmsKeyArn, '']]
   IsScheduleEnabled: !Not [!Equals [!Ref ScheduleEnable, 'false']] 
     
 Resources:
+  LambdaFunctionEventInvokeConfigOnFailureTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId: !If
+        - IsSnsKmsKeySet
+        - !Ref SnsKmsKeyArn
+        - !Ref AWS::NoValue
   LambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -172,10 +185,22 @@ Resources:
                 - 'ses:SendEmail'
                 - 'ses:SendRawEmail'
               Resource: '*'
+        - !If
+          - IsSnsKmsKeySet
+          - Version: '2012-10-17'
+            Statement:
+              - Sid: SnsKms
+                Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:GenerateDataKey*
+                Resource: !Ref SnsKmsKeyArn
+          - !Ref AWS::NoValue
       EventInvokeConfig:
         DestinationConfig:
           OnFailure:
             Type: SNS
+            Destination: !Ref LambdaFunctionEventInvokeConfigOnFailureTopic
       Events:
         CloudWatchSchedule:
           Type: Schedule
@@ -192,5 +217,4 @@ Resources:
       Protocol: email
       Endpoint:
         Ref: NotificationEmail
-      TopicArn:
-        Ref: LambdaFunction.DestinationTopic
+      TopicArn: !Ref LambdaFunctionEventInvokeConfigOnFailureTopic

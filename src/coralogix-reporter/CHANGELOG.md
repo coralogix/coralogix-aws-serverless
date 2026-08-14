@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [3.0.1] - 2026-08-13
+### Added
+- Add optional `SnsKmsKeyArn` to encrypt the Lambda failure-notification SNS topic with a customer-managed KMS key.
+### Fixed
+- Reuse the SAM OnFailure topic logical ID so existing email subscriptions are not replaced when `SnsKmsKeyArn` is unset.
+
 ## [3.0.0] - 2025-03-13
 ### Added
 - Parse the OpenSearch JSON response in the templating flow and fail fast when the template result is empty.

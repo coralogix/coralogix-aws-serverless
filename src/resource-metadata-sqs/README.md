@@ -232,6 +232,7 @@ EC2 only:
 | LambdaFunctionExcludeRegexFilter | If specified, only lambda functions with ARNs NOT matching the regex will be included in the collected metadata | | |
 | LambdaFunctionTagFilters | If specified, only lambda functions with tags matching the filters will be included in the collected metadata. Values should follow the JSON syntax for --tag-filters as documented [here](https://docs.aws.amazon.com/cli/latest/reference/resourcegroupstaggingapi/get-resources.html#options) | | |
 | NotificationEmail | If the lambda fails a notification email will be sent to this address via SNS (requires you have a working SNS, with a validated domain). | | |
+| SnsKmsKeyArn | Optional KMS key ARN (not an alias) to encrypt the Lambda failure-notification SNS topic. Leave empty for no encryption. The key policy must allow `sns.amazonaws.com` and the Lambda execution role to use `kms:Decrypt` and `kms:GenerateDataKey*`. | | |
 | ExcludedEC2ResourceType | Set to true to Excluded EC2 Resource Type | `False` | |
 | ExcludedLambdaResourceType | Set to true to Excluded Resource Type | `False` | |
 | EC2ChunkSize | Number of resources in each EC2 batch (1-40) | 25 | |
