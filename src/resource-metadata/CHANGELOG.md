@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [1.3.0] - 2026-08-11
+### Changed
+- Send to the regional Coralogix domains (`ingress.<region>.coralogix.com`) instead of the legacy per-region domains.
+- Update the Node.js runtime to 24.x, the latest AWS Lambda supports, and correct the `engines` field, which still declared 20.x after the runtime moved to 22.x.
+
+### Added
+- Add `US3` to `CoralogixRegion`.
+
 ## [1.2.13] - 2026-08-13
 ### Added
 - Add optional `SnsKmsKeyArn` to encrypt the Lambda failure-notification SNS topic with a customer-managed KMS key.

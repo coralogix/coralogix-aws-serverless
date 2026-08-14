@@ -16,7 +16,7 @@ Metadata:
       - cloudwatch
       - lambda
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 2.0.13
+    SemanticVersion: 2.1.0
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -157,7 +157,7 @@ Resources:
       Description: Adds Coralogix firehose to Loggroups
       CodeUri: .
       Handler: lambda_function.lambda_handler
-      Runtime: python3.12
+      Runtime: python3.14
       MemorySize:
         Ref: FunctionMemorySize
       Timeout:

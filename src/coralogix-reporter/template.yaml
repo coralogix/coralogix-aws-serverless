@@ -18,19 +18,21 @@ Metadata:
       - ses
       - email
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 3.0.1
+    SemanticVersion: 3.1.0
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
 Parameters:
   CoralogixRegion:
     Type: String
-    Description: The Coralogix location region, possible options are [EU1, EU2, AP1, AP2, US1, US2]
+    Description: The Coralogix location region, possible options are [EU1, EU2, AP1, AP2, AP3, US1, US2, US3]
     AllowedValues:
       - EU1
       - EU2
       - AP1
       - AP2
+      - AP3
       - US1
       - US2
+      - US3
     Default: EU1
   ApiKey:
     Type: String
@@ -117,17 +119,21 @@ Parameters:
 Mappings:
   CoralogixRegionMap:
     EU1:
-      LogUrl: https://api.coralogix.com/data/os-api
+      LogUrl: https://api.eu1.coralogix.com/data/os-api
     EU2:
       LogUrl: https://api.eu2.coralogix.com/data/os-api
     AP1:
-      LogUrl: https://api.app.coralogix.in/data/os-api
+      LogUrl: https://api.ap1.coralogix.com/data/os-api
     AP2:
-      LogUrl: https://api.coralogixsg.com/data/os-api
+      LogUrl: https://api.ap2.coralogix.com/data/os-api
+    AP3:
+      LogUrl: https://api.ap3.coralogix.com/data/os-api
     US1:
-      LogUrl: https://api.coralogix.us/data/os-api
+      LogUrl: https://api.us1.coralogix.com/data/os-api
     US2:
-      LogUrl: https://api.cx498.coralogix.com/data/os-api
+      LogUrl: https://api.us2.coralogix.com/data/os-api
+    US3:
+      LogUrl: https://api.us3.coralogix.com/data/os-api
 Conditions:
   IsNotificationEnabled: !Not [!Equals [!Ref NotificationEmail, '']]
   IsSnsKmsKeySet: !Not [!Equals [!Ref SnsKmsKeyArn, '']]
@@ -147,7 +153,7 @@ Resources:
       Description: Generate report from Coralogix OpenSearch API and send it by email.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:

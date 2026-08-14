@@ -13,7 +13,7 @@ Metadata:
       - coralogix
       - metadata
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.2.13
+    SemanticVersion: 1.3.0
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -88,7 +88,7 @@ Metadata:
 Parameters:
   CoralogixRegion:
     Type: String
-    Description: The Coralogix location region [EU1, EU2, AP1, AP2, US1, US2, Custom]
+    Description: The Coralogix location region [EU1, EU2, AP1, AP2, AP3, US1, US2, US3, Custom]
     AllowedValues:
       - EU1
       - EU2
@@ -97,6 +97,7 @@ Parameters:
       - AP3
       - US1
       - US2
+      - US3
       - Custom
     Default: Custom
   CustomDomain:
@@ -191,19 +192,21 @@ Parameters:
 Mappings:
   CoralogixRegionMap:
     EU1:
-      MetadataUrl: coralogix.com
+      MetadataUrl: eu1.coralogix.com
     EU2:
       MetadataUrl: eu2.coralogix.com
     AP1:
-      MetadataUrl: app.coralogix.in
+      MetadataUrl: ap1.coralogix.com
     AP2:
-      MetadataUrl: coralogixsg.com
+      MetadataUrl: ap2.coralogix.com
     AP3:
       MetadataUrl: ap3.coralogix.com
     US1:
-      MetadataUrl: coralogix.us
+      MetadataUrl: us1.coralogix.com
     US2:
-      MetadataUrl: cx498.coralogix.com
+      MetadataUrl: us2.coralogix.com
+    US3:
+      MetadataUrl: us3.coralogix.com
     Custom:
       MetadataUrl: ""
 
@@ -277,7 +280,7 @@ Resources:
       Description: Send resource metadata to Coralogix.
       CodeUri: .
       Handler: index.handler
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
@@ -383,7 +386,7 @@ Resources:
       Layers:
         - Ref: LayerARN
       Handler: index.handler
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:

@@ -5,7 +5,7 @@ This application retrieves event log files from Salesforce api and sends them to
 It requires the following parameters:
 
 ## Coralogix Configuration
-* **CoralogixRegion** - Possible values are `Europe`, `Europe2`, `US`, `US2`, `Singapore` or `India`. to learn more about your region and domain go [here](https://coralogix.com/docs/coralogix-domain/).
+* **CoralogixRegion** - Possible values are `EU1`, `EU2`, `AP1`, `AP2`, `AP3`, `US1`, `US2` or `US3`. The legacy values `Europe`, `Europe2`, `India`, `Singapore` and `US` are still accepted and map to `EU1`, `EU2`, `AP1`, `AP2` and `US1` respectively. to learn more about your region and domain go [here](https://coralogix.com/docs/coralogix-domain/).
 * **PrivateKey** - Can be found in your **Coralogix** account under `Settings` -> `Send your logs`. to learn more about your private key go [here](https://coralogix.com/docs/private-key/).
 * **ApplicationName** - A mandatory metadata field that is sent with each log and helps to classify it.
 * **SubsystemName** - A mandatory metadata field that is sent with each log and helps to classify it.  

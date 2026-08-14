@@ -15,7 +15,7 @@ Metadata:
       - logs
       - event-log
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 1.0.4
+    SemanticVersion: 1.1.0
     SourceCodeUrl: "https://github.com/coralogix/coralogix-aws-serverless"
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -87,15 +87,23 @@ Metadata:
 Parameters:
   CoralogixRegion:
     Type: String
-    Description: The Coralogix location region [Europe, Europe2, India, Singapore, US, US2]
+    Description: The Coralogix location region [EU1, EU2, AP1, AP2, AP3, US1, US2, US3]. The legacy names [Europe, Europe2, India, Singapore, US] are still accepted and map to the same endpoints.
     AllowedValues:
+      - EU1
+      - EU2
+      - AP1
+      - AP2
+      - AP3
+      - US1
+      - US2
+      - US3
+      # Deprecated aliases, kept so existing stacks keep deploying
       - Europe
       - Europe2
       - India
       - Singapore
       - US
-      - US2
-    Default: Europe
+    Default: EU1
   PrivateKey:
     Type: String
     Description: The Coralogix private key which is used to validate your authenticity
@@ -183,18 +191,33 @@ Parameters:
     Default: "False"
 Mappings:
   CoralogixRegionMap:
-    Europe:
-      LogUrl: https://ingress.coralogix.com/api/v1/logs
-    Europe2:
-      LogUrl: https://ingress.eu2.coralogix.com/api/v1/logs
-    India:
-      LogUrl: https://ingress.coralogix.in/api/v1/logs
-    Singapore:
-      LogUrl: https://ingress.coralogixsg.com/api/v1/logs
-    US:
-      LogUrl: https://ingress.coralogix.us/api/v1/logs
+    EU1:
+      LogUrl: https://ingress.eu1.coralogix.com/logs/v1/singles
+    EU2:
+      LogUrl: https://ingress.eu2.coralogix.com/logs/v1/singles
+    AP1:
+      LogUrl: https://ingress.ap1.coralogix.com/logs/v1/singles
+    AP2:
+      LogUrl: https://ingress.ap2.coralogix.com/logs/v1/singles
+    AP3:
+      LogUrl: https://ingress.ap3.coralogix.com/logs/v1/singles
+    US1:
+      LogUrl: https://ingress.us1.coralogix.com/logs/v1/singles
     US2:
-      LogUrl: https://ingress.cx498.coralogix.com/api/v1/logs
+      LogUrl: https://ingress.us2.coralogix.com/logs/v1/singles
+    US3:
+      LogUrl: https://ingress.us3.coralogix.com/logs/v1/singles
+    # Deprecated aliases, kept so existing stacks keep deploying
+    Europe:
+      LogUrl: https://ingress.eu1.coralogix.com/logs/v1/singles
+    Europe2:
+      LogUrl: https://ingress.eu2.coralogix.com/logs/v1/singles
+    India:
+      LogUrl: https://ingress.ap1.coralogix.com/logs/v1/singles
+    Singapore:
+      LogUrl: https://ingress.ap2.coralogix.com/logs/v1/singles
+    US:
+      LogUrl: https://ingress.us1.coralogix.com/logs/v1/singles
 Conditions:
   ShouldCreateResource: !Not 
     - !Equals
@@ -221,7 +244,7 @@ Resources:
       Description: Send logs from Salesforce event-logs API to Coralogix.
       CodeUri: .
       Handler: app.lambda_handler
-      Runtime: python3.9
+      Runtime: python3.14
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
