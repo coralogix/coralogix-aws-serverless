@@ -14,7 +14,7 @@ Metadata:
       - metadata
       - sqs
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 0.3.3
+    SemanticVersion: 0.4.1
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -50,6 +50,7 @@ Metadata:
           - LambdaFunctionExcludeRegexFilter
           - LambdaFunctionTagFilters
           - NotificationEmail
+          - SnsKmsKeyArn
           - ExcludedEC2ResourceType
           - ExcludedLambdaResourceType
           - EC2ChunkSize
@@ -116,6 +117,8 @@ Metadata:
         default: Maximum SQS Processing Concurrency
       NotificationEmail:
         default: Notification Email
+      SnsKmsKeyArn:
+        default: SNS KMS Key ARN
       ExcludedEC2ResourceType:
         default: Is EC2 Resource Type Excluded?
       ExcludedLambdaResourceType:
@@ -125,7 +128,7 @@ Metadata:
 Parameters:
   CoralogixRegion:
     Type: String
-    Description: The Coralogix location region [EU1, EU2, AP1, AP2, US1, US2, Custom]
+    Description: The Coralogix location region [EU1, EU2, AP1, AP2, AP3, US1, US2, US3, Custom]
     AllowedValues:
       - EU1
       - EU2
@@ -134,6 +137,7 @@ Parameters:
       - AP3
       - US1
       - US2
+      - US3
       - Custom
     Default: Custom
   CustomDomain:
@@ -267,6 +271,11 @@ Parameters:
     Description: Failure notification email address
     MaxLength: 320
     Default: ""
+  SnsKmsKeyArn:
+    Type: String
+    Description: Optional KMS key ARN (not an alias) to encrypt the Lambda failure-notification SNS topic. Leave empty for no encryption. The key policy must allow sns.amazonaws.com and the Lambda execution role to use kms:Decrypt and kms:GenerateDataKey*.
+    AllowedPattern: '^$|^arn:[a-z0-9-]+:kms:[a-z0-9-]+:[0-9]{12}:key/.+$'
+    Default: ""
   CreateSecret:
     Type: String
     Description: Set to False In case you want to use secrets manager with a predefine secret that was already created and contains Coralogix Send Your Data API key.
@@ -288,19 +297,21 @@ Parameters:
 Mappings:
   CoralogixRegionMap:
     EU1:
-      MetadataUrl: coralogix.com
+      MetadataUrl: eu1.coralogix.com
     EU2:
       MetadataUrl: eu2.coralogix.com
     AP1:
-      MetadataUrl: app.coralogix.in
+      MetadataUrl: ap1.coralogix.com
     AP2:
-      MetadataUrl: coralogixsg.com
+      MetadataUrl: ap2.coralogix.com
     AP3:
       MetadataUrl: ap3.coralogix.com
     US1:
-      MetadataUrl: coralogix.us
+      MetadataUrl: us1.coralogix.com
     US2:
-      MetadataUrl: cx498.coralogix.com
+      MetadataUrl: us2.coralogix.com
+    US3:
+      MetadataUrl: us3.coralogix.com
     Custom:
       MetadataUrl: ""
 
@@ -309,6 +320,11 @@ Conditions:
     Fn::Not:
       - Fn::Equals:
           - Ref: NotificationEmail
+          - ""
+  IsSnsKmsKeySet:
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: SnsKmsKeyArn
           - ""
   IsSMEnabled:
     Fn::Not:
@@ -355,6 +371,29 @@ Conditions:
   CrossAccountHasOrgId: !Not [!Equals [!Ref OrganizationId, ""]]
 
 Resources:
+  CollectorLambdaFunctionEventInvokeConfigOnFailureTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId: !If
+        - IsSnsKmsKeySet
+        - !Ref SnsKmsKeyArn
+        - !Ref AWS::NoValue
+  GeneratorLambdaFunctionEventInvokeConfigOnFailureTopic:
+    Condition: IsNotSMEnabled
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId: !If
+        - IsSnsKmsKeySet
+        - !Ref SnsKmsKeyArn
+        - !Ref AWS::NoValue
+  GeneratorLambdaFunctionSMEventInvokeConfigOnFailureTopic:
+    Condition: IsSMEnabled
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId: !If
+        - IsSnsKmsKeySet
+        - !Ref SnsKmsKeyArn
+        - !Ref AWS::NoValue
   MetadataQueue:
     Type: AWS::SQS::Queue
     Properties:
@@ -385,7 +424,7 @@ Resources:
       Description: Collect AWS resource metadata for Coralogix.
       CodeUri: ./collector
       Handler: index.handler
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
@@ -446,6 +485,7 @@ Resources:
         DestinationConfig:
           OnFailure:
             Type: SNS
+            Destination: !Ref CollectorLambdaFunctionEventInvokeConfigOnFailureTopic
       Policies:
         - !If
           - IsNotEC2ResourceTypeExcluded
@@ -506,6 +546,17 @@ Resources:
                 Action: sts:AssumeRole
                 Resource: !Ref ConfigCrossAccountRole
           - !Ref 'AWS::NoValue'
+        - !If
+          - IsSnsKmsKeySet
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: SnsKms
+                Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:GenerateDataKey*
+                Resource: !Ref SnsKmsKeyArn
+          - !Ref AWS::NoValue
 
   CollectorLambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
@@ -514,7 +565,7 @@ Resources:
       Protocol: email
       Endpoint:
         Ref: NotificationEmail
-      TopicArn: !Ref CollectorLambdaFunction.DestinationTopic
+      TopicArn: !Ref CollectorLambdaFunctionEventInvokeConfigOnFailureTopic
 
   GeneratorLambdaFunction:
     Condition: IsNotSMEnabled
@@ -523,7 +574,7 @@ Resources:
       Description: Generate and send resource metadata to Coralogix.
       CodeUri: ./generator
       Handler: index.handler
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
@@ -568,6 +619,7 @@ Resources:
         DestinationConfig:
           OnFailure:
             Type: SNS
+            Destination: !Ref GeneratorLambdaFunctionEventInvokeConfigOnFailureTopic
       Policies:
         - !If 
           - IsNotEC2ResourceTypeExcluded
@@ -613,6 +665,17 @@ Resources:
                 Action: sts:AssumeRole
                 Resource: !Sub "arn:aws:iam::*:role/${CrossAccountIAMRoleName}"
           - !Ref 'AWS::NoValue'
+        - !If
+          - IsSnsKmsKeySet
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: SnsKms
+                Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:GenerateDataKey*
+                Resource: !Ref SnsKmsKeyArn
+          - !Ref AWS::NoValue
 
   GeneratorLambdaFunctionSM:
     Condition: IsSMEnabled
@@ -623,7 +686,7 @@ Resources:
       Layers:
         - Ref: LayerARN
       Handler: index.handler
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Architectures:
         - Ref: FunctionArchitecture
       MemorySize:
@@ -671,6 +734,7 @@ Resources:
         DestinationConfig:
           OnFailure:
             Type: SNS
+            Destination: !Ref GeneratorLambdaFunctionSMEventInvokeConfigOnFailureTopic
       Policies:
         - !If 
           - IsNotEC2ResourceTypeExcluded
@@ -717,6 +781,17 @@ Resources:
                 Resource: !Sub "arn:aws:iam::*:role/${CrossAccountIAMRoleName}"
           - !Ref 'AWS::NoValue'
         - SecretsManagerReadWrite
+        - !If
+          - IsSnsKmsKeySet
+          - Version: "2012-10-17"
+            Statement:
+              - Sid: SnsKms
+                Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:GenerateDataKey*
+                Resource: !Ref SnsKmsKeyArn
+          - !Ref AWS::NoValue
 
   PrivateKeySecret:
     Condition: CreateSecret
@@ -735,11 +810,10 @@ Resources:
       Protocol: email
       Endpoint:
         Ref: NotificationEmail
-      TopicArn:
-        !If
-          - IsSMEnabled
-          - !Ref GeneratorLambdaFunctionSM.DestinationTopic
-          - !Ref GeneratorLambdaFunction.DestinationTopic
+      TopicArn: !If
+        - IsSMEnabled
+        - !Ref GeneratorLambdaFunctionSMEventInvokeConfigOnFailureTopic
+        - !Ref GeneratorLambdaFunctionEventInvokeConfigOnFailureTopic
 
   CloudTrailBucket:
     Type: AWS::S3::Bucket

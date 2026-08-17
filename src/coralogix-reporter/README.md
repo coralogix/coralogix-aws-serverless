@@ -8,7 +8,7 @@ The API key can be created in your Coralogix account under `Data Flow` -> `API K
 
 ## Parameters
 
-* **CoralogixRegion** - possible values are `EU1`, `EU2`, `US1`, `US2`, `SG1`, `IN1`. This is a **Coralogix** parameter and does not relate to your to your AWS region.
+* **CoralogixRegion** - possible values are `EU1`, `EU2`, `AP1`, `AP2`, `AP3`, `US1`, `US2`, `US3`. This is a **Coralogix** parameter and does not relate to your AWS region.
 * **APIKey** - can be found in your Coralogix account under `Data Flow` -> `API Keys` -> `Personal Keys`.
 * **Schedule** - [CloudWatch rules schedule expression](https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html#RateExpressions).
 * **ScheduleEnable** - `true` when report is active and will be running the query and sent periodically or `false` when it is inactive.
@@ -20,6 +20,7 @@ The API key can be created in your Coralogix account under `Data Flow` -> `API K
 * **Subject** - report email subject line.
 * **RequestTimeout** - the OpenSearch query timeout.
 * **NotificationEmail** - Failure notification email address.
+* **SnsKmsKeyArn** - Optional KMS key ARN (not an alias) to encrypt the Lambda failure-notification SNS topic. Leave empty for no encryption. The key policy must allow `sns.amazonaws.com` and the Lambda execution role to use `kms:Decrypt` and `kms:GenerateDataKey*`.
 
 ## Usage
 

@@ -197,7 +197,7 @@ EC2 only:
 
 | Parameter | Description | Default Value | Required |
 |---|---|---|---|
-| CoralogixRegion | The Coralogix location region, possible options are [EU1, EU2, AP1, AP2, AP3, US1, US2, Custom].In case that you want to use Custom domain, leave this as default and write the Custom doamin in the ``CustomDomain`` filed. | Custom | :heavy_check_mark: |
+| CoralogixRegion | The Coralogix location region, possible options are [EU1, EU2, AP1, AP2, AP3, US1, US2, US3, Custom]. In case that you want to use Custom domain, leave this as default and write the Custom domain in the ``CustomDomain`` field. | Custom | :heavy_check_mark: |
 | ApiKey | Your [Coralogix Send Your Data – API Key](https://coralogix.com/docs/send-your-data-api-key/), or, if you use a pre-created secret (created in AWS Secrets Manager), the name of the secret that contains the Coralogix Send Your Data API key. | | :heavy_check_mark: |
 | CustomDomain | The Coralogix custom domain, leave empty if you don't use Custom domain. | | |
 
@@ -232,6 +232,7 @@ EC2 only:
 | LambdaFunctionExcludeRegexFilter | If specified, only lambda functions with ARNs NOT matching the regex will be included in the collected metadata | | |
 | LambdaFunctionTagFilters | If specified, only lambda functions with tags matching the filters will be included in the collected metadata. Values should follow the JSON syntax for --tag-filters as documented [here](https://docs.aws.amazon.com/cli/latest/reference/resourcegroupstaggingapi/get-resources.html#options) | | |
 | NotificationEmail | If the lambda fails a notification email will be sent to this address via SNS (requires you have a working SNS, with a validated domain). | | |
+| SnsKmsKeyArn | Optional KMS key ARN (not an alias) to encrypt the Lambda failure-notification SNS topic. Leave empty for no encryption. The key policy must allow `sns.amazonaws.com` and the Lambda execution role to use `kms:Decrypt` and `kms:GenerateDataKey*`. | | |
 | ExcludedEC2ResourceType | Set to true to Excluded EC2 Resource Type | `False` | |
 | ExcludedLambdaResourceType | Set to true to Excluded Resource Type | `False` | |
 | EC2ChunkSize | Number of resources in each EC2 batch (1-40) | 25 | |
