@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [3.1.1] - 2026-08-17
+### Fixed
+- Upgrade `nodemailer` to `^9.0.5` to address GHSA-p6gq-j5cr-w38f.
+
 ## [3.1.0] - 2026-08-11
 ### Changed
 - Send to the regional Coralogix domains (`api.<region>.coralogix.com`) instead of the legacy per-region domains.

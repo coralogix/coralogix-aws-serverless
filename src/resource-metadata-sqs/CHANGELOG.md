@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [0.4.1] - 2026-08-17
+### Fixed
+- Upgrade transitive `protobufjs` to `^7.6.5` to address GHSA-j3f2-48v5-ccww and GHSA-f38q-mgvj-vph7.
+
 ## [0.4.0] - 2026-08-11
 ### Changed
 - Send to the regional Coralogix domains (`ingress.<region>.coralogix.com`) instead of the legacy per-region domains.
