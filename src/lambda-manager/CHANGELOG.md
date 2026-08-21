@@ -6,6 +6,7 @@ This format is based on Keep a Changelog.
 ## [3.0.0] - 2026-08-20
 ### Added
 - Add synchronous, idempotent reconciliation with deterministic manager ownership, tag-indexed discovery, drift repair, bounded summaries, and optional legacy UUID-filter adoption.
+- Add synchronous `{"RequestType":"Cleanup"}` invocation for exact-name cleanup of manager-indexed subscriptions.
 - Add Lambda name and ARN stack outputs plus documented CloudFormation, direct API, and Terraform invocation flows.
 - Store a reconciliation-configuration hash, including Lambda permission settings, in manager tags so unchanged matching groups avoid subscription and permission calls during normal reconciliation.
 

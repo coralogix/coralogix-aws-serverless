@@ -51,6 +51,14 @@ Use `Repair` only after manager index tags were manually removed or changed, or 
 
 Repair ignores the configuration-hash optimization and inspects every `STANDARD` group. Use it to find manual filter changes, recover an untagged deterministic filter that no longer matches, or audit ownership. Repair never broadens legacy adoption beyond groups matching the current regex.
 
+To remove this manager's indexed subscriptions without deleting the deployment, invoke:
+
+```json
+{"RequestType":"Cleanup"}
+```
+
+Cleanup queries only this manager's tag index, deletes its exact deterministic filter from each indexed group, and then removes the tag. It is case-insensitive like `Reconcile`, returns a bounded summary, and propagates failures through Lambda `FunctionError`. Run cleanup only after the latest reconciliation completed successfully; it cannot discover a filter whose manager tag was never written.
+
 The manager derives ownership from its unqualified function ARN. Keep the function name stable. Aliases, versions, code, and configuration updates preserve ownership; renaming or moving the function creates a new ownership namespace. Reconcile or delete the old deployment before renaming it, otherwise its deterministic filters remain unmanaged.
 
 The packaged function reserves one concurrent Lambda execution to prevent overlapping reconciliations from writing conflicting filter and tag state. Each reconciliation still processes independent log groups concurrently within that execution.
@@ -107,7 +115,7 @@ Invoke synchronously after first deployment and after code, regex, filter, desti
 
 ## Terraform
 
-Use `aws_lambda_invocation`, not an invocation data source or `local-exec`. Keep `lifecycle_scope = "CREATE_ONLY"`; `CRUD` sends an incompatible lifecycle payload while dependencies are being destroyed.
+Use `aws_lambda_invocation`, not an invocation data source or `local-exec`. Set `lifecycle_scope = "CRUD"`; the provider-injected `tf.action` reconciles on create/update and runs indexed cleanup on delete.
 
 ```hcl
 resource "aws_lambda_invocation" "lambda_manager_reconcile" {
@@ -118,7 +126,7 @@ resource "aws_lambda_invocation" "lambda_manager_reconcile" {
       AdoptLegacyFilters = var.adopt_legacy_filters_once
     }
   ))
-  lifecycle_scope = "CREATE_ONLY"
+  lifecycle_scope = "CRUD"
 
   triggers = {
     code = aws_lambda_function.lambda_manager.source_code_hash
@@ -138,6 +146,8 @@ resource "aws_lambda_invocation" "lambda_manager_reconcile" {
   depends_on = [aws_iam_role_policy.lambda_manager]
 }
 ```
+
+The invocation resource references the function and explicitly depends on its IAM policy, so Terraform invokes cleanup while the function and its tag/delete permissions still exist. A cleanup failure stops destruction; fix the cause and rerun `terraform destroy`.
 
 Define `adopt_legacy_filters_once` as nullable with a default of `null`. For preferred one-off adoption, keep `ADOPT_LEGACY_FILTERS=false`, apply with only `adopt_legacy_filters_once=true`, verify `legacyAdopted`, then immediately apply with that variable reset to `null` or `false`. For configuration-based adoption, keep the request override `null`, apply with only the environment flag set to `true`, verify, then apply with only that flag restored to `false`. Change other behavior settings afterward.
 
