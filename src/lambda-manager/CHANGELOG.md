@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [3.0.0] - 2026-08-20
+### Added
+- Add synchronous, idempotent reconciliation with deterministic manager ownership, tag-indexed discovery, drift repair, bounded summaries, and optional legacy UUID-filter adoption.
+- Add Lambda name and ARN stack outputs plus documented CloudFormation, direct API, and Terraform invocation flows.
+- Store a reconciliation-configuration hash, including Lambda permission settings, in manager tags so unchanged matching groups avoid subscription and permission calls during normal reconciliation.
+
+### Changed
+- Reconcile all existing `STANDARD` log groups on custom-resource create/update.
+- Clean up exactly owned deterministic filters on regex changes and stack deletion without altering unrelated or ambiguous legacy filters.
+- Block managed-filter destination updates that would duplicate an unrelated same-destination subscription.
+- Use the manager tag index for stack deletion instead of scanning and inspecting every account log group; failed reconciliations must be rerun successfully before deletion or replacement.
+- Process independent log groups concurrently with bounded API rate limiting, serialize manager invocations, and raise the default Lambda timeout to 900 seconds.
+- Deduplicate shared-prefix and wildcard destination Lambda permission requests within each reconciliation.
+- Require CloudFormation callers to select `DestinationType` explicitly, while deriving the Lambda runtime behavior from `DestinationArn` instead of a separate environment variable.
+- Validate all boolean-like CloudFormation parameters consistently.
+
+### Fixed
+- Preserve v2-to-v3 rollback handling by falling back to function environment values when old custom-resource events omit reconciliation properties.
+- Reject empty regex lists instead of treating every indexed log group as outside the managed scope.
+
+### Removed
+- Remove the obsolete `ScanOldLogGroups` parameter; explicit reconciliation always scans existing `STANDARD` log groups.
+- Remove the misspelled `AWS_API_REUESTS_LIMIT` environment variable; use `AWS_API_REQUESTS_LIMIT`.
+- Remove the misspelled `LogGroupPermissionPreFix` parameter; use `LogGroupPermissionPrefix`.
+- Remove an unused execution role containing a hardcoded SNS topic ARN; SAM manages the function role and failure-destination permission.
+
 ## [2.1.1] - 2026-08-19
 ### Fixed
 - Pass the configured destination role when creating and retrying Firehose subscriptions for existing and newly created log groups.

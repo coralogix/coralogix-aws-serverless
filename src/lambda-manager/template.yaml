@@ -16,7 +16,7 @@ Metadata:
       - cloudwatch
       - lambda
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 2.1.1
+    SemanticVersion: 3.0.0
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -30,8 +30,9 @@ Metadata:
           - DestinationArn
           - DestinationRole
           - DestinationType
-          - ScanOldLogGroups
+          - AdoptLegacyFilters
           - AddPermissionsToAllLogGroups
+          - LogGroupPermissionPrefix
       - Label:
           default: Lambda configuration
         Parameters:
@@ -47,34 +48,42 @@ Parameters:
     Description: Coralogix Firehose stream / Lambda  ARN
   DestinationRole:
     Type: String
-    Description: Coralogix Firehose stream / Lambda role ARN
+    Description: IAM role ARN that CloudWatch Logs assumes when delivering to Firehose. Leave empty for Lambda destinations.
     Default: ''
   DestinationType:
     Type: String
-    Description: firehose / lambda 
-    Default: firehose
+    Description: Destination type used for CloudFormation IAM permissions. Must match the service in DestinationArn.
     AllowedValues:
       - firehose
       - lambda
   DisableAddPermission:
     Type: String
-    Description: Disable adding permission to lambda
-    Default: false
-  ScanOldLogGroups:
+    Description: When true, Lambda Manager does not modify the destination Lambda resource policy. Use this when CloudWatch Logs invoke permissions are managed separately. Only applies to Lambda destinations.
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  AdoptLegacyFilters:
     Type: String
-    Description: Scan old log groups
-    Default: false
+    Description: Explicitly migrate matching legacy Coralogix UUID filters. Keep false except during a controlled migration with unchanged settings.
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
   AddPermissionsToAllLogGroups:
     Type: String
-    Description: Add permissions to allow all existing and new log groups to subscribe to the destination
-    Default: false
+    Description: When true, add one broad destination Lambda permission for CloudWatch Logs from any log group in this account and region instead of one permission per matching group. Only applies to Lambda destinations and is ignored when DisableAddPermission is true.
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
   RegexPattern:
     Type: String
     Description: Comma-separated list of Loggroup name regex pattern
     Default: /aws/lambda/.*
-  LogGroupPermissionPreFix:
+  LogGroupPermissionPrefix:
     Type: String
-    Description: instead creating one permission for each log group in the destination lambda, the code will take the prefix that you set in the parameter and create 1 permission for all of the log groups that match the prefix
+    Description: Comma-separated log group prefixes used to reduce destination Lambda policy entries. Matching groups share one permission per prefix; groups outside the prefixes receive individual permissions. Only applies to Lambda destinations and is ignored when DisableAddPermission or AddPermissionsToAllLogGroups is true.
     Default: ""
   AWSApiRequestsLimit:
     Type: Number
@@ -91,7 +100,7 @@ Parameters:
     Description: Lambda function timeout limit
     MinValue: 30
     MaxValue: 900
-    Default: 300
+    Default: 900
   NotificationEmail:
     Type: String
     Description: Failure notification email address
@@ -107,6 +116,10 @@ Conditions:
     Fn::Equals:
       - Ref: DestinationType
       - lambda
+  IsDestinationFirehose:
+    Fn::Equals:
+      - Ref: DestinationType
+      - firehose
   IsNotificationEnabled:
     Fn::Not:
       - Fn::Equals:
@@ -125,31 +138,6 @@ Resources:
         - IsSnsKmsKeySet
         - !Ref SnsKmsKeyArn
         - !Ref AWS::NoValue
-  LambdaExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: LambdaExecutionPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Sid: CXLambdaUpdateConfig
-                Effect: Allow
-                Action:
-                  - lambda:UpdateFunctionConfiguration
-                Resource: !GetAtt LambdaFunction.Arn
-              - Sid: SNSPublishPermission
-                Effect: Allow
-                Action:
-                  - sns:Publish
-                Resource: "arn:aws:sns:us-east-1:771039649440:manager4-LambdaFunctionEventInvokeConfigOnFailureTopic-xB2dSpg5hshT"
   LambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -158,6 +146,7 @@ Resources:
       CodeUri: .
       Handler: lambda_function.lambda_handler
       Runtime: python3.14
+      ReservedConcurrentExecutions: 1
       MemorySize:
         Ref: FunctionMemorySize
       Timeout:
@@ -170,48 +159,59 @@ Resources:
             Ref: LogsFilter
           REGEX_PATTERN:
             Ref: RegexPattern
-          DESTINATION_ARN: 
+          DESTINATION_ARN:
             Ref: DestinationArn
-          DESTINATION_ROLE: 
+          DESTINATION_ROLE:
             Ref: DestinationRole
-          DESTINATION_TYPE:
-            Ref: DestinationType
-          SCAN_OLD_LOGGROUPS:
-            Ref: ScanOldLogGroups
+          ADOPT_LEGACY_FILTERS:
+            Ref: AdoptLegacyFilters
           ADD_PERMISSIONS_TO_ALL_LOG_GROUPS:
             Ref: AddPermissionsToAllLogGroups
           LOG_GROUP_PERMISSION_PREFIX:
-            Ref: LogGroupPermissionPreFix
-          AWS_API_REUESTS_LIMIT:
+            Ref: LogGroupPermissionPrefix
+          AWS_API_REQUESTS_LIMIT:
             Ref: AWSApiRequestsLimit
       Policies:
         - Statement:
             - !If
               - IsDestinationLambda
-              - Sid: CXLambdaUpdateConfig
+              - Sid: CXAddDestinationPermission
                 Effect: Allow
                 Action:
-                  - lambda:UpdateFunctionConfiguration
-                  - lambda:GetFunctionConfiguration
                   - lambda:AddPermission
-                Resource: 
+                Resource:
                   - !Ref DestinationArn
-                  - !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AWS::StackName}-LambdaFunction'
               - !Ref AWS::NoValue
             - Sid: CWSubscriptionPolicy
               Effect: Allow
               Action:
                 - logs:PutSubscriptionFilter
+                - logs:DeleteSubscriptionFilter
                 - logs:DescribeLogGroups
                 - logs:DescribeSubscriptionFilters
               Resource:
-                - "arn:aws:logs:*:*:*"
-            - Sid: CXPassRole
+                - !Sub "arn:${AWS::Partition}:logs:*:*:*"
+            - Sid: CWLogGroupTagPolicy
               Effect: Allow
-              Action: 
-                - iam:PassRole
-              Resource: 
-                - !Sub "arn:aws:iam::${AWS::AccountId}:role/*"
+              Action:
+                - logs:TagResource
+                - logs:UntagResource
+              Resource:
+                - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*"
+            - Sid: GetManagedLogGroupsByTag
+              Effect: Allow
+              Action:
+                - tag:GetResources
+              Resource: "*"
+            - !If
+              - IsDestinationFirehose
+              - Sid: CXPassRole
+                Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*"
+              - !Ref AWS::NoValue
             - !If
               - IsSnsKmsKeySet
               - Sid: SnsKms
@@ -231,7 +231,7 @@ Resources:
           Type: EventBridgeRule
           Properties:
             Pattern:
-              source: 
+              source:
                 - "aws.logs"
               detail-type:
                 - "AWS API Call via CloudTrail"
@@ -251,6 +251,15 @@ Resources:
     Type: Custom::LambdaTrigger
     Properties:
       ServiceToken: !GetAtt LambdaFunction.Arn
+      RegexPattern: !Ref RegexPattern
+      LogsFilter: !Ref LogsFilter
+      DestinationArn: !Ref DestinationArn
+      DestinationRole: !Ref DestinationRole
+      DisableAddPermission: !Ref DisableAddPermission
+      AddPermissionsToAllLogGroups: !Ref AddPermissionsToAllLogGroups
+      LogGroupPermissionPrefix: !Ref LogGroupPermissionPrefix
+      AdoptLegacyFilters: !Ref AdoptLegacyFilters
+      ReconcilerVersion: 3.0.0
 
   LambdaFunctionNotificationSubscription:
     Type: AWS::SNS::Subscription
@@ -261,3 +270,11 @@ Resources:
         Ref: NotificationEmail
       TopicArn:
         Ref: LambdaFunctionEventInvokeConfigOnFailureTopic
+
+Outputs:
+  LambdaManagerFunctionName:
+    Description: Lambda Manager function name for synchronous reconciliation invocations
+    Value: !Ref LambdaFunction
+  LambdaManagerFunctionArn:
+    Description: Lambda Manager function ARN for invocation permissions and reconciliation
+    Value: !GetAtt LambdaFunction.Arn
