@@ -61,13 +61,6 @@ jobs:
           use-installer: true
 
       - if: ${{ matrix.package != 'helper' }}
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
-
-      - if: ${{ matrix.package != 'helper' }}
         name: Validate
         working-directory: src/${{ matrix.package }}
         run: sam validate
@@ -86,13 +79,6 @@ jobs:
       - uses: aws-actions/setup-sam@v2
         with:
           use-installer: true
-
-      - if: ${{ matrix.package != 'helper' }}
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - if: ${{ matrix.package != 'helper' }}
         name: Build

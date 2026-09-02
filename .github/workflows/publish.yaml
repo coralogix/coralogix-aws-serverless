@@ -47,6 +47,7 @@ jobs:
     needs: preflight
     permissions:
       contents: write
+      id-token: write
     concurrency:
       group: sar-publish-${{ needs.preflight.outputs.package }}-${{ needs.preflight.outputs.version }}
       cancel-in-progress: false
@@ -93,10 +94,11 @@ jobs:
         with:
           use-installer: true
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          audience: sts.amazonaws.com
+          role-to-assume: arn:aws:iam::597078901540:role/github-actions-coralogix-aws-serverless-publish
+          role-session-name: coralogix-aws-serverless-publish-${{ github.run_id }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Check published SAR version
