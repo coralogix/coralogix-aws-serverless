@@ -50,7 +50,8 @@ jobs:
       - name: 'Checkout'
         uses: actions/checkout@main
 
-      - uses: aws-actions/configure-aws-credentials@v6
+      - if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           audience: sts.amazonaws.com
           role-to-assume: arn:aws:iam::597078901540:role/github-actions-coralogix-aws-serverless-infra
