@@ -157,8 +157,12 @@ jobs:
         name: Store
         working-directory: ./${{ env.PACKAGE_DIR }}
         run: |
+          artifact_uri="$(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "LambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml)"
           aws s3 cp \
-            "$(yq -r '.Resources | to_entries | .[] | select(.key == "LambdaLayer" or .key == "LambdaFunction") | .value.Properties | to_entries | .[] | select(.key == "ContentUri" or .key == "CodeUri") | .value' packaged.yaml)" \
+            "${artifact_uri}" \
+            "s3://${AWS_SERVERLESS_BUCKET}-${AWS_DEFAULT_REGION}/${PACKAGE}-${VERSION}.zip"
+          aws s3 cp \
+            "${artifact_uri}" \
             "s3://${AWS_SERVERLESS_BUCKET}-${AWS_DEFAULT_REGION}/${PACKAGE}.zip"
 
       - if: ${{ env.TAG_VARIANT == 'alias' && steps.canonical-tag-check.outputs.exists != 'true' }}
