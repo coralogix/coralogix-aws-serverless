@@ -75,7 +75,14 @@ WorkItem = TypeVar("WorkItem")
 
 
 @dataclass(frozen=True)
-class ManagerConfig:
+class ManagerIdentity:
+    manager_lambda_arn: str
+    managed_filter_name: str
+    managed_tag_key: str
+
+
+@dataclass(frozen=True)
+class ManagerConfig(ManagerIdentity):
     regex_patterns: Tuple[Pattern[str], ...]
     destination_arn: str
     destination_role: Optional[str]
@@ -83,9 +90,6 @@ class ManagerConfig:
     disable_add_permission: bool
     add_permissions_to_all_log_groups: bool
     log_group_permission_prefixes: Tuple[str, ...]
-    manager_lambda_arn: str
-    managed_filter_name: str
-    managed_tag_key: str
     managed_tag_value: str
     adopt_legacy_filters: bool
 
@@ -169,6 +173,15 @@ def unqualified_lambda_arn(invoked_function_arn: str) -> str:
 def managed_filter_name(manager_lambda_arn: str) -> str:
     digest = hashlib.sha256(manager_lambda_arn.encode("utf-8")).hexdigest()
     return f"{MANAGED_FILTER_PREFIX}{digest}"
+
+
+def _manager_identity(context) -> ManagerIdentity:
+    manager_lambda_arn = unqualified_lambda_arn(context.invoked_function_arn)
+    return ManagerIdentity(
+        manager_lambda_arn=manager_lambda_arn,
+        managed_filter_name=managed_filter_name(manager_lambda_arn),
+        managed_tag_key=_managed_tag_key(manager_lambda_arn),
+    )
 
 
 def _managed_tag_key(manager_lambda_arn: str) -> str:
@@ -270,7 +283,7 @@ def load_config(event: Dict[str, Any], context) -> ManagerConfig:
         prefix.strip() for prefix in prefix_value.split(",") if prefix.strip()
     )
 
-    manager_lambda_arn = unqualified_lambda_arn(context.invoked_function_arn)
+    identity = _manager_identity(context)
     effective_destination_role = (
         destination_role or None if destination_service == "firehose" else None
     )
@@ -282,9 +295,9 @@ def load_config(event: Dict[str, Any], context) -> ManagerConfig:
         disable_add_permission=disable_add_permission,
         add_permissions_to_all_log_groups=add_permissions_to_all,
         log_group_permission_prefixes=prefixes,
-        manager_lambda_arn=manager_lambda_arn,
-        managed_filter_name=managed_filter_name(manager_lambda_arn),
-        managed_tag_key=_managed_tag_key(manager_lambda_arn),
+        manager_lambda_arn=identity.manager_lambda_arn,
+        managed_filter_name=identity.managed_filter_name,
+        managed_tag_key=identity.managed_tag_key,
         managed_tag_value=_managed_tag_value(
             destination_arn,
             effective_destination_role,
@@ -327,13 +340,15 @@ def _event_log_group_arn(log_group_name: str, manager_lambda_arn: str) -> str:
     return f"arn:{parts[1]}:logs:{parts[3]}:{parts[4]}:log-group:{log_group_name}"
 
 
-def _discover_indexed_log_groups(config: ManagerConfig) -> Dict[str, Optional[str]]:
+def _discover_indexed_log_groups(
+    identity: ManagerIdentity,
+) -> Dict[str, Optional[str]]:
     indexed = {}
     pagination_token = None
     while True:
         request = {
             "ResourceTypeFilters": ["logs:log-group"],
-            "TagFilters": [{"Key": config.managed_tag_key}],
+            "TagFilters": [{"Key": identity.managed_tag_key}],
             "ResourcesPerPage": 100,
         }
         if pagination_token:
@@ -345,7 +360,7 @@ def _discover_indexed_log_groups(config: ManagerConfig) -> Dict[str, Optional[st
                 (
                     tag.get("Value")
                     for tag in resource.get("Tags", [])
-                    if tag.get("Key") == config.managed_tag_key
+                    if tag.get("Key") == identity.managed_tag_key
                 ),
                 None,
             )
@@ -459,9 +474,9 @@ def _tag_log_group(log_group_arn: str, config: ManagerConfig) -> None:
     )
 
 
-def _untag_log_group(log_group_arn: str, config: ManagerConfig) -> None:
+def _untag_log_group(log_group_arn: str, identity: ManagerIdentity) -> None:
     _call_logs_api(
-        "untag_resource", resourceArn=log_group_arn, tagKeys=[config.managed_tag_key]
+        "untag_resource", resourceArn=log_group_arn, tagKeys=[identity.managed_tag_key]
     )
 
 
@@ -796,12 +811,12 @@ def reconcile_log_group(
 
 
 def _cleanup_indexed_log_group(
-    log_group_arn: str, config: ManagerConfig
+    log_group_arn: str, identity: ManagerIdentity
 ) -> ReconciliationResult:
     result = ReconciliationResult(scanned=1)
     log_group_name = _log_group_name_from_arn(log_group_arn)
     try:
-        _delete_subscription(log_group_name, config.managed_filter_name)
+        _delete_subscription(log_group_name, identity.managed_filter_name)
         result.deleted = 1
     except Exception as error:
         if _error_code(error) != "ResourceNotFoundException":
@@ -809,20 +824,22 @@ def _cleanup_indexed_log_group(
         result.unchanged = 1
 
     try:
-        _untag_log_group(log_group_arn, config)
+        _untag_log_group(log_group_arn, identity)
     except Exception as error:
         if _error_code(error) != "ResourceNotFoundException":
             raise
     return result
 
 
-def cleanup_managed_subscriptions(config: ManagerConfig) -> ReconciliationResult:
-    indexed = _discover_indexed_log_groups(config)
+def cleanup_managed_subscriptions(
+    identity: ManagerIdentity,
+) -> ReconciliationResult:
+    indexed = _discover_indexed_log_groups(identity)
     result = ReconciliationResult(indexed=len(indexed))
     result.add(
         _run_parallel(
             sorted(indexed),
-            lambda log_group_arn: _cleanup_indexed_log_group(log_group_arn, config),
+            lambda log_group_arn: _cleanup_indexed_log_group(log_group_arn, identity),
         )
     )
 
@@ -838,13 +855,13 @@ def cleanup_managed_subscriptions(config: ManagerConfig) -> ReconciliationResult
 
 
 def _summary(
-    request_type: str, config: ManagerConfig, result: ReconciliationResult
+    request_type: str, identity: ManagerIdentity, result: ReconciliationResult
 ) -> Dict[str, Any]:
     values = asdict(result)
     return {
         "status": "SUCCESS",
         "requestType": request_type,
-        "filterName": config.managed_filter_name,
+        "filterName": identity.managed_filter_name,
         "scanned": values["scanned"],
         "indexed": values["indexed"],
         "inspected": values["inspected"],
@@ -866,6 +883,19 @@ def _physical_resource_id(event: Dict[str, Any], context) -> str:
     return f"lambda-manager-reconciler-{digest}"
 
 
+def _terraform_action(event: Dict[str, Any]) -> Optional[str]:
+    lifecycle = event.get("tf")
+    if lifecycle is None:
+        return None
+    if not isinstance(lifecycle, dict) or lifecycle.get("action") not in (
+        "create",
+        "update",
+        "delete",
+    ):
+        raise ValueError("tf.action must be create, update, or delete")
+    return lifecycle["action"]
+
+
 def lambda_handler(event: Dict[str, Any], context):
     if not isinstance(event, dict):
         raise ValueError("Lambda event must be an object")
@@ -878,12 +908,13 @@ def lambda_handler(event: Dict[str, Any], context):
                 raise ValueError(
                     f"Unsupported CloudFormation RequestType: {request_type}"
                 )
-            config = load_config(event, context)
             if request_type == "Delete":
-                result = cleanup_managed_subscriptions(config)
+                identity = _manager_identity(context)
+                result = cleanup_managed_subscriptions(identity)
             else:
-                result = reconcile_subscriptions(config, context)
-            response = _summary(request_type, config, result)
+                identity = load_config(event, context)
+                result = reconcile_subscriptions(identity, context)
+            response = _summary(request_type, identity, result)
             cfnresponse.send(
                 event,
                 context,
@@ -908,12 +939,25 @@ def lambda_handler(event: Dict[str, Any], context):
     request_type = event.get("RequestType")
     if isinstance(request_type, str) and request_type.lower() == "reconcile":
         try:
+            if _terraform_action(event) == "delete":
+                identity = _manager_identity(context)
+                result = cleanup_managed_subscriptions(identity)
+                return _summary("Cleanup", identity, result)
             config = load_config(event, context)
             repair = _parse_direct_bool(event, "Repair", False)
             result = reconcile_subscriptions(config, context, repair=repair)
             return _summary("Reconcile", config, result)
         except Exception:
             logger.exception("Direct reconciliation failed")
+            raise
+
+    if isinstance(request_type, str) and request_type.lower() == "cleanup":
+        try:
+            identity = _manager_identity(context)
+            result = cleanup_managed_subscriptions(identity)
+            return _summary("Cleanup", identity, result)
+        except Exception:
+            logger.exception("Direct cleanup failed")
             raise
 
     detail = event.get("detail")
@@ -937,7 +981,8 @@ def lambda_handler(event: Dict[str, Any], context):
 
     raise ValueError(
         "Unsupported event: expected a CloudFormation custom resource, "
-        '{"RequestType":"Reconcile"}, or a CreateLogGroup event'
+        '{"RequestType":"Reconcile"}, {"RequestType":"Cleanup"}, '
+        "or a CreateLogGroup event"
     )
 
 

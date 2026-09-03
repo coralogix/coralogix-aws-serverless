@@ -39,6 +39,57 @@ class LambdaManagerDispatchTests(unittest.TestCase):
         self.assertEqual("SUCCESS", response["status"])
         self.cfnresponse.send.assert_not_called()
 
+    def test_direct_cleanup_dispatches_without_a_cloudformation_response(self):
+        with (
+            patch.object(
+                self.module, "cleanup_managed_subscriptions", return_value=self.result
+            ) as cleanup,
+            patch.object(self.module, "reconcile_subscriptions") as reconcile,
+        ):
+            with patch.dict(os.environ, {}, clear=True):
+                response = self.module.lambda_handler(
+                    {"RequestType": "cLeAnUp"}, self.context
+                )
+
+        cleanup.assert_called_once()
+        reconcile.assert_not_called()
+        self.assertEqual("Cleanup", response["requestType"])
+        self.assertEqual("SUCCESS", response["status"])
+        self.cfnresponse.send.assert_not_called()
+
+        with patch.object(
+            self.module,
+            "cleanup_managed_subscriptions",
+            side_effect=RuntimeError("cleanup blocked"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "cleanup blocked"):
+                self.invoke_direct({"RequestType": "Cleanup"})
+
+    def test_terraform_lifecycle_reconciles_then_cleans_up_on_delete(self):
+        with (
+            patch.object(
+                self.module, "reconcile_subscriptions", return_value=self.result
+            ) as reconcile,
+            patch.object(
+                self.module, "cleanup_managed_subscriptions", return_value=self.result
+            ) as cleanup,
+        ):
+            for action in ("create", "update"):
+                response = self.invoke_direct(
+                    {"RequestType": "Reconcile", "tf": {"action": action}}
+                )
+                self.assertEqual("Reconcile", response["requestType"])
+
+            with patch.dict(os.environ, {}, clear=True):
+                response = self.module.lambda_handler(
+                    {"RequestType": "Reconcile", "tf": {"action": "delete"}},
+                    self.context,
+                )
+
+        self.assertEqual(2, reconcile.call_count)
+        cleanup.assert_called_once()
+        self.assertEqual("Cleanup", response["requestType"])
+
     def test_direct_overrides_and_configuration_are_validated(self):
         for invalid in ("true", 1, None):
             for field in ("Repair", "AdoptLegacyFilters"):
@@ -119,7 +170,7 @@ class LambdaManagerDispatchTests(unittest.TestCase):
             patch.object(self.module, "reconcile_subscriptions") as reconcile,
         ):
             response = self.module.lambda_handler(
-                cloudformation_event("Delete"), self.context
+                cloudformation_event("Delete", ResourceProperties={}), self.context
             )
 
         cleanup.assert_called_once()
