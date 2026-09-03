@@ -1,220 +1,201 @@
-import importlib.util
 import os
-import sys
-import types
 import unittest
-from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import ANY, MagicMock, call, patch
+from unittest.mock import patch
+
+from lambda_manager_test_support import (
+    base_environment,
+    cloudformation_event,
+    load_lambda_module,
+)
 
 
-MODULE_PATH = Path(__file__).resolve().parents[1] / "lambda_function.py"
-
-
-def load_lambda_module():
-    fake_boto3 = types.ModuleType("boto3")
-    fake_boto3.client = MagicMock(side_effect=[MagicMock(name="logs_client"), MagicMock(name="lambda_client")])
-
-    fake_cfnresponse = types.ModuleType("cfnresponse")
-    fake_cfnresponse.SUCCESS = "SUCCESS"
-    fake_cfnresponse.FAILED = "FAILED"
-    fake_cfnresponse.send = MagicMock()
-
-    fake_botocore = types.ModuleType("botocore")
-    fake_botocore_config = types.ModuleType("botocore.config")
-
-    class FakeConfig:
-        def __init__(self, *args, **kwargs):
-            self.args = args
-            self.kwargs = kwargs
-
-    fake_botocore_config.Config = FakeConfig
-
-    module_name = "lambda_manager_lambda_function_test"
-    spec = importlib.util.spec_from_file_location(module_name, MODULE_PATH)
-    module = importlib.util.module_from_spec(spec)
-
-    with patch.dict(
-        sys.modules,
-        {
-            "boto3": fake_boto3,
-            "botocore": fake_botocore,
-            "botocore.config": fake_botocore_config,
-            "cfnresponse": fake_cfnresponse,
-        },
-    ):
-        spec.loader.exec_module(module)
-
-    return module, fake_cfnresponse
-
-
-class LambdaManagerCreateLogGroupTests(unittest.TestCase):
+class LambdaManagerDispatchTests(unittest.TestCase):
     def setUp(self):
-        self.module, self.cfnresponse = load_lambda_module()
+        self.module, self.cfnresponse, self.clients = load_lambda_module()
         self.context = SimpleNamespace(
-            invoked_function_arn="arn:aws:lambda:us-east-1:123456789012:function:lambda-manager",
+            invoked_function_arn=(
+                "arn:aws:lambda:us-east-1:123456789012:function:lambda-manager"
+            ),
             function_name="lambda-manager",
             aws_request_id="request-id",
         )
-        self.destination_arn = "arn:aws:lambda:us-east-1:123456789012:function:destination"
-        self.firehose_arn = "arn:aws:firehose:us-east-1:123456789012:deliverystream/destination"
-        self.destination_role = "arn:aws:iam::123456789012:role/cloudwatch-to-firehose"
+        self.result = self.module.ReconciliationResult(
+            scanned=2, inspected=1, created=1
+        )
 
-    def invoke_handler(self, event, **env_overrides):
-        env = {
-            "REGEX_PATTERN": "/aws/lambda/.*",
-            "DESTINATION_TYPE": "lambda",
-            "DESTINATION_ARN": self.destination_arn,
-            "SCAN_OLD_LOGGROUPS": "false",
-            "DISABLE_ADD_PERMISSION": "false",
-            "ADD_PERMISSIONS_TO_ALL_LOG_GROUPS": "false",
-            "LOG_GROUP_PERMISSION_PREFIX": "",
-        }
+    def invoke_direct(self, event, **environment):
+        with patch.dict(os.environ, base_environment(**environment), clear=True):
+            return self.module.lambda_handler(event, self.context)
 
-        env.update(env_overrides)
-        with patch.dict(os.environ, env, clear=False):
-            self.module.lambda_handler(event, self.context)
+    def test_direct_reconcile_dispatches_without_a_cloudformation_response(self):
+        with patch.object(
+            self.module, "reconcile_subscriptions", return_value=self.result
+        ) as reconcile:
+            response = self.invoke_direct({"RequestType": "reConCiLe"})
 
-    def test_failed_create_log_group_event_is_ignored(self):
+        reconcile.assert_called_once()
+        self.assertEqual("Reconcile", response["requestType"])
+        self.assertEqual("SUCCESS", response["status"])
+        self.cfnresponse.send.assert_not_called()
+
+    def test_direct_overrides_and_configuration_are_validated(self):
+        for invalid in ("true", 1, None):
+            for field in ("Repair", "AdoptLegacyFilters"):
+                with self.subTest(field=field, invalid=invalid):
+                    with self.assertRaisesRegex(ValueError, "must be a boolean"):
+                        self.invoke_direct({"RequestType": "Reconcile", field: invalid})
+
+        with patch.object(
+            self.module, "reconcile_subscriptions", return_value=self.result
+        ) as reconcile:
+            self.invoke_direct(
+                {
+                    "RequestType": "Reconcile",
+                    "Repair": True,
+                    "AdoptLegacyFilters": False,
+                },
+                ADOPT_LEGACY_FILTERS="true",
+            )
+
+        config = reconcile.call_args.args[0]
+        self.assertFalse(config.adopt_legacy_filters)
+        self.assertTrue(reconcile.call_args.kwargs["repair"])
+
+        with patch.object(
+            self.module, "reconcile_subscriptions", return_value=self.result
+        ) as reconcile:
+            self.invoke_direct(
+                {"RequestType": "Reconcile"}, ADOPT_LEGACY_FILTERS="true"
+            )
+        self.assertTrue(reconcile.call_args.args[0].adopt_legacy_filters)
+
+        with patch.object(self.module, "reconcile_subscriptions") as reconcile:
+            for pattern, message in (
+                ("[", "Invalid RegexPattern"),
+                (",,", "must include at least one expression"),
+            ):
+                with self.subTest(pattern=pattern):
+                    with self.assertRaisesRegex(ValueError, message):
+                        self.invoke_direct(
+                            {"RequestType": "Reconcile"}, REGEX_PATTERN=pattern
+                        )
+        reconcile.assert_not_called()
+
+    def test_cloudformation_sparse_properties_fall_back_to_environment(self):
+        sparse = cloudformation_event(
+            "Update", ResourceProperties={"ServiceToken": "manager-arn"}
+        )
+        with patch.dict(
+            os.environ,
+            base_environment(LOGS_FILTER="from-environment"),
+            clear=True,
+        ):
+            config = self.module.load_config(sparse, self.context)
+
+        self.assertEqual("from-environment", config.logs_filter)
+
+    def test_cloudformation_create_and_update_reconcile_and_respond(self):
+        with patch.object(
+            self.module, "reconcile_subscriptions", return_value=self.result
+        ) as reconcile:
+            create_response = self.module.lambda_handler(
+                cloudformation_event("Create"),
+                self.context,
+            )
+            update_event = cloudformation_event("Update")
+            update_response = self.module.lambda_handler(update_event, self.context)
+
+        self.assertEqual("SUCCESS", create_response["status"])
+        self.assertEqual("SUCCESS", update_response["status"])
+        self.assertEqual(2, reconcile.call_count)
+        self.assertEqual(2, self.cfnresponse.send.call_count)
+
+    def test_cloudformation_delete_uses_exact_cleanup_and_never_reconciles(self):
+        with (
+            patch.object(
+                self.module, "cleanup_managed_subscriptions", return_value=self.result
+            ) as cleanup,
+            patch.object(self.module, "reconcile_subscriptions") as reconcile,
+        ):
+            response = self.module.lambda_handler(
+                cloudformation_event("Delete"), self.context
+            )
+
+        cleanup.assert_called_once()
+        reconcile.assert_not_called()
+        self.assertEqual("SUCCESS", response["status"])
+
+    def test_cloudformation_and_direct_failures_follow_their_event_contracts(self):
+        with patch.object(
+            self.module, "reconcile_subscriptions", side_effect=RuntimeError("blocked")
+        ):
+            response = self.module.lambda_handler(
+                cloudformation_event("Create"), self.context
+            )
+
+        self.assertEqual({"status": "FAILED", "requestType": "Create"}, response)
+        self.assertEqual(
+            self.cfnresponse.FAILED, self.cfnresponse.send.call_args.args[2]
+        )
+        self.assertEqual("blocked", self.cfnresponse.send.call_args.kwargs["reason"])
+
+        self.cfnresponse.send.reset_mock()
+        with patch.object(
+            self.module, "reconcile_subscriptions", side_effect=RuntimeError("blocked")
+        ):
+            with self.assertRaisesRegex(RuntimeError, "blocked"):
+                self.invoke_direct({"RequestType": "Reconcile"})
+        self.cfnresponse.send.assert_not_called()
+
+    def test_create_log_group_uses_single_group_reconciliation(self):
         event = {
             "detail": {
+                "eventName": "CreateLogGroup",
+                "requestParameters": {"logGroupName": "/aws/lambda/example"},
+            },
+        }
+        with patch.object(
+            self.module, "reconcile_log_group", return_value=self.result
+        ) as reconcile:
+            response = self.invoke_direct(event, ADOPT_LEGACY_FILTERS="false")
+
+        reconcile.assert_called_once()
+        self.assertEqual("CreateLogGroup", response["requestType"])
+
+    def test_failed_and_non_standard_create_events_are_ignored(self):
+        failed = {
+            "detail": {
+                "eventName": "CreateLogGroup",
                 "requestParameters": {"logGroupName": "/aws/lambda/example"},
                 "errorCode": "ResourceAlreadyExistsException",
-                "errorMessage": "The specified log group already exists",
             }
         }
-
-        with patch.object(self.module, "add_permission_to_lambda") as add_permission, patch.object(
-            self.module, "add_subscription"
-        ) as add_subscription:
-            self.invoke_handler(event)
-
-        add_permission.assert_not_called()
-        add_subscription.assert_not_called()
-        self.module.cloudwatch_logs.describe_subscription_filters.assert_not_called()
-
-    def test_existing_destination_subscription_is_not_duplicated(self):
-        event = {"detail": {"requestParameters": {"logGroupName": "/aws/lambda/example"}}}
-        self.module.cloudwatch_logs.describe_subscription_filters.return_value = {
-            "subscriptionFilters": [{"destinationArn": self.destination_arn}]
-        }
-
-        with patch.object(self.module, "add_permission_to_lambda") as add_permission, patch.object(
-            self.module, "add_subscription"
-        ) as add_subscription:
-            self.invoke_handler(event)
-
-        self.module.cloudwatch_logs.describe_subscription_filters.assert_called_once_with(
-            logGroupName="/aws/lambda/example"
-        )
-        add_permission.assert_not_called()
-        add_subscription.assert_not_called()
-
-    def test_event_without_log_group_class_still_gets_subscribed(self):
-        event = {"detail": {"requestParameters": {"logGroupName": "/aws/lambda/example"}}}
-        self.module.cloudwatch_logs.describe_subscription_filters.return_value = {"subscriptionFilters": []}
-
-        with patch.object(self.module, "add_permission_to_lambda") as add_permission, patch.object(
-            self.module, "add_subscription", return_value=self.cfnresponse.SUCCESS
-        ) as add_subscription:
-            self.invoke_handler(event, DESTINATION_ROLE=self.destination_role)
-
-        add_permission.assert_called_once_with(
-            self.destination_arn,
-            "/aws/lambda/example",
-            "us-east-1",
-            "123456789012",
-        )
-        add_subscription.assert_called_once_with(
-            ANY, "", "/aws/lambda/example", self.destination_arn
-        )
-
-    def test_create_log_group_firehose_subscription_and_retry_include_role(self):
-        event = {"detail": {"requestParameters": {"logGroupName": "/aws/lambda/example"}}}
-        self.module.cloudwatch_logs.describe_subscription_filters.return_value = {"subscriptionFilters": []}
-
-        with patch.object(
-            self.module, "add_subscription",
-            side_effect=[self.cfnresponse.FAILED, self.cfnresponse.SUCCESS]
-        ) as add_subscription:
-            self.invoke_handler(
-                event,
-                DESTINATION_TYPE="firehose",
-                DESTINATION_ARN=self.firehose_arn,
-                DESTINATION_ROLE=self.destination_role,
-            )
-
-        expected_call = call(
-            ANY, "", "/aws/lambda/example", self.firehose_arn,
-            role_arn=self.destination_role
-        )
-        self.assertEqual([expected_call, expected_call], add_subscription.call_args_list)
-
-    def test_initial_scan_firehose_subscription_and_retry_include_role(self):
-        event = {"RequestType": "Create"}
-        self.module.cloudwatch_logs.describe_log_groups.return_value = {
-            "logGroups": [{"logGroupName": "/aws/lambda/example"}]
-        }
-        self.module.cloudwatch_logs.describe_subscription_filters.return_value = {"subscriptionFilters": []}
-
-        with patch.object(
-            self.module, "add_subscription",
-            side_effect=[self.cfnresponse.FAILED, self.cfnresponse.SUCCESS]
-        ) as add_subscription:
-            self.invoke_handler(
-                event,
-                DESTINATION_TYPE="firehose",
-                DESTINATION_ARN=self.firehose_arn,
-                DESTINATION_ROLE=self.destination_role,
-                SCAN_OLD_LOGGROUPS="true",
-            )
-
-        expected_call = call(
-            ANY, "", "/aws/lambda/example", self.firehose_arn,
-            role_arn=self.destination_role
-        )
-        self.assertEqual([expected_call, expected_call], add_subscription.call_args_list)
-
-    def test_initial_scan_lambda_subscription_omits_role(self):
-        event = {"RequestType": "Create"}
-        self.module.cloudwatch_logs.describe_log_groups.return_value = {
-            "logGroups": [{"logGroupName": "/aws/lambda/example"}]
-        }
-        self.module.cloudwatch_logs.describe_subscription_filters.return_value = {"subscriptionFilters": []}
-
-        with patch.object(
-            self.module, "add_subscription", return_value=self.cfnresponse.SUCCESS
-        ) as add_subscription:
-            self.invoke_handler(
-                event,
-                DESTINATION_ROLE=self.destination_role,
-                SCAN_OLD_LOGGROUPS="true",
-                ADD_PERMISSIONS_TO_ALL_LOG_GROUPS="true",
-            )
-
-        add_subscription.assert_called_once_with(
-            ANY, "", "/aws/lambda/example", self.destination_arn
-        )
-
-    def test_non_standard_log_group_class_is_ignored(self):
-        for log_group_class in ("INFREQUENT_ACCESS", "DELIVERY"):
-            event = {
-                "detail": {
-                    "requestParameters": {
-                        "logGroupName": "/aws/lambda/example",
-                        "logGroupClass": log_group_class,
-                    }
-                }
+        nonstandard = {
+            "detail": {
+                "eventName": "CreateLogGroup",
+                "requestParameters": {
+                    "logGroupName": "/aws/lambda/example",
+                    "logGroupClass": "INFREQUENT_ACCESS",
+                },
             }
+        }
+        with patch.object(self.module, "reconcile_log_group") as reconcile:
+            self.assertIsNone(self.invoke_direct(failed))
+            self.assertIsNone(self.invoke_direct(nonstandard))
+        reconcile.assert_not_called()
 
-            with self.subTest(log_group_class=log_group_class):
-                with patch.object(self.module, "add_permission_to_lambda") as add_permission, patch.object(
-                    self.module, "add_subscription"
-                ) as add_subscription:
-                    self.invoke_handler(event)
+    def test_unknown_direct_events_are_rejected(self):
+        for event in (
+            {"RequestType": "Create"},
+            {},
+            {"detail": {}},
+            {"detail": {"requestParameters": {"logGroupName": "/aws/lambda/x"}}},
+        ):
+            with self.subTest(event=event):
+                with self.assertRaises(ValueError):
+                    self.invoke_direct(event)
 
-                add_permission.assert_not_called()
-                add_subscription.assert_not_called()
 
 if __name__ == "__main__":
     unittest.main()
