@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [2.1.1] - 2026-08-19
+### Fixed
+- Pass the configured destination role when creating and retrying Firehose subscriptions for existing and newly created log groups.
+
 ## [2.1.0] - 2026-08-11
 ### Changed
 - Update the Python runtime to 3.14, the latest AWS Lambda supports.

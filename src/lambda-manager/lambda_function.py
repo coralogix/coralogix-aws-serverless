@@ -60,6 +60,7 @@ def lambda_handler(event: Dict[str, Any], context) -> None:
         logs_filter            = os.environ.get('LOGS_FILTER', '')
         scan_old_log_groups    = os.environ.get('SCAN_OLD_LOGGROUPS', 'false')
         destination_arn        = os.environ.get('DESTINATION_ARN')
+        destination_role       = os.environ.get('DESTINATION_ROLE')
         filter_name            = 'Coralogix_Filter_' + str(uuid.uuid4())
         region                 = context.invoked_function_arn.split(":")[3]
         account_id             = context.invoked_function_arn.split(":")[4]
@@ -77,7 +78,7 @@ def lambda_handler(event: Dict[str, Any], context) -> None:
                 logger.info(f"Scanning all existing log groups: {scan_old_log_groups}")
                 list_log_groups_and_subscriptions(
                     cloudwatch_logs, regex_pattern_list, logs_filter, destination_arn, 
-                    filter_name, context, log_group_permission_prefix, add_permissions_to_all_log_groups
+                    filter_name, context, log_group_permission_prefix, add_permissions_to_all_log_groups, destination_role
                 )
                 update_scan_old_log_groups_status(context, lambda_client)
             elif scan_old_log_groups == 'true':
@@ -107,10 +108,10 @@ def lambda_handler(event: Dict[str, Any], context) -> None:
                         break
                     if destination_type == 'firehose':
                         logger.info(f"Adding subscription filter for {log_group_to_subscribe}")
-                        status = add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn)
+                        status = add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn, role_arn=destination_role)
                         if status == cfnresponse.FAILED:
                             logger.warning(f"Retrying to add subscription filter for {log_group_to_subscribe}")
-                            add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn)
+                            add_subscription(filter_name, logs_filter, log_group_to_subscribe, destination_arn, role_arn=destination_role)
                         break
                     elif destination_type == 'lambda':
                         try:
@@ -162,7 +163,8 @@ def list_log_groups_and_subscriptions(
     filter_name: str, 
     context, 
     log_group_permission_prefix: List[str], 
-    add_permissions_to_all_log_groups: str
+    add_permissions_to_all_log_groups: str,
+    destination_role: Optional[str]
 ) -> None:
     """
     Scan all log groups in the region and add subscriptions to those matching regex patterns.
@@ -183,6 +185,7 @@ def list_log_groups_and_subscriptions(
         context: Lambda context object
         log_group_permission_prefix: List of prefixes for log groups that need permissions
         add_permissions_to_all_log_groups: Whether to add permissions for all log groups
+        destination_role: IAM role ARN required by Firehose subscriptions
     """
     log_groups = []
     response = {'nextToken': None}  # Initialize with a dict containing nextToken as None
@@ -215,10 +218,16 @@ def list_log_groups_and_subscriptions(
                             add_subscription(filter_name, logs_filter, log_group_name, destination_arn)
                     else:
                         logger.info(f"Adding subscription filter for {log_group_name}")
-                        status = add_subscription(filter_name, logs_filter, log_group_name, destination_arn)
+                        if identify_arn_service(destination_arn) == "firehose":
+                            status = add_subscription(filter_name, logs_filter, log_group_name, destination_arn, role_arn=destination_role)
+                        else:
+                            status = add_subscription(filter_name, logs_filter, log_group_name, destination_arn)
                         if status == cfnresponse.FAILED:
                             logger.warning(f"Retrying to add subscription filter for {log_group_name}")
-                            add_subscription(filter_name, logs_filter, log_group_name, destination_arn)
+                            if identify_arn_service(destination_arn) == "firehose":
+                                add_subscription(filter_name, logs_filter, log_group_name, destination_arn, role_arn=destination_role)
+                            else:
+                                add_subscription(filter_name, logs_filter, log_group_name, destination_arn)
                 break  # no need to continue the loop if we find a match for the log group
 
 def cloudtrail_event_failed(event_detail: Dict[str, Any]) -> bool:

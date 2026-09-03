@@ -5,7 +5,7 @@ import types
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, call, patch
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "lambda_function.py"
@@ -57,8 +57,10 @@ class LambdaManagerCreateLogGroupTests(unittest.TestCase):
             aws_request_id="request-id",
         )
         self.destination_arn = "arn:aws:lambda:us-east-1:123456789012:function:destination"
+        self.firehose_arn = "arn:aws:firehose:us-east-1:123456789012:deliverystream/destination"
+        self.destination_role = "arn:aws:iam::123456789012:role/cloudwatch-to-firehose"
 
-    def invoke_handler(self, event):
+    def invoke_handler(self, event, **env_overrides):
         env = {
             "REGEX_PATTERN": "/aws/lambda/.*",
             "DESTINATION_TYPE": "lambda",
@@ -69,6 +71,7 @@ class LambdaManagerCreateLogGroupTests(unittest.TestCase):
             "LOG_GROUP_PERMISSION_PREFIX": "",
         }
 
+        env.update(env_overrides)
         with patch.dict(os.environ, env, clear=False):
             self.module.lambda_handler(event, self.context)
 
@@ -114,7 +117,7 @@ class LambdaManagerCreateLogGroupTests(unittest.TestCase):
         with patch.object(self.module, "add_permission_to_lambda") as add_permission, patch.object(
             self.module, "add_subscription", return_value=self.cfnresponse.SUCCESS
         ) as add_subscription:
-            self.invoke_handler(event)
+            self.invoke_handler(event, DESTINATION_ROLE=self.destination_role)
 
         add_permission.assert_called_once_with(
             self.destination_arn,
@@ -122,7 +125,76 @@ class LambdaManagerCreateLogGroupTests(unittest.TestCase):
             "us-east-1",
             "123456789012",
         )
-        add_subscription.assert_called_once()
+        add_subscription.assert_called_once_with(
+            ANY, "", "/aws/lambda/example", self.destination_arn
+        )
+
+    def test_create_log_group_firehose_subscription_and_retry_include_role(self):
+        event = {"detail": {"requestParameters": {"logGroupName": "/aws/lambda/example"}}}
+        self.module.cloudwatch_logs.describe_subscription_filters.return_value = {"subscriptionFilters": []}
+
+        with patch.object(
+            self.module, "add_subscription",
+            side_effect=[self.cfnresponse.FAILED, self.cfnresponse.SUCCESS]
+        ) as add_subscription:
+            self.invoke_handler(
+                event,
+                DESTINATION_TYPE="firehose",
+                DESTINATION_ARN=self.firehose_arn,
+                DESTINATION_ROLE=self.destination_role,
+            )
+
+        expected_call = call(
+            ANY, "", "/aws/lambda/example", self.firehose_arn,
+            role_arn=self.destination_role
+        )
+        self.assertEqual([expected_call, expected_call], add_subscription.call_args_list)
+
+    def test_initial_scan_firehose_subscription_and_retry_include_role(self):
+        event = {"RequestType": "Create"}
+        self.module.cloudwatch_logs.describe_log_groups.return_value = {
+            "logGroups": [{"logGroupName": "/aws/lambda/example"}]
+        }
+        self.module.cloudwatch_logs.describe_subscription_filters.return_value = {"subscriptionFilters": []}
+
+        with patch.object(
+            self.module, "add_subscription",
+            side_effect=[self.cfnresponse.FAILED, self.cfnresponse.SUCCESS]
+        ) as add_subscription:
+            self.invoke_handler(
+                event,
+                DESTINATION_TYPE="firehose",
+                DESTINATION_ARN=self.firehose_arn,
+                DESTINATION_ROLE=self.destination_role,
+                SCAN_OLD_LOGGROUPS="true",
+            )
+
+        expected_call = call(
+            ANY, "", "/aws/lambda/example", self.firehose_arn,
+            role_arn=self.destination_role
+        )
+        self.assertEqual([expected_call, expected_call], add_subscription.call_args_list)
+
+    def test_initial_scan_lambda_subscription_omits_role(self):
+        event = {"RequestType": "Create"}
+        self.module.cloudwatch_logs.describe_log_groups.return_value = {
+            "logGroups": [{"logGroupName": "/aws/lambda/example"}]
+        }
+        self.module.cloudwatch_logs.describe_subscription_filters.return_value = {"subscriptionFilters": []}
+
+        with patch.object(
+            self.module, "add_subscription", return_value=self.cfnresponse.SUCCESS
+        ) as add_subscription:
+            self.invoke_handler(
+                event,
+                DESTINATION_ROLE=self.destination_role,
+                SCAN_OLD_LOGGROUPS="true",
+                ADD_PERMISSIONS_TO_ALL_LOG_GROUPS="true",
+            )
+
+        add_subscription.assert_called_once_with(
+            ANY, "", "/aws/lambda/example", self.destination_arn
+        )
 
     def test_non_standard_log_group_class_is_ignored(self):
         for log_group_class in ("INFREQUENT_ACCESS", "DELIVERY"):
