@@ -7,14 +7,24 @@ package_name=$2
 README_file=$3
 bucket_string="!Sub coralogix-serverless-repo-\${AWS::Region}"
 
-if grep -q "LambdaFunction" "$template_file"; then
-    yq eval '.Resources.LambdaFunction.Properties.CodeUri = {"Bucket": "'"$bucket_string"'", "Key": "'"$package_name"'.zip"}' -i $template_file
+# set_code_uri <resource> <zip key>: rewrite CodeUri of an existing resource to the
+# packaged S3 location. Matching on the resource itself (not a substring of the file)
+# keeps names like CollectorLambdaFunction from creating bogus LambdaFunction resources.
+set_code_uri() {
+    local resource=$1 key=$2
+    if [[ "$(yq eval ".Resources.$resource" "$template_file")" == "null" ]]; then
+        return
+    fi
+    yq eval '.Resources.'"$resource"'.Properties.CodeUri = {"Bucket": "'"$bucket_string"'", "Key": "'"$key"'"}' -i $template_file
     sed -i "s/'!Sub coralogix-serverless-repo-\${AWS::Region}/!Sub 'coralogix-serverless-repo-\${AWS::Region}/g" $template_file
-fi
-if grep -q "LambdaFunctionSM" "$template_file"; then
-    yq eval '.Resources.LambdaFunctionSM.Properties.CodeUri = {"Bucket": "'"$bucket_string"'", "Key": "'"$package_name"'.zip"}' -i $template_file
-    sed -i "s/'!Sub coralogix-serverless-repo-\${AWS::Region}/!Sub 'coralogix-serverless-repo-\${AWS::Region}/g" $template_file
-fi
+}
+
+set_code_uri LambdaFunction "$package_name.zip"
+set_code_uri LambdaFunctionSM "$package_name.zip"
+# resource-metadata-sqs ships two artifacts (see StoreMultiFunction in publish.yaml)
+set_code_uri CollectorLambdaFunction "$package_name-collector.zip"
+set_code_uri GeneratorLambdaFunction "$package_name-generator.zip"
+set_code_uri GeneratorLambdaFunctionSM "$package_name-generator.zip"
 if grep -q "CustomResourceLambdaTriggerFunction" "$template_file" && [[ $package_name != "vpc-flow-logs" ]]; then
     yq eval '.Resources.CustomResourceLambdaTriggerFunction.Properties.CodeUri = {"Bucket": "'"$bucket_string"'", "Key": "helper.zip"}' -i $template_file
     sed -i "s/'!Sub coralogix-serverless-repo-\${AWS::Region}/!Sub 'coralogix-serverless-repo-\${AWS::Region}/g" $template_file

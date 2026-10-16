@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [0.4.2] - 2026-10-16
+### Fixed
+- Set `CROSSACCOUNT_MODE` as a scalar `!Ref` instead of a YAML list, which failed CloudFormation property validation when the template was deployed directly.
+
 ## [0.4.1] - 2026-08-17
 ### Fixed
 - Upgrade transitive `protobufjs` to `^7.6.5` to address GHSA-j3f2-48v5-ccww and GHSA-f38q-mgvj-vph7.

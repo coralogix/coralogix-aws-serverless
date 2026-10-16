@@ -14,7 +14,7 @@ Metadata:
       - metadata
       - sqs
     HomePageUrl: https://coralogix.com
-    SemanticVersion: 0.4.1
+    SemanticVersion: 0.4.2
     SourceCodeUrl: https://github.com/coralogix/coralogix-aws-serverless
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -443,8 +443,7 @@ Resources:
             - CrossRegionEnabled
             - Ref: SourceRegions
             - !Ref 'AWS::NoValue'
-          CROSSACCOUNT_MODE:
-            - Ref: CrossAccountMode
+          CROSSACCOUNT_MODE: !Ref CrossAccountMode
           CROSSACCOUNT_IAM_ACCOUNTIDS: !If
             - CrossAccountIamMode
             - Ref: AccountIds
