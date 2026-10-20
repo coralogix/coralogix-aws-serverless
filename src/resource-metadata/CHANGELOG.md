@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [1.3.2] - 2026-10-20
+### Fixed
+- Upgrade `@grpc/grpc-js` to `^1.14.6` to address GHSA-m9gg-hp2v-232j and GHSA-f596-whhp-79r4.
+
 ## [1.3.1] - 2026-08-17
 ### Fixed
 - Upgrade transitive `protobufjs` to `^7.6.5` to address GHSA-j3f2-48v5-ccww and GHSA-f38q-mgvj-vph7.
