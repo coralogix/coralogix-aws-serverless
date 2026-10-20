@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [3.1.2] - 2026-10-20
+### Fixed
+- Upgrade `nodemailer` to `^10.1.7` to address GHSA-6vj9-mwq6-2f5v, GHSA-8vvx-rff5-p5rq and GHSA-v53p-9fqp-m79j. nodemailer 10 requires Node.js 20 or newer; the function runs on `nodejs24.x`.
+
 ## [3.1.1] - 2026-08-17
 ### Fixed
 - Upgrade `nodemailer` to `^9.0.5` to address GHSA-p6gq-j5cr-w38f.
