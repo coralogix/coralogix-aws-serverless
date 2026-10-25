@@ -1,2 +1,2 @@
-awscli
-aws-sam-cli
+awscli>=1.45.28
+aws-sam-cli>=1.134.0

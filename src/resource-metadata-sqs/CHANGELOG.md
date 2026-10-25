@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [0.4.3] - 2026-10-25
+### Security
+- Upgrade `@grpc/grpc-js` to `^1.14.6` in the generator to address CVE-2026-48068, CVE-2026-48069, CVE-2026-101915 and CVE-2026-101916.
+- Upgrade `lodash` to `^4.18.1` in the collector to address CVE-2026-2950.
+
 ## [0.4.2] - 2026-10-16
 ### Fixed
 - Set `CROSSACCOUNT_MODE` as a scalar `!Ref` instead of a YAML list, which failed CloudFormation property validation when the template was deployed directly.
