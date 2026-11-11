@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This format is based on Keep a Changelog.
 
+## [1.3.3] - 2026-11-11
+### Fixed
+- Raise `@aws-sdk/client-*` floor to `^3.1166.0` so the transitive `fast-xml-parser` (pinned to 5.7.3 by `@aws-sdk/xml-builder`) is no longer installed, addressing CVE-2026-126066.
+
 ## [1.3.2] - 2026-10-20
 ### Fixed
 - Upgrade `@grpc/grpc-js` to `^1.14.6` to address GHSA-m9gg-hp2v-232j and GHSA-f596-whhp-79r4.
